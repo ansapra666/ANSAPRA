@@ -48,7 +48,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="preparation" value="B">
-                        <span>B. 做一些准备（默认设置）</span>
+                        <span>B. 做一些准备</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="preparation" value="C">
@@ -66,7 +66,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="B">
-                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解（默认设置）</span>
+                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="C">
@@ -110,7 +110,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="style" value="C">
-                        <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整（默认设置）</span>
+                        <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="style" value="D">
@@ -132,7 +132,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="depth" value="B">
-                        <span>B. 平衡详细（默认设置）</span>
+                        <span>B. 平衡详细</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="depth" value="C">
@@ -164,7 +164,7 @@ function loadReadingSettings() {
                 <div class="checkbox-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="chart_types" value="A" checked>
-                        <span>A. 思维导图（树状）（默认设置）</span>
+                        <span>A. 思维导图（树状）</span>
                     </label>
                     <label class="checkbox-label">
                         <input type="checkbox" name="chart_types" value="B">
