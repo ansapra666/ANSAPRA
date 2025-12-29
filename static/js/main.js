@@ -557,17 +557,700 @@ function loadQuestionnaire() {
             <div class="questionnaire-section">
                 <h4>知识框架调查问卷</h4>
                 <p>请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+                
                 <div class="question-group">
-                    <h5>1. 您所在的年级是？</h5>
-                    <label><input type="radio" name="grade" value="A"> 9年级</label><br>
-                    <label><input type="radio" name="grade" value="B"> 10年级</label><br>
-                    <label><input type="radio" name="grade" value="C"> 11年级</label><br>
-                    <label><input type="radio" name="grade" value="D"> 12年级</label>
+                    <h5>一、基本情况</h5>
+                    
+                    <div class="form-group">
+                        <label>1. 您所在的年级是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="A" required>
+                                <span>A. 9年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="B">
+                                <span>B. 10年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="C">
+                                <span>C. 11年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="D">
+                                <span>D. 12年级</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>2. 您所处的教育体系是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="education_system" value="A" required>
+                                <span>A. 国际体系</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="education_system" value="B">
+                                <span>B. 普高体系</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
+                        <div class="interest-grid">
+                            <div class="interest-item">
+                                <label>物理学：</label>
+                                <select name="interest_physics" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>生物学、医学等：</label>
+                                <select name="interest_biology" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>化学：</label>
+                                <select name="interest_chemistry" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>地理地质学：</label>
+                                <select name="interest_geology" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>天体天文学：</label>
+                                <select name="interest_astronomy" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>4. 您学习自然科学课外知识的频率是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="A" required>
+                                <span>A. 一周1次或更频繁</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="B">
+                                <span>B. 一个月1-3次</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="C">
+                                <span>C. 几个月1次</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="A" required>
+                                <span>A. 变为原来的n倍</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="B">
+                                <span>B. 变为原来的1/n</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="C">
+                                <span>C. 保持不变</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="D">
+                                <span>D. 无法确定，因为光的频率也改变了</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="A" required>
+                                <span>A. pH值显著下降</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="B">
+                                <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="C">
+                                <span>C. 醋酸的电离度显著降低</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="D">
+                                <span>D. 水的离子积常数Kw增大</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>
+                        据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="A" required>
+                                <span>A. 为了在夜间更有效地进行光反应。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="B">
+                                <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="C">
+                                <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="D">
+                                <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="A" required>
+                                <span>A. 行星的精确质量</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="B">
+                                <span>B. 行星轨道周期的最小质量（M sin i）</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="C">
+                                <span>C. 行星的半径</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="D">
+                                <span>D. 行星大气的成分</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="A" required>
+                                <span>A. 持续的海平面上升</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="B">
+                                <span>B. 一次海平面下降，随后又上升</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="C">
+                                <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="D">
+                                <span>D. 持续的构造抬升</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <!-- 更多问题可以在这里添加 -->
-                <p class="warning-text">注册后可以在设置中修改问卷答案</p>
+                
+                <div class="question-group">
+                    <h5>二、科学感知</h5>
+                    
+                    <div class="form-group">
+                        <label>1. 您认为您对以下学习方式的喜好与习惯程度是？【打分】*1-5评分，1为极其不喜欢/习惯，5为极其喜欢/习惯</label>
+                        <div class="learning-style-grid">
+                            <div class="learning-style-item">
+                                <label>A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
+                                <select name="learning_style_quantitative" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>B. 文字理解，通过清晰详细的语言表述知识点：</label>
+                                <select name="learning_style_textual" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
+                                <select name="learning_style_visual" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
+                                <select name="learning_style_interactive" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
+                                <select name="learning_style_practical" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="A" required>
+                                <span>A. 一本厚重的教科书，由浅入深</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="B">
+                                <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="C">
+                                <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="D">
+                                <span>D. 一个全能但是无序的工具箱</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
+                        <select name="scientific_thinking" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
+                        <select name="scientific_insight" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
+                        <select name="scientific_sensitivity" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
+                        <select name="interdisciplinary_ability" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
+                        <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                            <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
+                        </div>
+                        <label>请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
+                        <select name="paper_evaluation_score" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="A">
+                                <span>A. 选段对现象描述的学术语言使用</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="B">
+                                <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="C">
+                                <span>C. 选段中提及的实验数据</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="D">
+                                <span>D. 选段中涉及的科学理论（现象和本质）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="E">
+                                <span>E. 单纯凭感觉评分</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="A" required>
+                                <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="B">
+                                <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="C">
+                                <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="D">
+                                <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="E">
+                                <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
+            
+            <style>
+                .interest-grid, .learning-style-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 15px;
+                    margin: 10px 0;
+                }
+                
+                .interest-item, .learning-style-item {
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .interest-item label, .learning-style-item label {
+                    font-weight: normal;
+                    font-size: 14px;
+                    margin-bottom: 5px;
+                }
+                
+                .interest-item select, .learning-style-item select {
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                
+                .checkbox-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin: 10px 0;
+                }
+                
+                .checkbox-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                }
+                
+                .checkbox-label input[type="checkbox"] {
+                    margin: 0;
+                }
+                
+                .paper-excerpt {
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #666;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid #ddd;
+                }
+                
+                .question-group {
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 1px solid #eee;
+                }
+                
+                .question-group:last-child {
+                    border-bottom: none;
+                }
+            </style>
         `;
+    }
+}
+
+function collectQuestionnaireData() {
+    const data = {};
+    
+    // 一、基本情况
+    // 1. 年级
+    const grade = document.querySelector('input[name="grade"]:checked');
+    if (grade) data.grade = grade.value;
+    
+    // 2. 教育体系
+    const educationSystem = document.querySelector('input[name="education_system"]:checked');
+    if (educationSystem) data.education_system = educationSystem.value;
+    
+    // 3. 学科兴趣
+    data.interests = {
+        physics: document.querySelector('select[name="interest_physics"]')?.value,
+        biology: document.querySelector('select[name="interest_biology"]')?.value,
+        chemistry: document.querySelector('select[name="interest_chemistry"]')?.value,
+        geology: document.querySelector('select[name="interest_geology"]')?.value,
+        astronomy: document.querySelector('select[name="interest_astronomy"]')?.value
+    };
+    
+    // 4. 学习频率
+    const learningFrequency = document.querySelector('input[name="learning_frequency"]:checked');
+    if (learningFrequency) data.learning_frequency = learningFrequency.value;
+    
+    // 5-9. 学科问题
+    const physicsQuestion = document.querySelector('input[name="physics_question"]:checked');
+    if (physicsQuestion) data.physics_question = physicsQuestion.value;
+    
+    const chemistryQuestion = document.querySelector('input[name="chemistry_question"]:checked');
+    if (chemistryQuestion) data.chemistry_question = chemistryQuestion.value;
+    
+    const biologyQuestion = document.querySelector('input[name="biology_question"]:checked');
+    if (biologyQuestion) data.biology_question = biologyQuestion.value;
+    
+    const astronomyQuestion = document.querySelector('input[name="astronomy_question"]:checked');
+    if (astronomyQuestion) data.astronomy_question = astronomyQuestion.value;
+    
+    const geologyQuestion = document.querySelector('input[name="geology_question"]:checked');
+    if (geologyQuestion) data.geology_question = geologyQuestion.value;
+    
+    // 二、科学感知
+    // 1. 学习方式偏好
+    data.learning_styles = {
+        quantitative: document.querySelector('select[name="learning_style_quantitative"]')?.value,
+        textual: document.querySelector('select[name="learning_style_textual"]')?.value,
+        visual: document.querySelector('select[name="learning_style_visual"]')?.value,
+        interactive: document.querySelector('select[name="learning_style_interactive"]')?.value,
+        practical: document.querySelector('select[name="learning_style_practical"]')?.value
+    };
+    
+    // 2. 知识结构
+    const knowledgeStructure = document.querySelector('input[name="knowledge_structure"]:checked');
+    if (knowledgeStructure) data.knowledge_structure = knowledgeStructure.value;
+    
+    // 3-6. 能力自评
+    data.scientific_abilities = {
+        thinking: document.querySelector('select[name="scientific_thinking"]')?.value,
+        insight: document.querySelector('select[name="scientific_insight"]')?.value,
+        sensitivity: document.querySelector('select[name="scientific_sensitivity"]')?.value,
+        interdisciplinary: document.querySelector('select[name="interdisciplinary_ability"]')?.value
+    };
+    
+    // 7. 论文评价分数
+    const paperScore = document.querySelector('select[name="paper_evaluation_score"]')?.value;
+    if (paperScore) data.paper_evaluation_score = paperScore;
+    
+    // 8. 评价标准（多选）
+    const evaluationCriteria = [];
+    document.querySelectorAll('input[name="evaluation_criteria"]:checked').forEach(checkbox => {
+        evaluationCriteria.push(checkbox.value);
+    });
+    if (evaluationCriteria.length > 0) data.evaluation_criteria = evaluationCriteria;
+    
+    // 9. 气候问题
+    const climateQuestion = document.querySelector('input[name="climate_question"]:checked');
+    if (climateQuestion) data.climate_question = climateQuestion.value;
+    
+    // 添加时间戳
+    data.submitted_at = new Date().toISOString();
+    
+    return data;
+}
+
+// 更新handleRegister函数中的验证
+async function handleRegister() {
+    const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    // 基本验证
+    if (!email || !username || !password) {
+        showNotification('请填写所有必填项', 'error');
+        return;
+    }
+    
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showNotification('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 密码验证
+    if (password.length < 6) {
+        showNotification('密码长度至少6位', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('两次输入的密码不一致', 'error');
+        return;
+    }
+    
+    // 问卷验证
+    const questionnaire = collectQuestionnaireData();
+    
+    // 检查必填问题是否都回答了
+    const requiredFields = [
+        'grade', 'education_system', 'learning_frequency',
+        'physics_question', 'chemistry_question', 'biology_question',
+        'astronomy_question', 'geology_question',
+        'knowledge_structure', 'climate_question'
+    ];
+    
+    for (const field of requiredFields) {
+        if (!questionnaire[field]) {
+            showNotification(`请完成问卷中的必填问题：${field}`, 'error');
+            return;
+        }
+    }
+    
+    // 检查兴趣评分是否都选择了
+    const interests = questionnaire.interests;
+    for (const [subject, value] of Object.entries(interests)) {
+        if (!value) {
+            showNotification(`请为所有学科选择兴趣评分`, 'error');
+            return;
+        }
+    }
+    
+    // 检查学习方式评分是否都选择了
+    const learningStyles = questionnaire.learning_styles;
+    for (const [style, value] of Object.entries(learningStyles)) {
+        if (!value) {
+            showNotification(`请为所有学习方式选择评分`, 'error');
+            return;
+        }
+    }
+    
+    // 检查能力自评是否都选择了
+    const abilities = questionnaire.scientific_abilities;
+    for (const [ability, value] of Object.entries(abilities)) {
+        if (!value) {
+            showNotification(`请完成所有能力自评`, 'error');
+            return;
+        }
+    }
+    
+    // 检查论文评价是否选择了
+    if (!questionnaire.paper_evaluation_score) {
+        showNotification('请为论文选段打分', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                username,
+                password,
+                questionnaire
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            AppState.user = data.user;
+            showApp();
+            showNotification('注册成功！问卷数据已保存。', 'success');
+        } else {
+            showNotification(data.message || '注册失败', 'error');
+        }
+    } catch (error) {
+        console.error('注册错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
     }
 }
 
