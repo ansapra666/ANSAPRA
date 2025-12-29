@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANSAPRA - 高中生自然科学论文自适应阅读程序</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&family=KaiTi&family=SongTi&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 登录/注册模态框 -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="showTab('login')">登录</button>
+                <button class="tab-btn" onclick="showTab('register')">注册</button>
+                <button class="tab-btn" onclick="showTab('guest')">游客体验</button>
+            </div>
+            
+            <div id="login-tab" class="tab-content active">
+                <h3>登录到 ANSAPRA</h3>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">邮箱</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">密码</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </form>
+            </div>
+            
+            <div id="register-tab" class="tab-content">
+                <h3>注册 ANSAPRA 账户</h3>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="register-email">邮箱</label>
+                        <input type="email" id="register-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-username">用户名</label>
+                        <input type="text" id="register-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">密码</label>
+                        <input type="password" id="register-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">确认密码</label>
+                        <input type="password" id="confirm-password" required>
+                    </div>
+                    
+                    <div class="questionnaire-section" id="questionnaire">
+                        <!-- 问卷内容将通过JS动态加载 -->
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">注册</button>
+                </form>
+            </div>
+            
+            <div id="guest-tab" class="tab-content">
+                <h3>游客体验</h3>
+                <p>以游客身份体验基本功能，部分功能可能受限。</p>
+                <button class="btn btn-secondary" onclick="enterAsGuest()">开始体验</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用容器 -->
+    <div id="app-container" style="display: none;">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <h1 class="logo">ANSAPRA</h1>
+                    <p class="tagline">高中生自然科学论文自适应阅读程序</p>
+                </div>
+                
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="#" class="nav-link active" data-page="intro">网站介绍</a></li>
+                        <li><a href="#" class="nav-link" data-page="instructions">使用说明</a></li>
+                        <li><a href="#" class="nav-link" data-page="interpretation">论文解读</a></li>
+                        <li><a href="#" class="nav-link" data-page="settings">用户设置</a></li>
+                    </ul>
+                </nav>
+                
+                <div class="user-info">
+                    <span id="username-display"></span>
+                    <button class="btn btn-small" onclick="logout()">退出</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 网站介绍页面 -->
+            <section id="intro-page" class="page active">
+                <div class="page-header">
+                    <h2>网站介绍</h2>
+                </div>
+                
+                <div class="page-content">
+                    <div class="content-section">
+                        <h3><i class="fas fa-lightbulb"></i> 本网站开发理念</h3>
+                        <p>科学学术论文，又称原始科学文献（PSLs），承载着科学学术界最前沿的信息，是最直接、最原创的科学媒介。它们在专业研究领域广泛传播，却很少直接进入公众科普与教育领域。因此，高中生阅读科学学术论文的习惯普及率低下，成为本项目希望解决的社会痛点。</p>
+                        <p>通过前期调研，我们发现这一社会痛点的成因主要包括论文可读性下降、视觉呈现效果差等，而其中最具有影响力的是专门针对高中生、支持用户个性化设置的论文阅读程序的缺乏。</p>
+                        <p>为解决上述问题，我们决定开发 ANSAPRA，其名称源自"Adaptive Natural Science Academic Paper Reading Agent"的缩写。本项目从自然科学学术论文入手，关联Nature、SCI顶级期刊，对用户整体自然科学素养提升具有重要意义。</p>
+                    </div>
+                    
+                    <div class="content-section">
+                        <h3><i class="fas fa-atom"></i> 自然科学基本内容</h3>
+                        <p>自然科学是一个学习并研究自然界物质、能量及其相互作用规律的学科体系，涵盖物理学、天文学、化学、生物学与地球科学五大分支，同时也包含了许多跨学科科目。</p>
+                        <p>现代自然科学的发展是在宏观研究与微观研究的相互促进中实现的，高度的分化与高度的综合是现代科学发展的一个重要的特点。</p>
+                    </div>
+                    
+                    <div class="content-section">
+                        <h3><i class="fas fa-book-open"></i> Nature & Science论文</h3>
+                        <p><strong>Nature</strong> (www.nature.com) 与 <strong>Science</strong> (www.science.org) 为国际自然科学领域两大权威期刊门户。</p>
+                        <p>Nature 1869年创刊，现由Springer Nature出版，涵盖多学科前沿研究并发布即时评述；Science 1880年创刊，由美国科学促进会（AAAS）出版，同样以同行评审的原创论文与跨学科综述引领科研方向。</p>
+                        <p>两者均被Web of Science列为顶刊，影响因子常年逾50，是全球科学家获取与发布最新科学发现的核心平台。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 使用说明页面 -->
+            <section id="instructions-page" class="page">
+                <div class="page-header">
+                    <h2>使用说明</h2>
+                </div>
+                
+                <div class="page-content">
+                    <!-- 使用说明内容通过JS动态加载 -->
+                </div>
+            </section>
+
+            <!-- 论文解读页面 -->
+            <section id="interpretation-page" class="page">
+                <div class="page-header">
+                    <h2>论文解读</h2>
+                </div>
+                
+                <div class="page-content">
+                    <div class="interpretation-container">
+                        <!-- 上传区域 -->
+                        <div class="upload-section">
+                            <div class="upload-box" id="upload-box">
+                                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                                <h3>上传论文文件</h3>
+                                <p>支持PDF、DOCX、TXT格式，最大16MB</p>
+                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
+                                <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                                    选择文件
+                                </button>
+                                <p class="file-info" id="file-info"></p>
+                            </div>
+                            
+                            <div class="text-input-section">
+                                <h3>或输入论文文本</h3>
+                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8"></textarea>
+                                <div class="char-count">
+                                    <span id="char-count">0</span> / 5000 字符
+                                </div>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button class="btn btn-primary btn-large" onclick="startInterpretation()">
+                                    <i class="fas fa-play"></i> 开始解读
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearInput()">
+                                    <i class="fas fa-trash"></i> 清空
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 结果展示区域 -->
+                        <div class="results-section" id="results-section" style="display: none;">
+                            <div class="results-header">
+                                <h3>解读结果</h3>
+                                <div class="result-actions">
+                                    <button class="btn btn-small" onclick="downloadResult()">
+                                        <i class="fas fa-download"></i> 下载
+                                    </button>
+                                    <button class="btn btn-small" onclick="saveToHistory()">
+                                        <i class="fas fa-save"></i> 保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="results-container">
+                                <div class="original-paper">
+                                    <h4>原文内容</h4>
+                                    <div class="paper-content" id="original-content"></div>
+                                </div>
+                                
+                                <div class="interpretation-result">
+                                    <h4>AI解读</h4>
+                                    <div class="interpretation-content" id="interpretation-content"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- 相关推荐 -->
+                            <div class="recommendations-section">
+                                <h4><i class="fas fa-book"></i> 相关论文推荐</h4>
+                                <div class="recommendations-list" id="recommendations-list"></div>
+                            </div>
+                            
+                            <!-- 思维导图 -->
+                            <div class="mindmap-section">
+                                <h4><i class="fas fa-project-diagram"></i> 论文结构思维导图</h4>
+                                <div class="mindmap-container" id="mindmap-container">
+                                    <!-- 思维导图将通过JS生成 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 加载状态 -->
+                        <div class="loading-section" id="loading-section" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>正在生成解读，请稍候...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 用户设置页面 -->
+            <section id="settings-page" class="page">
+                <div class="page-header">
+                    <h2>用户设置</h2>
+                </div>
+                
+                <div class="page-content">
+                    <div class="settings-container">
+                        <div class="settings-tabs">
+                            <button class="settings-tab active" data-tab="reading">阅读习惯</button>
+                            <button class="settings-tab" data-tab="visual">视觉设置</button>
+                            <button class="settings-tab" data-tab="language">语言设置</button>
+                            <button class="settings-tab" data-tab="account">账户设置</button>
+                        </div>
+                        
+                        <div class="settings-content">
+                            <!-- 阅读习惯设置 -->
+                            <div id="reading-settings" class="settings-panel active">
+                                <!-- 阅读习惯设置表单将通过JS动态加载 -->
+                            </div>
+                            
+                            <!-- 视觉设置 -->
+                            <div id="visual-settings" class="settings-panel">
+                                <!-- 视觉设置表单将通过JS动态加载 -->
+                            </div>
+                            
+                            <!-- 语言设置 -->
+                            <div id="language-settings" class="settings-panel">
+                                <div class="form-group">
+                                    <label>界面语言</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="language" value="zh" checked>
+                                            <span>中文</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="language" value="en">
+                                            <span>English</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 账户设置 -->
+                            <div id="account-settings" class="settings-panel">
+                                <div class="account-actions">
+                                    <button class="btn btn-danger" onclick="deleteAccount()">
+                                        <i class="fas fa-trash"></i> 删除账户
+                                    </button>
+                                    <p class="warning-text">注意：删除账户将永久清除所有数据，包括解读历史和个性化设置。</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-actions">
+                            <button class="btn btn-primary" onclick="saveSettings()">
+                                <i class="fas fa-save"></i> 保存设置
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetSettings()">
+                                <i class="fas fa-undo"></i> 恢复默认
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部导航 -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="#" class="footer-link" data-modal="contact">联系我们</a>
+                    <a href="#" class="footer-link" data-modal="copyright">版权说明</a>
+                    <a href="#" class="footer-link" data-modal="terms">服务条款</a>
+                    <a href="#" class="footer-link" data-modal="privacy">隐私政策</a>
+                    <a href="#" class="footer-link" data-modal="cookie">Cookie政策</a>
+                </div>
+                <div class="footer-copyright">
+                    <p>&copy; 2025 ANSAPRA开发团队 | 高中生自然科学论文自适应阅读程序</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 模态框容器 -->
+    <div id="modal-container"></div>
+
+    <!-- JavaScript 文件 -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
