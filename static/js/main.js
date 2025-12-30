@@ -2039,3 +2039,72 @@ if (!document.querySelector('#notification-styles')) {
     `;
     document.head.appendChild(style);
 }
+
+// 在现有的JavaScript代码中添加
+
+// 语言切换函数
+function switchToEnglish() {
+    // 保存当前设置
+    saveSettings();
+    // 跳转到英文页面
+    window.location.href = 'index_en.html';
+}
+
+// 页面加载时加载共享设置
+document.addEventListener('DOMContentLoaded', function() {
+    // 加载共享的设置
+    const savedSettings = localStorage.getItem('siteSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        
+        // 应用设置
+        if (settings.bgColor) {
+            document.getElementById('bg-color').value = settings.bgColor;
+            document.documentElement.style.setProperty('--background-color', settings.bgColor);
+            document.body.style.backgroundColor = settings.bgColor;
+        }
+        
+        if (settings.fontFamily) {
+            document.getElementById('font-select').value = settings.fontFamily;
+            document.body.style.fontFamily = settings.fontFamily;
+        }
+        
+        if (settings.bgImage) {
+            document.body.style.backgroundImage = `url(${settings.bgImage})`;
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundAttachment = 'fixed';
+        }
+    }
+    
+    // 自动保存设置
+    setupAutoSave();
+});
+
+// 移除原有的保存设置按钮事件监听，改为自动保存
+function setupAutoSave() {
+    const settingsControls = [
+        document.getElementById('bg-color'),
+        document.getElementById('font-select'),
+        document.getElementById('bg-image')
+    ];
+    
+    settingsControls.forEach(control => {
+        if (control) {
+            control.addEventListener('change', saveSettings);
+            if (control.type === 'color') {
+                control.addEventListener('input', saveSettings);
+            }
+        }
+    });
+}
+
+// 修改保存设置函数
+function saveSettings() {
+    const settings = {
+        bgColor: document.getElementById('bg-color').value,
+        fontFamily: document.getElementById('font-select').value,
+        bgImage: localStorage.getItem('backgroundImage') || ''
+    };
+    
+    localStorage.setItem('siteSettings', JSON.stringify(settings));
+}
