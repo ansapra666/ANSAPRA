@@ -252,12 +252,25 @@ async function handleRegister() {
         return;
     }
     
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showNotification('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 密码验证
+    if (password.length < 6) {
+        showNotification('密码长度至少6位', 'error');
+        return;
+    }
+    
     if (password !== confirmPassword) {
         showNotification('两次输入的密码不一致', 'error');
         return;
     }
     
-    // 收集问卷数据
+    // 问卷验证
     const questionnaire = collectQuestionnaireData();
     
     try {
