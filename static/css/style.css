@@ -5,6 +5,207 @@
     box-sizing: border-box;
 }
 
+/* 问卷样式增强 */
+.questionnaire-section {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.question-group {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.question-group h5 {
+    color: #495057;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.interest-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.interest-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.interest-item:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.1);
+}
+
+.learning-style-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.learning-style-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.learning-style-item select {
+    margin-top: 8px;
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    transition: border-color 0.3s ease;
+}
+
+.learning-style-item select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.paper-excerpt {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #495057;
+    background: #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: 1px solid #ced4da;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.checkbox-label:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.radio-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.radio-label:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.radio-label input[type="radio"] {
+    margin-top: 3px;
+}
+
+.warning-text {
+    color: #dc3545;
+    font-size: 14px;
+    padding: 10px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    margin: 15px 0;
+}
+
+/* 解读结果样式增强 */
+.glossary-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #e8f4ff;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.glossary-section h3 {
+    color: #007bff;
+    margin-bottom: 15px;
+}
+
+.interpretation-content {
+    line-height: 1.8;
+    font-size: 16px;
+}
+
+.interpretation-content h1,
+.interpretation-content h2,
+.interpretation-content h3,
+.interpretation-content h4 {
+    color: #007bff;
+    margin: 20px 0 10px 0;
+}
+
+.interpretation-content p {
+    margin-bottom: 15px;
+}
+
+.interpretation-content ul,
+.interpretation-content ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.interpretation-content li {
+    margin-bottom: 5px;
+}
+
+/* 强调AI生成提示 */
+.interpretation-content em {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.interpretation-content strong {
+    color: #28a745;
+}
+
 body {
     font-family: 'Microsoft YaHei', 'Roboto', sans-serif;
     line-height: 1.6;
