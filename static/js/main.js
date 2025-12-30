@@ -146,14 +146,16 @@ function setupEventListeners() {
             await handleRegister();
         });
     }
-    
-    // 底部链接点击事件
-    document.querySelectorAll('.footer-link').forEach(link => {
-        link.addEventListener('click', function(e) {
+
+    // 底部链接点击事件 - 确保使用事件委托
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('footer-link')) {
             e.preventDefault();
-            const modalType = this.dataset.modal;
-            showModal(modalType);
-        });
+            const modalType = e.target.dataset.modal;
+            if (modalType) {
+                showModal(modalType);
+            }
+        }
     });
 }
 
