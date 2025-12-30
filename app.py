@@ -617,3 +617,38 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
+@app.route('/api/user/update-questionnaire', methods=['POST'])
+def update_questionnaire():
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    data = request.json
+    questionnaire = data.get('questionnaire', {})
+    
+    users = load_users()
+    if session['user_email'] in users:
+        users[session['user_email']]['questionnaire'] = questionnaire
+        save_users(users)
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    user = get_user_by_email(session['user_email'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    return jsonify({
+        'success': True,
+        'user': {
+            'email': user['email'],
+            'username': user['username']
+        },
+        'questionnaire': user.get('questionnaire', {}),
+        'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
+    })
