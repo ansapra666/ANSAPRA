@@ -1,1020 +1,1829 @@
-// 设置页面功能
+// 全局状态管理
+const AppState = {
+    user: null,
+    currentPage: 'intro',
+    isProcessing: false,
+    language: 'zh',
+    translations: {}
+};
 
-// 设置标签切换
+// DOM 元素
+let DOM = {};
+
+// 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    setupSettingsTabs();
+    initializeDOM();
+    checkAuthentication();
+    loadTranslations();
+    setupEventListeners();
+    
+    // 加载问卷数据
+    loadQuestionnaire();
+    
+    // 加载使用说明
+    loadInstructions();
+    
+    // 加载设置表单
     loadSettingsForms();
 });
 
-function setupSettingsTabs() {
-    const tabButtons = document.querySelectorAll('.settings-tab');
-    const tabPanels = document.querySelectorAll('.settings-panel');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const tabName = this.dataset.tab;
-            
-            // 移除所有active类
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabPanels.forEach(panel => panel.classList.remove('active'));
-            
-            // 激活当前标签
-            this.classList.add('active');
-            const targetPanel = document.getElementById(`${tabName}-settings`);
-            if (targetPanel) {
-                targetPanel.classList.add('active');
-            }
-        });
-    });
-}
-
-function loadSettingsForms() {
-    loadReadingSettings();
-    loadVisualSettings();
-}
-
-function loadReadingSettings() {
-    const container = document.getElementById('reading-settings');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <form id="reading-settings-form">
-            <div class="form-group">
-                <label>1. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="preparation" value="A">
-                        <span>A. 几乎不做准备</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="preparation" value="B">
-                        <span>B. 做一些准备</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="preparation" value="C">
-                        <span>C. 做较为深入的准备</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>2. 您阅读自然科学论文的原因是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="purpose" value="A">
-                        <span>A. 目标驱动者: 为完成特定任务（如作业、比赛）而阅读，追求高效和直接</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="purpose" value="B">
-                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="purpose" value="C">
-                        <span>C. 深度学习者: 为了深入理解并研究某一领域知识，论文知识之外，同时重视研究方法和应用；希望通过本论文</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="purpose" value="D">
-                        <span>D. 科学了解者：希望通过论文解读提升个人科学素养和整体科学感知能力</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>3. 您愿意在多长时间内解读一篇自然科学论文？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="time" value="A">
-                        <span>A. 10分钟内</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="time" value="B">
-                        <span>B. 10-30分钟内</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="time" value="C">
-                        <span>C. 30分钟及以上</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>4. 您喜好的自然科学论文解读风格与方式是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="style" value="A">
-                        <span>A. 生动形象，语言偏口语化，能联系生活中最简单的例子和类比解读论文</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="style" value="B">
-                        <span>B. 量化解读，尽量通过数据和公式解读论文</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="style" value="C">
-                        <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="style" value="D">
-                        <span>D. 原汁原味，保留原文的表达风格和表述方式，接受长难句、专业术语解读方式</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="style" value="E">
-                        <span>E. 逐步推导，通过问题引入的方式，类似于课堂教学的方式逐步介绍知识，强调互动性</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>5. 您喜好的自然科学论文解读深度是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="depth" value="A">
-                        <span>A. 简洁概括</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="depth" value="B">
-                        <span>B. 平衡详细</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="depth" value="C">
-                        <span>C. 详细深入</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>6. 您希望读后自测部分包含哪些内容？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="A">
-                        <span>A. 相关定义填空题</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="B">
-                        <span>B. 易错易混选择题</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="C">
-                        <span>C. 公式逻辑默写题</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>7. 您偏好的图表形式是？（可多选）</label>
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="chart_types" value="A" checked>
-                        <span>A. 思维导图（树状）</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="chart_types" value="B">
-                        <span>B. 流程图与逻辑图</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="chart_types" value="C">
-                        <span>C. 表格</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="chart_types" value="D">
-                        <span>D. 统计图（折线图、柱状图等）</span>
-                    </label>
-                </div>
-            </div>
-        </form>
-    `;
-    
-    // 加载保存的设置
-    loadSavedSettings();
-}
-function loadVisualSettings() {
-    const container = document.getElementById('visual-settings');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <form id="visual-settings-form">
-            <div class="form-group">
-                <label>1. 背景主题</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="theme" value="A">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background-color: #ffe6f2; border-radius: 4px;"></div>
-                            <span>粉色</span>
-                        </div>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="theme" value="B">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background-color: #e6f7ff; border-radius: 4px;"></div>
-                            <span>浅蓝色</span>
-                        </div>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="theme" value="C">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background-color: #e6ffe6; border-radius: 4px;"></div>
-                            <span>浅绿色</span>
-                        </div>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="theme" value="D">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background-color: #f2e6ff; border-radius: 4px;"></div>
-                            <span>浅紫色</span>
-                        </div>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="theme" value="E">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background-color: #ffffff; border: 1px solid #ddd; border-radius: 4px;"></div>
-                            <span>自定义（白色）</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>2. 字体设置</label>
-                <div class="form-group">
-                    <label>字体大小：</label>
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <input type="range" id="font-size-slider" min="14" max="24" value="18" step="1" style="flex: 1;">
-                        <span id="font-size-value" style="min-width: 50px; font-weight: bold;">18px</span>
-                        <button type="button" class="btn btn-small" onclick="resetFontSize()" style="margin-left: 10px;">
-                            <i class="fas fa-undo"></i> 重置
-                        </button>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                        <span>小</span>
-                        <span>标准</span>
-                        <span>大</span>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>中文字体：</label>
-                    <div class="font-family-grid">
-                        <label class="font-option">
-                            <input type="radio" name="chinese_font" value="'Microsoft YaHei', sans-serif">
-                            <div class="font-preview">
-                                <div class="font-name">微软雅黑</div>
-                                <div class="font-sample" style="font-family: 'Microsoft YaHei', sans-serif;">
-                                    这是一段示例文字，展示字体效果。微软雅黑清晰易读。
-                                </div>
-                                <div class="font-description">现代无衬线字体，适合屏幕阅读</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="chinese_font" value="'LXGW WenKai TC', cursive">
-                            <div class="font-preview">
-                                <div class="font-name">霞鹜文楷</div>
-                                <div class="font-sample" style="font-family: 'LXGW WenKai TC', cursive;">
-                                    这是一段示例文字，展示字体效果。霞鹜文楷清新秀美。
-                                </div>
-                                <div class="font-description">开源手写楷体，文艺清新风格</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="chinese_font" value="'STKaiti', 'KaiTi', serif">
-                            <div class="font-preview">
-                                <div class="font-name">华文楷体</div>
-                                <div class="font-sample" style="font-family: 'STKaiti', 'KaiTi', serif;">
-                                    这是一段示例文字，展示字体效果。华文楷体典雅传统。
-                                </div>
-                                <div class="font-description">系统标准楷体，古典优雅</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="chinese_font" value="'Noto Serif SC', serif">
-                            <div class="font-preview">
-                                <div class="font-name">思源宋体</div>
-                                <div class="font-sample" style="font-family: 'Noto Serif SC', serif;">
-                                    这是一段示例文字，展示字体效果。思源宋体端庄清晰。
-                                </div>
-                                <div class="font-description">谷歌开源宋体，适合正式文档</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>英文字体：</label>
-                    <div class="font-family-grid">
-                        <label class="font-option">
-                            <input type="radio" name="english_font" value="'Eczar', serif">
-                            <div class="font-preview">
-                                <div class="font-name">Eczar (衬线体)</div>
-                                <div class="font-sample" style="font-family: 'Eczar', serif;">
-                                    This is sample text showing Eczar font. Elegant serif for English.
-                                </div>
-                                <div class="font-description">优雅的衬线字体，适合学术文本</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="english_font" value="'Cabin', sans-serif">
-                            <div class="font-preview">
-                                <div class="font-name">Cabin (无衬线体)</div>
-                                <div class="font-sample" style="font-family: 'Cabin', sans-serif;">
-                                    This is sample text showing Cabin font. Modern sans-serif for English.
-                                </div>
-                                <div class="font-description">现代无衬线字体，适合科技内容</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="english_font" value="'Arial', sans-serif">
-                            <div class="font-preview">
-                                <div class="font-name">Arial (系统默认)</div>
-                                <div class="font-sample" style="font-family: 'Arial', sans-serif;">
-                                    This is sample text showing Arial font. System default English font.
-                                </div>
-                                <div class="font-description">系统默认字体，兼容性好</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>行高设置：</label>
-                    <select id="line-height-select" class="form-control">
-                        <option value="1.4">紧凑 (1.4)</option>
-                        <option value="1.6" selected>标准 (1.6)</option>
-                        <option value="1.8">宽松 (1.8)</option>
-                        <option value="2.0">很宽松 (2.0)</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>字间距设置：</label>
-                    <select id="letter-spacing-select" class="form-control">
-                        <option value="-0.5px">紧密 (-0.5px)</option>
-                        <option value="0px" selected>标准 (0px)</option>
-                        <option value="0.5px">宽松 (0.5px)</option>
-                        <option value="1px">很宽松 (1px)</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <div class="preview-section">
-                        <label>实时预览：</label>
-                        <div class="preview-box" id="font-preview-box">
-                            <p style="margin: 0; line-height: 1.6;">这是一段预览文字，展示当前字体设置的效果。This is preview text showing the current font settings.</p>
-                        </div>
-                        <p class="preview-info" id="font-info" style="font-size: 12px; color: #666; margin-top: 8px;"></p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>自定义背景图片</label>
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                    <input type="file" id="background-upload" accept="image/*" style="display: none;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('background-upload').click()">
-                        <i class="fas fa-upload"></i> 选择图片
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="removeBackground()" id="remove-bg-btn" style="display: none;">
-                        <i class="fas fa-trash"></i> 移除背景
-                    </button>
-                </div>
-                <p class="help-text">支持JPG、PNG格式，建议尺寸1920x1080，文件大小不超过5MB</p>
-                <div id="background-preview" style="margin-top: 10px;"></div>
-            </div>
-            
-            <div class="form-group">
-                <label>重置所有视觉设置</label>
-                <button type="button" class="btn btn-danger" onclick="resetAllVisualSettings()">
-                    <i class="fas fa-redo"></i> 重置为默认设置
-                </button>
-                <p class="warning-text" style="font-size: 12px; color: #dc3545; margin-top: 5px;">
-                    注意：这将重置所有视觉设置，包括字体、背景和主题
-                </p>
-            </div>
-        </form>
-    `;
-    
-    // 字体大小滑块事件
-    const slider = document.getElementById('font-size-slider');
-    const valueDisplay = document.getElementById('font-size-value');
-    if (slider && valueDisplay) {
-        slider.addEventListener('input', function() {
-            valueDisplay.textContent = `${this.value}px`;
-            updateFontPreview();
-            saveVisualSettings();
-        });
-    }
-    
-    // 行高选择事件
-    const lineHeightSelect = document.getElementById('line-height-select');
-    if (lineHeightSelect) {
-        lineHeightSelect.addEventListener('change', function() {
-            updateFontPreview();
-            saveVisualSettings();
-        });
-    }
-    
-    // 字间距选择事件
-    const letterSpacingSelect = document.getElementById('letter-spacing-select');
-    if (letterSpacingSelect) {
-        letterSpacingSelect.addEventListener('change', function() {
-            updateFontPreview();
-            saveVisualSettings();
-        });
-    }
-    
-    // 中文字体选择事件
-    const chineseFontRadios = document.querySelectorAll('input[name="chinese_font"]');
-    chineseFontRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                updateFontPreview();
-                updateFontInfo();
-                saveVisualSettings();
-            }
-        });
-    });
-    
-    // 英文字体选择事件
-    const englishFontRadios = document.querySelectorAll('input[name="english_font"]');
-    englishFontRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                updateFontPreview();
-                updateFontInfo();
-                saveVisualSettings();
-            }
-        });
-    });
-    
-    // 主题选择事件
-    const themeRadios = document.querySelectorAll('input[name="theme"]');
-    themeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                applyTheme(this.value);
-                saveVisualSettings();
-            }
-        });
-    });
-    
-    // 背景图片上传
-    const uploadInput = document.getElementById('background-upload');
-    if (uploadInput) {
-        uploadInput.addEventListener('change', handleBackgroundUpload);
-    }
-    
-    // 加载保存的设置
-    loadSavedVisualSettings();
-}
-
-// 更新字体预览
-function updateFontPreview() {
-    const previewBox = document.getElementById('font-preview-box');
-    if (!previewBox) return;
-    
-    // 获取中文字体
-    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value || "'Microsoft YaHei', sans-serif";
-    
-    // 获取英文字体
-    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value || "'Eczar', serif";
-    
-    // 获取字体大小
-    const fontSize = document.getElementById('font-size-slider')?.value || "18";
-    
-    // 获取行高
-    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
-    
-    // 获取字间距
-    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
-    
-    // 构建字体堆栈（优先使用中文字体，英文字体作为后备）
-    const fontStack = `${chineseFont}, ${englishFont}`;
-    
-    // 应用预览样式
-    previewBox.style.fontFamily = fontStack;
-    previewBox.style.fontSize = `${fontSize}px`;
-    previewBox.style.lineHeight = lineHeight;
-    previewBox.style.letterSpacing = letterSpacing;
-    
-    // 同时更新整个页面的字体（实时效果）
-    document.body.style.fontFamily = fontStack;
-    document.body.style.fontSize = `${fontSize}px`;
-    document.body.style.lineHeight = lineHeight;
-    document.body.style.letterSpacing = letterSpacing;
-}
-
-// 更新字体信息
-function updateFontInfo() {
-    const infoElement = document.getElementById('font-info');
-    if (!infoElement) return;
-    
-    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value;
-    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value;
-    
-    let chineseName = "微软雅黑";
-    if (chineseFont?.includes('LXGW WenKai TC')) chineseName = "霞鹜文楷";
-    if (chineseFont?.includes('STKaiti')) chineseName = "华文楷体";
-    if (chineseFont?.includes('Noto Serif SC')) chineseName = "思源宋体";
-    
-    let englishName = "Eczar";
-    if (englishFont?.includes('Cabin')) englishName = "Cabin";
-    if (englishFont?.includes('Arial')) englishName = "Arial";
-    
-    const fontSize = document.getElementById('font-size-slider')?.value || "18";
-    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
-    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
-    
-    infoElement.textContent = `当前设置：${chineseName} / ${englishName} | 字号：${fontSize}px | 行高：${lineHeight} | 字间距：${letterSpacing}`;
-}
-
-// 应用主题
-function applyTheme(theme) {
-    const themes = {
-        'A': '#ffe6f2', // 粉色
-        'B': '#e6f7ff', // 浅蓝色
-        'C': '#e6ffe6', // 浅绿色
-        'D': '#f2e6ff', // 浅紫色
-        'E': '#ffffff'  // 白色
-    };
-    
-    const color = themes[theme] || '#f8f9fa';
-    document.body.style.backgroundColor = color;
-    
-    // 如果有自定义背景，先清除
-    document.body.style.backgroundImage = '';
-    const preview = document.getElementById('background-preview');
-    if (preview) preview.innerHTML = '';
-    
-    const removeBtn = document.getElementById('remove-bg-btn');
-    if (removeBtn) removeBtn.style.display = 'none';
-}
-
-// 保存视觉设置
-function saveVisualSettings() {
-    const settings = collectVisualSettings();
-    localStorage.setItem('visualSettings', JSON.stringify(settings));
-    
-    // 更新用户设置（如果已登录）
-    if (AppState.user && !AppState.user.is_guest) {
-        updateUserVisualSettings(settings);
-    }
-}
-
-// 收集视觉设置数据
-function collectVisualSettings() {
-    const fontFamily = document.querySelector('input[name="font_family"]:checked')?.value || "'Microsoft YaHei', sans-serif";
-    const fontSize = document.getElementById('font-size-slider')?.value || "18";
-    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
-    const theme = document.querySelector('input[name="theme"]:checked')?.value || "B";
-    
-    return {
-        font_family: fontFamily,
-        font_size: fontSize,
-        line_height: lineHeight,
-        theme: theme
+function initializeDOM() {
+    DOM = {
+        authModal: document.getElementById('auth-modal'),
+        appContainer: document.getElementById('app-container'),
+        loginForm: document.getElementById('login-form'),
+        registerForm: document.getElementById('register-form'),
+        fileInput: document.getElementById('file-input'),
+        fileInfo: document.getElementById('file-info'),
+        paperText: document.getElementById('paper-text'),
+        charCount: document.getElementById('char-count'),
+        resultsSection: document.getElementById('results-section'),
+        loadingSection: document.getElementById('loading-section'),
+        originalContent: document.getElementById('original-content'),
+        interpretationContent: document.getElementById('interpretation-content'),
+        recommendationsList: document.getElementById('recommendations-list'),
+        usernameDisplay: document.getElementById('username-display'),
+        navLinks: document.querySelectorAll('.nav-link'),
+        pages: document.querySelectorAll('.page')
     };
 }
 
-// 加载保存的视觉设置
-function loadSavedVisualSettings() {
-    const savedSettings = localStorage.getItem('visualSettings');
-    if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        applyVisualSettings(settings);
-    } else if (AppState.user && AppState.user.settings?.visual) {
-        applyVisualSettings(AppState.user.settings.visual);
-    }
-}
-
-// 应用视觉设置
-function applyVisualSettings(settings) {
-    if (!settings) return;
-    
-    // 字体大小
-    const slider = document.getElementById('font-size-slider');
-    const valueDisplay = document.getElementById('font-size-value');
-    if (slider && valueDisplay && settings.font_size) {
-        slider.value = settings.font_size;
-        valueDisplay.textContent = `${settings.font_size}px`;
-        document.documentElement.style.fontSize = `${settings.font_size}px`;
-    }
-    
-    // 字体家族
-    if (settings.font_family) {
-        const fontRadios = document.querySelectorAll('input[name="font_family"]');
-        fontRadios.forEach(radio => {
-            if (radio.value === settings.font_family) {
-                radio.checked = true;
-                document.body.style.fontFamily = settings.font_family;
-            }
-        });
-    }
-    
-    // 行高
-    const lineHeightSelect = document.getElementById('line-height-select');
-    if (lineHeightSelect && settings.line_height) {
-        lineHeightSelect.value = settings.line_height;
-        document.body.style.lineHeight = settings.line_height;
-    }
-    
-    // 主题
-    if (settings.theme) {
-        const themeRadios = document.querySelectorAll('input[name="theme"]');
-        themeRadios.forEach(radio => {
-            if (radio.value === settings.theme) {
-                radio.checked = true;
-                applyTheme(settings.theme);
-            }
-        });
-    }
-}
-
-// 更新用户设置的视觉部分
-async function updateUserVisualSettings(visualSettings) {
+// 认证相关
+async function checkAuthentication() {
     try {
-        const response = await fetch('/api/user/settings');
+        const response = await fetch('/api/check-auth');
         const data = await response.json();
         
-        if (data.success && data.settings) {
-            const newSettings = {
-                ...data.settings,
-                visual: {
-                    ...data.settings.visual,
-                    ...visualSettings
-                }
-            };
-            
-            await fetch('/api/user/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ settings: newSettings })
-            });
+        if (data.success && data.user) {
+            AppState.user = data.user;
+            showApp();
+        } else {
+            showAuthModal();
         }
     } catch (error) {
-        console.error('更新视觉设置失败:', error);
+        console.error('认证检查失败:', error);
+        showAuthModal();
     }
 }
 
-// 重置字体大小
-function resetFontSize() {
-    const slider = document.getElementById('font-size-slider');
-    const valueDisplay = document.getElementById('font-size-value');
-    if (slider && valueDisplay) {
-        slider.value = "18";
-        valueDisplay.textContent = "18px";
-        document.documentElement.style.fontSize = "18px";
-        saveVisualSettings();
-        showNotification('字体大小已重置为默认值', 'success');
+function showAuthModal() {
+    DOM.authModal.style.display = 'flex';
+    DOM.appContainer.style.display = 'none';
+}
+
+function showApp() {
+    DOM.authModal.style.display = 'none';
+    DOM.appContainer.style.display = 'block';
+    
+    if (AppState.user) {
+        DOM.usernameDisplay.textContent = AppState.user.username || AppState.user.email;
+        
+        // 恢复上次查看的页面
+        const savedPage = localStorage.getItem('lastPage');
+        if (savedPage && document.querySelector(`[data-page="${savedPage}"]`)) {
+            switchPage(savedPage);
+        }
+        
+        // 加载用户设置
+        loadUserSettings();
     }
 }
 
-// 重置所有视觉设置
-function resetAllVisualSettings() {
-    if (confirm('确定要重置所有视觉设置吗？这将恢复为默认设置。')) {
-        const defaultSettings = {
-            font_family: "'Microsoft YaHei', sans-serif",
-            font_size: "18",
-            line_height: "1.6",
-            theme: "B"
-        };
-        
-        applyVisualSettings(defaultSettings);
-        localStorage.setItem('visualSettings', JSON.stringify(defaultSettings));
-        
-        // 清除自定义背景
-        removeBackground();
-        
-        showNotification('视觉设置已重置为默认值', 'success');
+// 标签页切换
+function showTab(tabName) {
+    // 隐藏所有标签页
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 移除所有标签按钮的active类
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 显示选中的标签页
+    const tab = document.getElementById(`${tabName}-tab`);
+    if (tab) {
+        tab.classList.add('active');
+    }
+    
+    // 激活对应的标签按钮
+    const btn = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
+    if (btn) {
+        btn.classList.add('active');
     }
 }
 
-// 处理背景图片上传
-function handleBackgroundUpload(event) {
-    const file = event.target.files[0];
+// 页面切换
+function setupEventListeners() {
+    // 导航链接点击事件
+    DOM.navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.dataset.page;
+            switchPage(page);
+        });
+    });
+    
+    // 文件上传事件
+    DOM.fileInput.addEventListener('change', handleFileSelect);
+    
+    // 文本输入字符计数
+    DOM.paperText.addEventListener('input', updateCharCount);
+    
+    // 登录表单提交
+    if (DOM.loginForm) {
+        DOM.loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await handleLogin();
+        });
+    }
+    
+    // 注册表单提交
+    if (DOM.registerForm) {
+        DOM.registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await handleRegister();
+        });
+    }
+
+    // 底部链接点击事件 - 确保使用事件委托
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('footer-link')) {
+            e.preventDefault();
+            const modalType = e.target.dataset.modal;
+            if (modalType) {
+                showModal(modalType);
+            }
+        }
+    });
+}
+
+function switchPage(pageName) {
+    AppState.currentPage = pageName;
+    localStorage.setItem('lastPage', pageName);
+    
+    // 更新导航链接状态
+    DOM.navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.dataset.page === pageName) {
+            link.classList.add('active');
+        }
+    });
+    
+    // 切换页面显示
+    DOM.pages.forEach(page => {
+        page.classList.remove('active');
+        if (page.id === `${pageName}-page`) {
+            page.classList.add('active');
+        }
+    });
+    
+    // 滚动到顶部
+    window.scrollTo(0, 0);
+}
+
+// 文件处理
+function handleFileSelect(e) {
+    const file = e.target.files[0];
     if (!file) return;
     
-    // 检查文件大小（最大5MB）
-    if (file.size > 5 * 1024 * 1024) {
-        showNotification('图片大小不能超过5MB', 'error');
+    const fileSize = file.size / 1024 / 1024; // MB
+    if (fileSize > 16) {
+        alert('文件大小不能超过16MB');
+        DOM.fileInput.value = '';
         return;
     }
     
-    // 检查文件类型
-    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-        showNotification('只支持JPG和PNG格式的图片', 'error');
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const preview = document.getElementById('background-preview');
-        const removeBtn = document.getElementById('remove-bg-btn');
-        
-        preview.innerHTML = `
-            <div style="position: relative; margin-top: 10px;">
-                <img src="${e.target.result}" style="max-width: 300px; max-height: 150px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
-                    <button type="button" onclick="setAsBackground('${e.target.result}')" style="background: #28a745; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">
-                        <i class="fas fa-check"></i> 应用
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        if (removeBtn) removeBtn.style.display = 'inline-block';
-    };
-    
-    reader.readAsDataURL(file);
+    DOM.fileInfo.textContent = `已选择: ${file.name} (${fileSize.toFixed(2)} MB)`;
+    DOM.fileInfo.style.color = '#28a745';
 }
 
-// 设置背景图片
-function setAsBackground(imageUrl) {
-    document.body.style.backgroundImage = `url(${imageUrl})`;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundAttachment = 'fixed';
-    document.body.style.backgroundPosition = 'center';
+function updateCharCount() {
+    const count = DOM.paperText.value.length;
+    DOM.charCount.textContent = count;
     
-    // 保存到localStorage
-    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
-    visualSettings.custom_background = imageUrl;
-    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
-    
-    showNotification('背景图片已应用', 'success');
-}
-
-// 移除背景图片
-function removeBackground() {
-    document.body.style.backgroundImage = '';
-    document.body.style.backgroundColor = '';
-    
-    // 恢复主题颜色
-    const theme = document.querySelector('input[name="theme"]:checked')?.value || 'B';
-    applyTheme(theme);
-    
-    const preview = document.getElementById('background-preview');
-    if (preview) preview.innerHTML = '';
-    
-    const removeBtn = document.getElementById('remove-bg-btn');
-    if (removeBtn) removeBtn.style.display = 'none';
-    
-    // 清除localStorage中的背景设置
-    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
-    delete visualSettings.custom_background;
-    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
-    
-    showNotification('背景图片已移除', 'success');
-}
-
-async function loadSavedSettings() {
-    try {
-        const response = await fetch('/api/user/settings');
-        const data = await response.json();
-        
-        if (data.success && data.settings) {
-            applyFormSettings(data.settings);
-        }
-    } catch (error) {
-        console.error('加载设置失败:', error);
+    if (count > 5000) {
+        DOM.charCount.style.color = '#dc3545';
+    } else if (count > 4500) {
+        DOM.charCount.style.color = '#ffc107';
+    } else {
+        DOM.charCount.style.color = '#28a745';
     }
 }
 
-// 在settings.js中添加语言切换支持
-function loadLanguageSettings() {
-    const container = document.getElementById('language-settings');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="form-group">
-            <label data-i18n="settings.language.label">界面语言</label>
-            <div class="radio-group">
-                <label class="radio-label">
-                    <input type="radio" name="language" value="zh" ${i18n.currentLang === 'zh' ? 'checked' : ''}>
-                    <span data-i18n="settings.language.zh">中文</span>
-                </label>
-                <label class="radio-label">
-                    <input type="radio" name="language" value="en" ${i18n.currentLang === 'en' ? 'checked' : ''}>
-                    <span data-i18n="settings.language.en">English</span>
-                </label>
-            </div>
-            <p class="help-text" data-i18n="settings.language.help">切换语言后页面内容将立即更新</p>
-        </div>
-        
-        <div class="language-preview">
-            <h5 data-i18n="settings.language.preview">语言预览</h5>
-            <div class="preview-box">
-                <p id="language-preview-text">${i18n.currentLang === 'zh' ? '当前语言：中文' : 'Current Language: English'}</p>
-            </div>
-        </div>
-    `;
-    
-    // 语言选择事件
-    const languageRadios = container.querySelectorAll('input[name="language"]');
-    languageRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                i18n.setLanguage(this.value);
-                updateLanguagePreview();
-            }
-        });
-    });
-    
-    updateLanguagePreview();
-}
-
-function updateLanguagePreview() {
-    const previewText = document.getElementById('language-preview-text');
-    if (previewText) {
-        previewText.textContent = i18n.currentLang === 'zh' ? 
-            '当前语言：中文' : 'Current Language: English';
-    }
-}
-
-// 修改视觉设置保存逻辑
-function saveVisualSettingsToLocalStorage() {
-    const settings = collectVisualSettings();
-    localStorage.setItem('visualSettings', JSON.stringify(settings));
-    
-    // 只保存到localStorage，不调用API
-    showNotification('notification.settings.saved');
-}
-
-function updateLanguagePreview() {
-    const previewText = document.getElementById('language-preview-text');
-    if (previewText) {
-        previewText.textContent = languageManager.currentLanguage === 'zh' ? 
-            '当前语言：中文' : 'Current Language: English';
-    }
-}
-
-function applyFormSettings(settings) {
-    // 阅读设置
-    if (settings.reading) {
-        const readingForm = document.getElementById('reading-settings-form');
-        if (readingForm) {
-            for (const [key, value] of Object.entries(settings.reading)) {
-                if (key === 'chart_types') {
-                    // 处理多选框
-                    const checkboxes = readingForm.querySelectorAll(`input[name="${key}"]`);
-                    checkboxes.forEach(checkbox => {
-                        checkbox.checked = Array.isArray(value) && value.includes(checkbox.value);
-                    });
-                } else {
-                    // 处理单选框
-                    const radio = readingForm.querySelector(`input[name="${key}"][value="${value}"]`);
-                    if (radio) radio.checked = true;
-                }
-            }
-        }
-    }
-    
-    // 视觉设置
-    if (settings.visual) {
-        const visualForm = document.getElementById('visual-settings-form');
-        if (visualForm) {
-            for (const [key, value] of Object.entries(settings.visual)) {
-                if (key === 'font_size') {
-                    const slider = document.getElementById('font-size-slider');
-                    const valueDisplay = document.getElementById('font-size-value');
-                    if (slider) {
-                        slider.value = value;
-                        if (valueDisplay) valueDisplay.textContent = `${value}px`;
-                        document.documentElement.style.fontSize = `${value}px`;
-                    }
-                } else {
-                    const input = visualForm.querySelector(`input[name="${key}"][value="${value}"]`);
-                    if (input) input.checked = true;
-                }
-            }
-        }
-    }
-    
-    // 语言设置
-    if (settings.language) {
-        const languageRadios = document.querySelectorAll('input[name="language"]');
-        languageRadios.forEach(radio => {
-            if (radio.value === settings.language) {
-                radio.checked = true;
-            }
-        });
-    }
-}
-
-async function saveSettings() {
-    if (!AppState.user || AppState.user.is_guest) {
-        showNotification('游客模式无法保存设置', 'warning');
-        return;
-    }
-    
-    // 收集设置数据
-    const settings = collectSettings();
+// 登录处理
+async function handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
     
     try {
-        const response = await fetch('/api/user/settings', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ settings })
+            body: JSON.stringify({ email, password })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            showNotification('设置保存成功！', 'success');
-            
-            // 应用设置
-            applySettings(settings);
+            AppState.user = data.user;
+            showApp();
+            showNotification('登录成功！', 'success');
         } else {
-            showNotification(data.message || '保存失败', 'error');
+            showNotification(data.message || '登录失败', 'error');
         }
     } catch (error) {
-        console.error('保存设置失败:', error);
+        console.error('登录错误:', error);
         showNotification('网络错误，请稍后重试', 'error');
     }
 }
 
-// 在settings.js中添加问卷修改功能
-async function loadQuestionnaireSettings() {
+// 注册处理
+async function handleRegister() {
+    const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    // 基本验证
+    if (!email || !username || !password) {
+        showNotification('请填写所有必填项', 'error');
+        return;
+    }
+    
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showNotification('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 密码验证
+    if (password.length < 6) {
+        showNotification('密码长度至少6位', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('两次输入的密码不一致', 'error');
+        return;
+    }
+    
+    // 问卷验证
+    const questionnaire = collectQuestionnaireData();
+    
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                username,
+                password,
+                questionnaire
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            AppState.user = data.user;
+            showApp();
+            showNotification('注册成功！', 'success');
+        } else {
+            showNotification(data.message || '注册失败', 'error');
+        }
+    } catch (error) {
+        console.error('注册错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 游客登录
+async function enterAsGuest() {
+    try {
+        const response = await fetch('/api/guest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            AppState.user = data.user;
+            showApp();
+            showNotification('欢迎使用游客模式！', 'success');
+        } else {
+            showNotification('进入游客模式失败', 'error');
+        }
+    } catch (error) {
+        console.error('游客登录错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 登出
+async function logout() {
+    try {
+        const response = await fetch('/api/logout', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            AppState.user = null;
+            showAuthModal();
+            showNotification('已成功登出', 'success');
+        }
+    } catch (error) {
+        console.error('登出错误:', error);
+    }
+}
+
+// 在main.js中添加Cookie同意功能
+function setupCookieConsent() {
+    // 检查用户是否已经同意Cookie
+    if (!localStorage.getItem('cookieConsent')) {
+        const cookieBanner = document.createElement('div');
+        cookieBanner.id = 'cookie-consent-banner';
+        cookieBanner.innerHTML = `
+            <div style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.9); color: white; padding: 20px; z-index: 9999;">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">
+                            <i class="fas fa-cookie-bite" style="margin-right: 10px;"></i>
+                            我们使用Cookie来提升您的浏览体验。继续使用本网站即表示您同意我们的
+                            <a href="#" onclick="showModal('cookie'); return false;" style="color: #4dabf7; text-decoration: underline;">Cookie政策</a>。
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="cookie-accept" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-check"></i> 同意
+                        </button>
+                        <button id="cookie-settings" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-cog"></i> 设置
+                        </button>
+                        <button id="cookie-reject" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-times"></i> 拒绝
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(cookieBanner);
+        
+        // 添加事件监听
+        document.getElementById('cookie-accept').addEventListener('click', () => {
+            localStorage.setItem('cookieConsent', 'accepted');
+            cookieBanner.style.display = 'none';
+        });
+        
+        document.getElementById('cookie-reject').addEventListener('click', () => {
+            localStorage.setItem('cookieConsent', 'rejected');
+            cookieBanner.style.display = 'none';
+            // 这里可以添加拒绝Cookie后的逻辑
+        });
+        
+        document.getElementById('cookie-settings').addEventListener('click', () => {
+            showModal('cookie');
+        });
+    }
+}
+
+// 在DOM加载完成后调用
+document.addEventListener('DOMContentLoaded', function() {
+    // ... 其他初始化代码 ...
+    setupCookieConsent();
+});
+
+// 论文解读
+async function startInterpretation() {
+    if (AppState.isProcessing) return;
+    
+    const file = DOM.fileInput.files[0];
+    const text = DOM.paperText.value.trim();
+    
+    if (!file && !text) {
+        showNotification('请上传文件或输入文本', 'error');
+        return;
+    }
+    
+    if (text.length > 5000) {
+        showNotification('文本内容不能超过5000字符', 'error');
+        return;
+    }
+    
+    AppState.isProcessing = true;
+    DOM.resultsSection.style.display = 'none';
+    DOM.loadingSection.style.display = 'block';
+    
+    try {
+        const formData = new FormData();
+        if (file) {
+            formData.append('file', file);
+        }
+        if (text) {
+            formData.append('text', text);
+        }
+        
+        const response = await fetch('/api/interpret', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 显示结果
+            DOM.originalContent.textContent = data.original_content;
+            DOM.interpretationContent.innerHTML = formatInterpretation(data.interpretation);
+            
+            // 显示推荐论文
+            displayRecommendations(data.recommendations || []);
+            
+            DOM.resultsSection.style.display = 'block';
+            showNotification('解读生成成功！', 'success');
+            
+            // 滚动到结果区域
+            DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            showNotification(data.message || '解读失败', 'error');
+        }
+    } catch (error) {
+        console.error('解读错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    } finally {
+        AppState.isProcessing = false;
+        DOM.loadingSection.style.display = 'none';
+    }
+}
+
+function formatInterpretation(text) {
+    // 将文本中的标题格式化为HTML
+    let html = text
+        .replace(/\n/g, '<br>')
+        .replace(/^(#{1,3})\s+(.+)$/gm, (match, hashes, title) => {
+            const level = hashes.length;
+            return `<h${level} style="margin-top: 20px; margin-bottom: 10px; color: #007bff;">${title}</h${level}>`;
+        })
+        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>');
+    
+    return html;
+}
+
+function displayRecommendations(recommendations) {
+    const container = DOM.recommendationsList;
+    container.innerHTML = '';
+    
+    if (recommendations.length === 0) {
+        container.innerHTML = '<p class="no-recommendations">暂无相关论文推荐</p>';
+        return;
+    }
+    
+    recommendations.forEach(paper => {
+        const item = document.createElement('div');
+        item.className = 'recommendation-item';
+        
+        item.innerHTML = `
+            <h5>${paper.title || '无标题'}</h5>
+            <p><strong>作者:</strong> ${paper.authors || '未知'}</p>
+            <p><strong>期刊:</strong> ${paper.publication || '未知'} (${paper.year || '未知年份'})</p>
+            ${paper.abstract ? `<p><strong>摘要:</strong> ${paper.abstract}</p>` : ''}
+            ${paper.url ? `<a href="${paper.url}" target="_blank" class="btn btn-small" style="margin-top: 10px;">查看原文</a>` : ''}
+        `;
+        
+        container.appendChild(item);
+    });
+}
+
+// 清空输入
+function clearInput() {
+    DOM.fileInput.value = '';
+    DOM.fileInfo.textContent = '';
+    DOM.paperText.value = '';
+    DOM.charCount.textContent = '0';
+    DOM.charCount.style.color = '#28a745';
+    DOM.resultsSection.style.display = 'none';
+}
+
+// 下载结果
+function downloadResult() {
+    const content = DOM.interpretationContent.textContent;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `解读结果_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// 保存到历史
+async function saveToHistory() {
+    const content = DOM.interpretationContent.textContent;
+    const original = DOM.originalContent.textContent;
+    
+    try {
+        // 这里可以添加保存到后端的逻辑
+        showNotification('已保存到阅读历史', 'success');
+    } catch (error) {
+        console.error('保存历史错误:', error);
+        showNotification('保存失败', 'error');
+    }
+}
+
+// 加载用户设置
+async function loadUserSettings() {
     if (!AppState.user || AppState.user.is_guest) return;
     
     try {
         const response = await fetch('/api/user/settings');
         const data = await response.json();
         
-        if (data.success && data.settings) {
-            // 检查是否有问卷数据
-            const userResponse = await fetch('/api/user/profile');
-            const userData = await userResponse.json();
-            
-            if (userData.success && userData.questionnaire) {
-                // 在设置页面显示问卷修改选项
-                addQuestionnaireToSettings(userData.questionnaire);
-            }
+        if (data.success) {
+            // 应用设置
+            applySettings(data.settings);
         }
     } catch (error) {
-        console.error('加载问卷设置失败:', error);
+        console.error('加载设置错误:', error);
     }
 }
 
-function addQuestionnaireToSettings(questionnaire) {
-    const accountSettings = document.getElementById('account-settings');
-    if (!accountSettings) return;
+function applySettings(settings) {
+    if (!settings) return;
     
-    const questionnaireSection = document.createElement('div');
-    questionnaireSection.className = 'questionnaire-settings';
-    questionnaireSection.innerHTML = `
-        <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
-        <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
-        <button class="btn btn-secondary" onclick="updateQuestionnaire()">
-            <i class="fas fa-redo"></i> 重新填写问卷
-        </button>
-        <div class="current-questionnaire-summary" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-            <h5>当前问卷摘要：</h5>
-            <p>年级：${getGradeText(questionnaire.grade)}</p>
-            <p>教育体系：${getSystemText(questionnaire.education_system)}</p>
-            <!-- 可以添加更多摘要信息 -->
-        </div>
-    `;
+    // 应用视觉设置
+    if (settings.visual) {
+        const { theme, font_size, font_family } = settings.visual;
+        
+        // 应用主题
+        if (theme) {
+            applyTheme(theme);
+        }
+        
+        // 应用字体
+        if (font_size) {
+            document.documentElement.style.fontSize = `${font_size}px`;
+        }
+        
+        if (font_family) {
+            document.body.style.fontFamily = font_family;
+        }
+    }
     
-    accountSettings.appendChild(questionnaireSection);
+    // 应用语言设置
+    if (settings.language) {
+        AppState.language = settings.language;
+        updateLanguage();
+    }
 }
 
-function getGradeText(grade) {
-    const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
-    return gradeMap[grade] || '未知';
+function applyTheme(theme) {
+    const themes = {
+        'A': '#ffe6f2', // 粉色
+        'B': '#e6f7ff', // 浅蓝色
+        'C': '#e6ffe6', // 浅绿色
+        'D': '#f2e6ff', // 浅紫色
+        'E': '#ffffff'  // 自定义（白色）
+    };
+    
+    const color = themes[theme] || '#f8f9fa';
+    document.body.style.backgroundColor = color;
 }
 
-function getSystemText(system) {
-    const systemMap = { A: '国际体系', B: '普高体系' };
-    return systemMap[system] || '未知';
+// 语言切换
+async function loadTranslations() {
+    try {
+        // 这里可以加载语言包
+        AppState.translations = {
+            zh: {},
+            en: {}
+        };
+    } catch (error) {
+        console.error('加载翻译错误:', error);
+    }
 }
 
-async function updateQuestionnaire() {
-    if (!confirm('确定要重新填写知识框架问卷吗？这会影响后续的个性化解读。')) {
+function updateLanguage() {
+    // 更新页面语言
+    document.documentElement.lang = AppState.language;
+    
+    // 这里可以添加具体的语言切换逻辑
+}
+
+// 问卷处理
+function loadQuestionnaire() {
+    // 这里可以动态加载问卷HTML
+    const container = document.getElementById('questionnaire');
+    if (container) {
+        container.innerHTML = `
+            <div class="questionnaire-section">
+                <h4>知识框架调查问卷</h4>
+                <p>请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+                
+                <div class="question-group">
+                    <h5>一、基本情况</h5>
+                    
+                    <div class="form-group">
+                        <label>1. 您所在的年级是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="A" required>
+                                <span>A. 9年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="B">
+                                <span>B. 10年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="C">
+                                <span>C. 11年级</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="grade" value="D">
+                                <span>D. 12年级</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>2. 您所处的教育体系是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="education_system" value="A" required>
+                                <span>A. 国际体系</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="education_system" value="B">
+                                <span>B. 普高体系</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
+                        <div class="interest-grid">
+                            <div class="interest-item">
+                                <label>物理学：</label>
+                                <select name="interest_physics" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>生物学、医学等：</label>
+                                <select name="interest_biology" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>化学：</label>
+                                <select name="interest_chemistry" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>地理地质学：</label>
+                                <select name="interest_geology" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                            <div class="interest-item">
+                                <label>天体天文学：</label>
+                                <select name="interest_astronomy" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分（不感兴趣）</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分（一般）</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分（非常感兴趣）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>4. 您学习自然科学课外知识的频率是？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="A" required>
+                                <span>A. 一周1次或更频繁</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="B">
+                                <span>B. 一个月1-3次</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="learning_frequency" value="C">
+                                <span>C. 几个月1次</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="A" required>
+                                <span>A. 变为原来的n倍</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="B">
+                                <span>B. 变为原来的1/n</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="C">
+                                <span>C. 保持不变</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="physics_question" value="D">
+                                <span>D. 无法确定，因为光的频率也改变了</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="A" required>
+                                <span>A. pH值显著下降</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="B">
+                                <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="C">
+                                <span>C. 醋酸的电离度显著降低</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="chemistry_question" value="D">
+                                <span>D. 水的离子积常数Kw增大</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>
+                        据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="A" required>
+                                <span>A. 为了在夜间更有效地进行光反应。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="B">
+                                <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="C">
+                                <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="biology_question" value="D">
+                                <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="A" required>
+                                <span>A. 行星的精确质量</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="B">
+                                <span>B. 行星轨道周期的最小质量（M sin i）</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="C">
+                                <span>C. 行星的半径</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="astronomy_question" value="D">
+                                <span>D. 行星大气的成分</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="A" required>
+                                <span>A. 持续的海平面上升</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="B">
+                                <span>B. 一次海平面下降，随后又上升</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="C">
+                                <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="geology_question" value="D">
+                                <span>D. 持续的构造抬升</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-group">
+                    <h5>二、科学感知</h5>
+                    
+                    <div class="form-group">
+                        <label>1. 您认为您对以下学习方式的喜好与习惯程度是？【打分】*1-5评分，1为极其不喜欢/习惯，5为极其喜欢/习惯</label>
+                        <div class="learning-style-grid">
+                            <div class="learning-style-item">
+                                <label>A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
+                                <select name="learning_style_quantitative" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>B. 文字理解，通过清晰详细的语言表述知识点：</label>
+                                <select name="learning_style_textual" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
+                                <select name="learning_style_visual" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
+                                <select name="learning_style_interactive" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                            <div class="learning-style-item">
+                                <label>E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
+                                <select name="learning_style_practical" required>
+                                    <option value="">请选择</option>
+                                    <option value="1">1分</option>
+                                    <option value="2">2分</option>
+                                    <option value="3">3分</option>
+                                    <option value="4">4分</option>
+                                    <option value="5">5分</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="A" required>
+                                <span>A. 一本厚重的教科书，由浅入深</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="B">
+                                <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="C">
+                                <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="knowledge_structure" value="D">
+                                <span>D. 一个全能但是无序的工具箱</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
+                        <select name="scientific_thinking" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
+                        <select name="scientific_insight" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
+                        <select name="scientific_sensitivity" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
+                        <select name="interdisciplinary_ability" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
+                        <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                            <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
+                        </div>
+                        <label>请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
+                        <select name="paper_evaluation_score" required style="width: 100%; padding: 10px;">
+                            <option value="">请选择</option>
+                            <option value="1">1分（很差）</option>
+                            <option value="2">2分（较差）</option>
+                            <option value="3">3分（一般）</option>
+                            <option value="4">4分（较好）</option>
+                            <option value="5">5分（很好）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="A">
+                                <span>A. 选段对现象描述的学术语言使用</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="B">
+                                <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="C">
+                                <span>C. 选段中提及的实验数据</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="D">
+                                <span>D. 选段中涉及的科学理论（现象和本质）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="evaluation_criteria" value="E">
+                                <span>E. 单纯凭感觉评分</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="A" required>
+                                <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="B">
+                                <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="C">
+                                <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="D">
+                                <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="climate_question" value="E">
+                                <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <style>
+                .interest-grid, .learning-style-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 15px;
+                    margin: 10px 0;
+                }
+                
+                .interest-item, .learning-style-item {
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .interest-item label, .learning-style-item label {
+                    font-weight: normal;
+                    font-size: 14px;
+                    margin-bottom: 5px;
+                }
+                
+                .interest-item select, .learning-style-item select {
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                
+                .checkbox-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin: 10px 0;
+                }
+                
+                .checkbox-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                }
+                
+                .checkbox-label input[type="checkbox"] {
+                    margin: 0;
+                }
+                
+                .paper-excerpt {
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #666;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid #ddd;
+                }
+                
+                .question-group {
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 1px solid #eee;
+                }
+                
+                .question-group:last-child {
+                    border-bottom: none;
+                }
+            </style>
+        `;
+    }
+}
+
+function collectQuestionnaireData() {
+    const data = {};
+    
+    // 一、基本情况
+    // 1. 年级
+    const grade = document.querySelector('input[name="grade"]:checked');
+    if (grade) data.grade = grade.value;
+    
+    // 2. 教育体系
+    const educationSystem = document.querySelector('input[name="education_system"]:checked');
+    if (educationSystem) data.education_system = educationSystem.value;
+    
+    // 3. 学科兴趣
+    data.interests = {
+        physics: document.querySelector('select[name="interest_physics"]')?.value,
+        biology: document.querySelector('select[name="interest_biology"]')?.value,
+        chemistry: document.querySelector('select[name="interest_chemistry"]')?.value,
+        geology: document.querySelector('select[name="interest_geology"]')?.value,
+        astronomy: document.querySelector('select[name="interest_astronomy"]')?.value
+    };
+    
+    // 4. 学习频率
+    const learningFrequency = document.querySelector('input[name="learning_frequency"]:checked');
+    if (learningFrequency) data.learning_frequency = learningFrequency.value;
+    
+    // 5-9. 学科问题
+    const physicsQuestion = document.querySelector('input[name="physics_question"]:checked');
+    if (physicsQuestion) data.physics_question = physicsQuestion.value;
+    
+    const chemistryQuestion = document.querySelector('input[name="chemistry_question"]:checked');
+    if (chemistryQuestion) data.chemistry_question = chemistryQuestion.value;
+    
+    const biologyQuestion = document.querySelector('input[name="biology_question"]:checked');
+    if (biologyQuestion) data.biology_question = biologyQuestion.value;
+    
+    const astronomyQuestion = document.querySelector('input[name="astronomy_question"]:checked');
+    if (astronomyQuestion) data.astronomy_question = astronomyQuestion.value;
+    
+    const geologyQuestion = document.querySelector('input[name="geology_question"]:checked');
+    if (geologyQuestion) data.geology_question = geologyQuestion.value;
+    
+    // 二、科学感知
+    // 1. 学习方式偏好
+    data.learning_styles = {
+        quantitative: document.querySelector('select[name="learning_style_quantitative"]')?.value,
+        textual: document.querySelector('select[name="learning_style_textual"]')?.value,
+        visual: document.querySelector('select[name="learning_style_visual"]')?.value,
+        interactive: document.querySelector('select[name="learning_style_interactive"]')?.value,
+        practical: document.querySelector('select[name="learning_style_practical"]')?.value
+    };
+    
+    // 2. 知识结构
+    const knowledgeStructure = document.querySelector('input[name="knowledge_structure"]:checked');
+    if (knowledgeStructure) data.knowledge_structure = knowledgeStructure.value;
+    
+    // 3-6. 能力自评
+    data.scientific_abilities = {
+        thinking: document.querySelector('select[name="scientific_thinking"]')?.value,
+        insight: document.querySelector('select[name="scientific_insight"]')?.value,
+        sensitivity: document.querySelector('select[name="scientific_sensitivity"]')?.value,
+        interdisciplinary: document.querySelector('select[name="interdisciplinary_ability"]')?.value
+    };
+    
+    // 7. 论文评价分数
+    const paperScore = document.querySelector('select[name="paper_evaluation_score"]')?.value;
+    if (paperScore) data.paper_evaluation_score = paperScore;
+    
+    // 8. 评价标准（多选）
+    const evaluationCriteria = [];
+    document.querySelectorAll('input[name="evaluation_criteria"]:checked').forEach(checkbox => {
+        evaluationCriteria.push(checkbox.value);
+    });
+    if (evaluationCriteria.length > 0) data.evaluation_criteria = evaluationCriteria;
+    
+    // 9. 气候问题
+    const climateQuestion = document.querySelector('input[name="climate_question"]:checked');
+    if (climateQuestion) data.climate_question = climateQuestion.value;
+    
+    // 添加额外字段用于用户画像分析
+    data.analysis_timestamp = new Date().toISOString();
+    
+    return data;
+}
+
+// 在handleRegister函数中添加用户画像分析
+async function handleRegister() {
+    const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    // 基本验证
+    if (!email || !username || !password) {
+        showNotification('请填写所有必填项', 'error');
         return;
     }
     
-    // 显示问卷模态框
-    showQuestionnaireModal();
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showNotification('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 密码验证
+    if (password.length < 6) {
+        showNotification('密码长度至少6位', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('两次输入的密码不一致', 'error');
+        return;
+    }
+    
+    // 问卷验证
+    const questionnaire = collectQuestionnaireData();
+    
+    // 检查必填问题是否都回答了
+    const requiredFields = [
+        { field: 'grade', name: '年级' },
+        { field: 'education_system', name: '教育体系' },
+        { field: 'learning_frequency', name: '学习频率' },
+        { field: 'physics_question', name: '物理问题（双缝干涉）' },
+        { field: 'chemistry_question', name: '化学问题（醋酸钠）' },
+        { field: 'biology_question', name: '生物问题（仙人掌气孔）' },
+        { field: 'astronomy_question', name: '天文问题（系外行星）' },
+        { field: 'geology_question', name: '地球科学问题（沉积岩芯）' },
+        { field: 'knowledge_structure', name: '知识结构认知' },
+        { field: 'climate_question', name: '气候问题（全球变暖）' }
+    ];
+    
+    for (const { field, name } of requiredFields) {
+        if (!questionnaire[field]) {
+            showNotification(`请完成问卷中的必填问题：${name}`, 'error');
+            scrollToQuestion(field);
+            return;
+        }
+    }
+    
+    // 检查兴趣评分是否都选择了
+    const interests = questionnaire.interests;
+    const interestFields = [
+        { field: 'physics', name: '物理学' },
+        { field: 'biology', name: '生物学/医学' },
+        { field: 'chemistry', name: '化学' },
+        { field: 'geology', name: '地理地质学' },
+        { field: 'astronomy', name: '天体天文学' }
+    ];
+    
+    for (const { field, name } of interestFields) {
+        if (!interests[field]) {
+            showNotification(`请为${name}选择兴趣评分（1-5分）`, 'error');
+            scrollToQuestion('interest_' + field);
+            return;
+        }
+    }
+    
+    // 检查学习方式评分是否都选择了
+    const learningStyles = questionnaire.learning_styles;
+    const styleFields = [
+        { field: 'quantitative', name: '量化学习' },
+        { field: 'textual', name: '文字理解' },
+        { field: 'visual', name: '可视化学习' },
+        { field: 'interactive', name: '互动性学习' },
+        { field: 'practical', name: '实践性学习' }
+    ];
+    
+    for (const { field, name } of styleFields) {
+        if (!learningStyles[field]) {
+            showNotification(`请为${name}选择评分（1-5分）`, 'error');
+            scrollToQuestion('learning_style_' + field);
+            return;
+        }
+    }
+    
+    // 检查能力自评是否都选择了
+    const abilities = questionnaire.scientific_abilities;
+    const abilityFields = [
+        { field: 'thinking', name: '科学思考力' },
+        { field: 'insight', name: '科学洞察力' },
+        { field: 'sensitivity', name: '科学现象敏感度' },
+        { field: 'interdisciplinary', name: '跨学科联系能力' }
+    ];
+    
+    for (const { field, name } of abilityFields) {
+        if (!abilities[field]) {
+            showNotification(`请完成${name}的自评（1-5分）`, 'error');
+            scrollToQuestion('scientific_' + field);
+            return;
+        }
+    }
+    
+    // 检查论文评价是否选择了
+    if (!questionnaire.paper_evaluation_score) {
+        showNotification('请为论文选段打分（1-5分）', 'error');
+        scrollToQuestion('paper_evaluation_score');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                username,
+                password,
+                questionnaire
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            AppState.user = data.user;
+            showApp();
+            
+            // 显示用户画像分析结果（可选）
+            showNotification('注册成功！用户画像分析已保存，将用于个性化解读。', 'success');
+            
+            // 可选：显示简要的用户画像信息
+            setTimeout(() => {
+                const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+                const systemMap = { A: '国际体系', B: '普高体系' };
+                const grade = gradeMap[questionnaire.grade] || '未知';
+                const system = systemMap[questionnaire.education_system] || '未知';
+                
+                const welcomeMsg = `欢迎${username}！您已成功注册。系统将根据您的信息提供个性化解读：\n`
+                    + `- 年级：${grade}\n`
+                    + `- 教育体系：${system}\n`
+                    + `- 问卷数据已保存，将用于优化解读质量`;
+                
+                alert(welcomeMsg);
+            }, 1000);
+            
+        } else {
+            showNotification(data.message || '注册失败', 'error');
+        }
+    } catch (error) {
+        console.error('注册错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
 }
 
-function showQuestionnaireModal() {
+// 修改formatInterpretation函数，确保末尾添加提示语
+function formatInterpretation(text) {
+    // 确保文本以提示语结尾
+    if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
+        text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
+    }
+    
+    // 将文本中的标题格式化为HTML
+    let html = text
+        .replace(/\n/g, '<br>')
+        .replace(/^(#{1,3})\s+(.+)$/gm, (match, hashes, title) => {
+            const level = hashes.length;
+            return `<h${level} style="margin-top: 20px; margin-bottom: 10px; color: #007bff;">${title}</h${level}>`;
+        })
+        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^术语解读区.*$/gm, '<div class="glossary-section"><h3 style="color: #dc3545;">$&</h3></div>');
+    
+    return html;
+}
+
+// 新增：滚动到对应问题的辅助函数
+function scrollToQuestion(questionName) {
+    // 根据问题名称找到对应的元素并滚动到那里
+    let element = null;
+    
+    // 尝试不同的选择器
+    const selectors = [
+        `input[name="${questionName}"]`,
+        `select[name="${questionName}"]`,
+        `input[name="${questionName}"]:checked`,
+        `[name="${questionName}"]`
+    ];
+    
+    for (const selector of selectors) {
+        element = document.querySelector(selector);
+        if (element) break;
+    }
+    
+    if (element) {
+        // 滚动到元素位置
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // 添加高亮效果
+        element.style.boxShadow = '0 0 0 3px rgba(220, 53, 69, 0.5)';
+        element.style.transition = 'box-shadow 0.3s ease';
+        
+        // 移除高亮效果
+        setTimeout(() => {
+            element.style.boxShadow = '';
+        }, 3000);
+    }
+}
+
+// 可选：添加表单验证的实时反馈
+function setupQuestionnaireValidation() {
+    // 为所有必填字段添加change事件
+    const requiredInputs = document.querySelectorAll(
+        'input[required], select[required]'
+    );
+    
+    requiredInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // 移除错误样式
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+            
+            // 如果值有效，添加成功样式
+            if (this.value) {
+                this.style.borderColor = '#28a745';
+                this.style.boxShadow = '0 0 0 3px rgba(40, 167, 69, 0.1)';
+                
+                // 2秒后移除样式
+                setTimeout(() => {
+                    this.style.borderColor = '';
+                    this.style.boxShadow = '';
+                }, 2000);
+            }
+        });
+    });
+}
+
+// 在DOM加载完成后调用
+document.addEventListener('DOMContentLoaded', function() {
+    // ... 其他初始化代码 ...
+    
+    // 设置问卷验证
+    setTimeout(() => {
+        setupQuestionnaireValidation();
+    }, 500); // 延迟一点确保问卷已加载
+});
+// 使用说明
+
+function loadInstructions() {
+    const container = document.querySelector('#instructions-page .page-content');
+    if (container) {
+        container.innerHTML = `
+            <div class="content-section">
+                <h3><i class="fas fa-code"></i> 技术说明</h3>
+                <ul>
+                    <li><strong>后端框架：</strong>基于Flask、Python、Web框架构建</li>
+                    <li><strong>前端技术：</strong>HTML5 + CSS3 + JavaScript响应式设计</li>
+                    <li><strong>文件处理：</strong>集成专业解析库处理PDF和DOCX文件</li>
+                    <li><strong>API接口：</strong>调用DeepSeek-V1 API，支持前后端分离</li>
+                </ul>
+            </div>
+            
+            <div class="content-section">
+                <h3><i class="fas fa-list-ol"></i> 使用步骤</h3>
+                <h4>1. 阅读产品介绍与使用说明</h4>
+                <ul>
+                    <li><strong>了解功能：</strong>详细阅读首页功能介绍，了解我们的核心开发理念</li>
+                    <li><strong>观看使用说明：</strong>详细阅读本页使用说明部分，了解网页基本使用方法</li>
+                </ul>
+                
+                <h4>2. 进入 "用户设置"页面，进行参数配置</h4>
+                <ul>
+                    <li><strong>视觉设置：</strong>选择不同颜色的背景主题，调节字体形式与大小</li>
+                    <li><strong>阅读习惯设置：</strong>对您个人的论文解读的偏好和特质进行个性化设置</li>
+                    <li><strong>语言设置：</strong>切换网页语言为中文/英文</li>
+                    <li><strong>账户设置：</strong>退出登录</li>
+                </ul>
+                
+                <h4>3. 进行论文解读</h4>
+                <ul>
+                    <li><strong>上传论文：</strong>支持拖拽上传或文件选择，最大支持16MB文件；pdf、docx文件均可接受</li>
+                    <li><strong>文本输入：</strong>直接粘贴论文摘要或关键段落（最长支持5000字符）</li>
+                    <li><strong>生成解读：</strong>点击"开始解读"按钮，等待AI生成详细分析</li>
+                </ul>
+            </div>
+            
+            <div class="content-section">
+                <h3><i class="fas fa-cogs"></i> 功能介绍</h3>
+                <h4>A. 解读核心功能</h4>
+                <ul>
+                    <li><strong>智能解读：</strong>将复杂学术语言转换为通俗易懂的解释</li>
+                    <li><strong>术语解释：</strong>对专业术语提供详细定义和背景说明</li>
+                    <li><strong>图表理解：</strong>分析论文中的图表数据，生成用户喜欢的图表，提供直观解读</li>
+                    <li><strong>个性化设置：</strong>注重用户知识框架、阅读偏好差异性，提供设置功能</li>
+                    <li><strong>自适应算法：</strong>通过用户的阅读记录，自动更新、调整解读内容，推送相关论文</li>
+                </ul>
+                
+                <h4>B. 视觉设置功能</h4>
+                <ul>
+                    <li><strong>背景切换：</strong>支持不同颜色主题调节以及自定义主题设置</li>
+                    <li><strong>字体调节：</strong>可调整解读内容的字体大小和行间距</li>
+                    <li><strong>高亮显示：</strong>重要内容支持批注，支持自定义颜色标记</li>
+                </ul>
+                
+                <h4>C. 反馈与联系功能</h4>
+                <p>您可以在页面底部的"联系我们"中找到开发团队的联系方式</p>
+                
+                <h4>D. 其他实用功能</h4>
+                <ul>
+                    <li><strong>多语言支持：</strong>支持中英双语解读界面</li>
+                    <li><strong>进度保存功能：</strong>同一用户登录时自动打开上次退出时的阅读界面</li>
+                </ul>
+            </div>
+            
+            <div class="content-section">
+                <h3><i class="fas fa-lightbulb"></i> 温馨提示</h3>
+                <p>本服务旨在辅助学术理解，不替代专业学术评审。重要研究决策请结合专家意见。我们持续优化AI模型，欢迎您在使用过程中提供宝贵反馈，共同打造更好的学术辅助工具！</p>
+            </div>
+        `;
+    }
+}
+
+// 模态框显示
+// 替换原有的showModal函数
+function showModal(type) {
+    let title = '';
+    let content = '';
+    
+    switch(type) {
+        case 'privacy':
+            title = '隐私政策 (Privacy Policy)';
+            content = `
+                <h4>最后更新日期：2026年1月1日</h4>
+                
+                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息，特别是考虑到我们的主要用户群体为高中生。</p>
+                
+                <h5>1. 我们收集的信息</h5>
+                <ul>
+                    <li><strong>您主动提供的信息</strong>：当您注册账户、提交反馈或通过"联系我们"发送邮件时，我们可能会收集您的邮箱地址、用户名以及您自愿提供的其他信息。</li>
+                    <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间、页面停留时间及阅读偏好（如论文分类偏好）。这些信息不用于身份识别，仅用于改善服务。</li>
+                    <li><strong>问卷调查数据</strong>：在网站设计阶段，我们通过匿名问卷收集了关于高中生自然科学论文阅读偏好的汇总数据，用于功能设计。该数据已进行脱敏处理，不包含任何个人身份信息。</li>
+                </ul>
+                
+                <h5>2. 我们如何使用信息</h5>
+                <ul>
+                    <li>为您提供和优化自适应的论文阅读体验。</li>
+                    <li>通过邮箱回复您的问题或反馈。</li>
+                    <li>进行匿名的、聚合性的数据分析，以持续改进网站功能。</li>
+                </ul>
+                
+                <h5>3. 信息共享与披露</h5>
+                <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。除非法律要求，否则我们不会披露您的个人身份信息。</p>
+                
+                <h5>4. 数据安全</h5>
+                <p>我们采取合理的技术措施保护数据安全。但由于互联网传输并非绝对安全，我们无法保证信息的绝对安全。</p>
+                
+                <h5>5. 您的权利</h5>
+                <p>您可以随时在账户设置中查看或更新您提供的个人信息。如需删除账户，请通过页面上的删除账户按钮操作。</p>
+                
+                <h5>6. 关于未成年人</h5>
+                <p>我们的服务主要面向高中生。我们鼓励未成年用户在父母或监护人的指导下使用本平台。</p>
+                
+                <h5>7. 政策变更</h5>
+                <p>我们可能适时更新本政策，更新内容将公布于此页面。</p>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对本隐私政策有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'terms':
+            title = '服务条款 (Terms of Service)';
+            content = `
+                <h4>生效日期：2026年1月1日</h4>
+                
+                <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。这是一个由在读高中生发起并主导的CTB（China Thinks Big）竞赛项目。</p>
+                
+                <p>我们通过问卷调查深入了解同龄人在阅读自然科学论文时的难点，并以此为基础设计了本平台。网站的开发使用了人工智能辅助编程工具，并由我们团队进行全面的测试、调整与维护，旨在打造一个真正适合高中生认知习惯的学习工具。我们计划在比赛结束后持续运营并优化此项目。</p>
+                
+                <p>请在使用前仔细阅读以下条款。</p>
+                
+                <h5>1. 服务描述</h5>
+                <p>本平台是一个基于自适应学习技术的工具，通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
+                
+                <h5>2. 使用规则</h5>
+                <ul>
+                    <li>您必须遵守所有适用的法律和法规。</li>
+                    <li>您不得利用本平台进行任何干扰服务正常运行或损害他人权益的行为。</li>
+                    <li>您应对通过您的账户进行的所有活动负责。</li>
+                </ul>
+                
+                <h5>3. 免责声明</h5>
+                <ul>
+                    <li>本平台提供的论文摘要、解读和推荐内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。请您务必批判性思考，并以原文为准。</li>
+                    <li>我们尽力确保服务稳定，但不对服务的持续性、无中断性或绝对安全性作任何担保。</li>
+                    <li><strong>关于AI生成代码的说明</strong>：本网站的核心功能代码由人工智能辅助生成，并经过我们的测试与调整。我们团队对其功能与安全性负责，并持续进行优化与维护。</li>
+                </ul>
+                
+                <h5>4. 知识产权</h5>
+                <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。平台内引用的论文摘要、元数据等，其版权归属于原论文作者或出版商，我们按合理使用原则提供以支持教育目的。</p>
+                
+                <h5>5. 终止服务</h5>
+                <p>我们保留因用户违反本条款或自行决定而暂停或终止服务的权利。</p>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对服务条款有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'cookie':
+            title = 'Cookie 政策 (Cookie Policy)';
+            content = `
+                <h4>Cookie政策说明</h4>
+                
+                <p>我们使用Cookie（小型文本文件）来提升您的浏览体验。</p>
+                
+                <h5>1. Cookie的用途</h5>
+                <ul>
+                    <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态、记住语言偏好等。</li>
+                    <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况，以帮助我们了解如何改进网站设计。</li>
+                    <li><strong>偏好Cookie</strong>：记住您的个性化设置，如字体大小、主题颜色等。</li>
+                </ul>
+                
+                <h5>2. Cookie控制</h5>
+                <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用：</p>
+                <ul>
+                    <li>禁用必要Cookie将导致您无法保持登录状态，每次访问都需要重新登录</li>
+                    <li>禁用偏好Cookie将无法保存您的个性化设置</li>
+                    <li>禁用分析Cookie不会影响网站功能，但我们会失去了解用户行为的途径</li>
+                </ul>
+                
+                <h5>3. 第三方Cookie</h5>
+                <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。所有Cookie仅用于本网站的功能改善和用户体验优化。</p>
+                
+                <h5>4. Cookie存储时间</h5>
+                <p>不同的Cookie有不同的存储时间：</p>
+                <ul>
+                    <li>会话Cookie：在您关闭浏览器时自动删除</li>
+                    <li>持久Cookie：根据设置保留数天至数月</li>
+                    <li>登录状态Cookie：通常保留7-30天</li>
+                </ul>
+                
+                <h5>5. 您的选择</h5>
+                <p>您可以通过以下方式管理Cookie：</p>
+                <ul>
+                    <li><strong>接受所有Cookie</strong>：获得完整的网站体验</li>
+                    <li><strong>仅接受必要Cookie</strong>：保持基本功能，但个性化设置不会被保存</li>
+                    <li><strong>拒绝所有非必要Cookie</strong>：通过浏览器设置实现</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对Cookie政策有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'copyright':
+            title = '版权说明 (Copyright Notice)';
+            content = `
+                <h4>版权声明</h4>
+                
+                <p><strong>ANSAPRA</strong>是一个教育性质的非营利项目。</p>
+                
+                <h5>1. 本网站的版权</h5>
+                <ul>
+                    <li>本网站的整体设计、用户界面、特定功能代码及原创文本内容受版权保护，版权归 <strong>ANSAPRA开发团队</strong> 所有，© 2026。</li>
+                    <li>未经书面许可，任何组织或个人不得复制、修改、分发或商业性使用本网站的设计和内容。</li>
+                </ul>
+                
+                <h5>2. 引用内容的版权</h5>
+                <ul>
+                    <li>网站内为辅助阅读而引用的论文标题、摘要、作者、期刊信息等元数据，其版权归原著作权人所有。</li>
+                    <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利，符合合理使用原则。</li>
+                    <li>所有引用内容均明确标注来源，仅供教育目的使用。</li>
+                </ul>
+                
+                <h5>3. 用户生成内容</h5>
+                <ul>
+                    <li>用户在本平台上传的论文文件、笔记和批注，其版权仍归用户所有。</li>
+                    <li>用户授予本平台存储和展示这些内容的权利，以便提供解读服务。</li>
+                    <li>用户可以随时删除自己上传的内容。</li>
+                </ul>
+                
+                <h5>4. 使用许可</h5>
+                <ul>
+                    <li>任何个人或教育机构可出于非商业性学习目的自由分享网站链接。</li>
+                    <li>如需对本网站的设计或内容进行复制、修改或用于其他公开用途，请事先通过 "联系我们"中的邮箱地址 联系我们，并取得我们的书面许可。</li>
+                    <li>学校和教育机构可在获得许可后，将本网站用于课堂教学目的。</li>
+                </ul>
+                
+                <h5>5. 侵权举报</h5>
+                <p>如果您认为本网站的内容侵犯了您的版权，请通过以下方式联系我们：</p>
+                <ul>
+                    <li>电子邮件：1182332400@qq.com 或 biokoala@outlook.com</li>
+                    <li>请提供详细的侵权证明和您的联系方式</li>
+                    <li>我们会在收到举报后10个工作日内进行处理</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        尊重知识产权，促进学术交流。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'contact':
+            title = '联系我们 (Contact Us)';
+            content = `
+                <h4><i class="fas fa-envelope"></i> 联系我们</h4>
+                
+                <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。因此，我们非常重视您的反馈。</p>
+                
+                <div class="contact-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h5><i class="fas fa-users"></i> 团队介绍</h5>
+                    <p>我们是参加CTB（China Thinks Big）全球青年研究创新论坛的高中生团队。我们的目标是帮助同龄人更好地阅读和理解自然科学学术论文。</p>
+                    
+                    <h5><i class="fas fa-bullseye"></i> 项目背景</h5>
+                    <p>通过前期调研，我们发现高中生阅读科学学术论文的普及率较低，主要原因包括论文可读性差、缺乏个性化辅助工具等。为此，我们开发了ANSAPRA（Adaptive Natural Science Academic Paper Reading Agent）。</p>
+                </div>
+                
+                <h5><i class="fas fa-comment-dots"></i> 您可以联系我们的事项</h5>
+                <ul>
+                    <li><strong>网站功能建议或错误报告</strong>：如果您发现网站存在bug或有改进建议</li>
+                    <li><strong>隐私政策的疑问</strong>：对个人信息处理有任何疑问</li>
+                    <li><strong>合作意向</strong>：学校、教育机构或媒体希望合作</li>
+                    <li><strong>版权相关问题</strong>：涉及内容版权的疑问或举报</li>
+                    <li><strong>学术支持</strong>：希望获得更多学术资源或指导</li>
+                    <li><strong>其他任何问题</strong>：任何与本网站相关的问题</li>
+                </ul>
+                
+                <h5><i class="fas fa-envelope-open-text"></i> 联系方式</h5>
+                <div class="contact-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div class="contact-method" style="text-align: center;">
+                        <i class="fas fa-envelope fa-2x" style="color: #007bff;"></i>
+                        <h6>主要邮箱</h6>
+                        <p><a href="mailto:1182332400@qq.com">1182332400@qq.com</a></p>
+                    </div>
+                    <div class="contact-method" style="text-align: center;">
+                        <i class="fas fa-envelope fa-2x" style="color: #28a745;"></i>
+                        <h6>备用邮箱</h6>
+                        <p><a href="mailto:biokoala@outlook.com">biokoala@outlook.com</a></p>
+                    </div>
+                </div>
+                
+                <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h6><i class="fas fa-clock"></i> 响应时间</h6>
+                    <p>我们会在<strong>10个工作日内</strong>尽力回复您的邮件。由于我们是学生团队，回复可能会在课后时间，敬请谅解。</p>
+                </div>
+                
+                <h5><i class="fas fa-lightbulb"></i> 反馈建议</h5>
+                <p>为了让您的反馈得到更快的处理，建议您在邮件中：</p>
+                <ul>
+                    <li>明确邮件主题，如"[功能建议]"、"[错误报告]"等</li>
+                    <li>提供详细的问题描述和复现步骤</li>
+                    <li>如果是功能建议，请说明您的使用场景和期望效果</li>
+                    <li>留下您的联系方式以便我们进一步沟通</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        感谢您对ANSAPRA的支持！您的反馈将帮助我们不断改进。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        default:
+            title = type;
+            content = '内容加载中...';
+    }
+    
     const modalHTML = `
-        <div class="modal" id="questionnaire-modal">
-            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3><i class="fas fa-clipboard-list"></i> 更新知识框架问卷</h3>
-                    <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+        <div class="modal" id="info-modal">
+            <div class="modal-content" style="max-width: 800px; max-height: 85vh;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
+                    <h3 style="margin: 0; color: #007bff;">${title}</h3>
+                    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; transition: color 0.3s ease;">&times;</button>
                 </div>
-                <div id="modal-questionnaire-container" style="max-height: 70vh; overflow-y: auto;">
-                    加载中...
+                
+                <div class="modal-body" style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
+                    <div class="modal-content-inner" style="line-height: 1.6; font-size: 15px;">
+                        ${content}
+                    </div>
                 </div>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
-                        <i class="fas fa-save"></i> 保存更新
+                
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: center;">
+                    <button class="btn btn-primary" onclick="closeModal()">
+                        <i class="fas fa-check"></i> 我已阅读并理解
                     </button>
-                    <button class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-left: 10px;">
-                        取消
+                    <button class="btn btn-secondary" onclick="printModalContent()" style="margin-left: 10px;">
+                        <i class="fas fa-print"></i> 打印
                     </button>
                 </div>
             </div>
@@ -1024,158 +1833,209 @@ function showQuestionnaireModal() {
     const modalContainer = document.getElementById('modal-container');
     modalContainer.innerHTML = modalHTML;
     
-    // 加载问卷到模态框
-    setTimeout(() => {
-        loadQuestionnaireToModal();
-    }, 100);
+    // 添加悬停效果
+    const modal = document.getElementById('info-modal');
+    const closeBtn = modal.querySelector('button[onclick="closeModal()"]');
+    closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.color = '#dc3545';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.color = '#666';
+    });
+    
+    modal.style.display = 'flex';
+    
+    // 添加滚动条样式
+    addModalScrollbarStyles();
 }
 
-function loadQuestionnaireToModal() {
-    const container = document.getElementById('modal-questionnaire-container');
-    if (container) {
-        // 这里可以加载与注册时间相同的问卷HTML
-        container.innerHTML = document.getElementById('questionnaire').innerHTML;
+// 添加打印功能
+function printModalContent() {
+    const modalContent = document.querySelector('.modal-content-inner');
+    if (modalContent) {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>ANSAPRA - ${document.querySelector('.modal-header h3').textContent}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+                        h1, h2, h3, h4, h5, h6 { color: #007bff; }
+                        ul, ol { margin-left: 20px; }
+                        li { margin-bottom: 5px; }
+                        .contact-methods { display: flex; gap: 20px; }
+                        .modal-footer { border-top: 1px solid #ddd; margin-top: 20px; padding-top: 10px; }
+                        @media print {
+                            body { font-size: 12pt; }
+                            a { color: #007bff; text-decoration: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>${document.querySelector('.modal-header h3').textContent}</h1>
+                    <div>${modalContent.innerHTML}</div>
+                    <div class="modal-footer">
+                        <p>打印时间：${new Date().toLocaleString()}</p>
+                        <p>来源：ANSAPRA 高中生自然科学论文自适应阅读程序</p>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     }
 }
 
-function closeQuestionnaireModal() {
-    const modal = document.getElementById('questionnaire-modal');
+// 添加模态框滚动条样式
+function addModalScrollbarStyles() {
+    const styleId = 'modal-scrollbar-styles';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            .modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .modal-body::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 4px;
+            }
+            
+            .modal-body::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 4px;
+            }
+            
+            .modal-body::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+            
+            .modal-content {
+                animation: modalFadeIn 0.3s ease;
+            }
+            
+            @keyframes modalFadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .modal {
+                animation: modalBackdropFadeIn 0.3s ease;
+            }
+            
+            @keyframes modalBackdropFadeIn {
+                from {
+                    background-color: rgba(0,0,0,0);
+                }
+                to {
+                    background-color: rgba(0,0,0,0.5);
+                }
+            }
+            
+            .contact-info {
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                border-left: 4px solid #007bff;
+            }
+            
+            .contact-method {
+                transition: transform 0.3s ease;
+                padding: 15px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                background: white;
+            }
+            
+            .contact-method:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+            
+            .response-time {
+                background: linear-gradient(135deg, #e8f4ff 0%, #d1ecf1 100%);
+                border-left: 4px solid #17a2b8;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('info-modal');
     if (modal) {
         modal.style.display = 'none';
     }
 }
 
-async function submitUpdatedQuestionnaire() {
-    // 收集问卷数据
-    const questionnaire = collectQuestionnaireData();
-    
-    try {
-        const response = await fetch('/api/user/update-questionnaire', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ questionnaire })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('问卷已更新！新的学习画像将应用于后续解读。', 'success');
-            closeQuestionnaireModal();
-            // 刷新页面或重新加载设置
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            showNotification(data.message || '更新失败', 'error');
-        }
-    } catch (error) {
-        console.error('更新问卷失败:', error);
-        showNotification('网络错误，请稍后重试', 'error');
+// 通知功能
+function showNotification(message, type = 'info') {
+    // 移除现有的通知
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
     }
-}
-function collectSettings() {
-    const settings = {
-        reading: {},
-        visual: {},
-        language: 'zh'
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 1000;
+        animation: slideInRight 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        info: '#17a2b8',
+        warning: '#ffc107'
     };
     
-    // 收集阅读设置
-    const readingForm = document.getElementById('reading-settings-form');
-    if (readingForm) {
-        const formData = new FormData(readingForm);
-        
-        // 单选按钮
-        settings.reading.preparation = readingForm.querySelector('input[name="preparation"]:checked')?.value || 'B';
-        settings.reading.purpose = readingForm.querySelector('input[name="purpose"]:checked')?.value || 'B';
-        settings.reading.time = readingForm.querySelector('input[name="time"]:checked')?.value || 'B';
-        settings.reading.style = readingForm.querySelector('input[name="style"]:checked')?.value || 'C';
-        settings.reading.depth = readingForm.querySelector('input[name="depth"]:checked')?.value || 'B';
-        settings.reading.test_type = readingForm.querySelector('input[name="test_type"]:checked')?.value || 'B';
-        
-        // 多选框
-        const chartTypes = [];
-        readingForm.querySelectorAll('input[name="chart_types"]:checked').forEach(checkbox => {
-            chartTypes.push(checkbox.value);
-        });
-        settings.reading.chart_types = chartTypes.length > 0 ? chartTypes : ['A'];
-    }
+    notification.style.backgroundColor = colors[type] || colors.info;
     
-    // 收集视觉设置
-    const visualForm = document.getElementById('visual-settings-form');
-    if (visualForm) {
-        settings.visual.theme = visualForm.querySelector('input[name="theme"]:checked')?.value || 'B';
-        settings.visual.font_size = document.getElementById('font-size-slider')?.value || '18';
-        settings.visual.font_family = visualForm.querySelector('input[name="font_family"]:checked')?.value || 'Microsoft YaHei';
-        // 背景图片处理需要额外的存储逻辑
-    }
+    document.body.appendChild(notification);
     
-    // 收集语言设置
-    const languageRadio = document.querySelector('input[name="language"]:checked');
-    if (languageRadio) {
-        settings.language = languageRadio.value;
-    }
-    
-    return settings;
+    // 3秒后自动移除
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    }, 3000);
 }
 
-function resetSettings() {
-    if (confirm('确定要恢复默认设置吗？')) {
-        // 加载默认设置
-        const defaultSettings = {
-            reading: {
-                preparation: 'B',
-                purpose: 'B',
-                time: 'B',
-                style: 'C',
-                depth: 'B',
-                test_type: 'B',
-                chart_types: ['A']
-            },
-            visual: {
-                theme: 'B',
-                font_size: '18',
-                font_family: 'Microsoft YaHei',
-                custom_background: null
-            },
-            language: 'zh'
-        };
-        
-        applyFormSettings(defaultSettings);
-        showNotification('已恢复默认设置', 'success');
-    }
-}
-
-async function deleteAccount() {
-    if (!confirm('确定要删除账户吗？此操作不可撤销，将永久删除所有数据。')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/delete-account', {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('账户已删除', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            showNotification(data.message || '删除失败', 'error');
+// 添加CSS动画
+if (!document.querySelector('#notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-    } catch (error) {
-        console.error('删除账户失败:', error);
-        showNotification('网络错误，请稍后重试', 'error');
-    }
+        
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
 }
-
-// 暴露函数到全局作用域
-window.saveSettings = saveSettings;
-window.resetSettings = resetSettings;
-window.deleteAccount = deleteAccount;
-window.removeBackground = removeBackground;
