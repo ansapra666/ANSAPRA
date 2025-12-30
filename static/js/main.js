@@ -1488,39 +1488,258 @@ function loadInstructions() {
 }
 
 // 模态框显示
+// 替换原有的showModal函数
 function showModal(type) {
     let title = '';
     let content = '';
     
     switch(type) {
         case 'privacy':
-            title = '隐私政策';
+            title = '隐私政策 (Privacy Policy)';
             content = `
                 <h4>最后更新日期：2026年1月1日</h4>
-                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私...</p>
-                <!-- 更多隐私政策内容 -->
+                
+                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息，特别是考虑到我们的主要用户群体为高中生。</p>
+                
+                <h5>1. 我们收集的信息</h5>
+                <ul>
+                    <li><strong>您主动提供的信息</strong>：当您注册账户、提交反馈或通过"联系我们"发送邮件时，我们可能会收集您的邮箱地址、用户名以及您自愿提供的其他信息。</li>
+                    <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间、页面停留时间及阅读偏好（如论文分类偏好）。这些信息不用于身份识别，仅用于改善服务。</li>
+                    <li><strong>问卷调查数据</strong>：在网站设计阶段，我们通过匿名问卷收集了关于高中生自然科学论文阅读偏好的汇总数据，用于功能设计。该数据已进行脱敏处理，不包含任何个人身份信息。</li>
+                </ul>
+                
+                <h5>2. 我们如何使用信息</h5>
+                <ul>
+                    <li>为您提供和优化自适应的论文阅读体验。</li>
+                    <li>通过邮箱回复您的问题或反馈。</li>
+                    <li>进行匿名的、聚合性的数据分析，以持续改进网站功能。</li>
+                </ul>
+                
+                <h5>3. 信息共享与披露</h5>
+                <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。除非法律要求，否则我们不会披露您的个人身份信息。</p>
+                
+                <h5>4. 数据安全</h5>
+                <p>我们采取合理的技术措施保护数据安全。但由于互联网传输并非绝对安全，我们无法保证信息的绝对安全。</p>
+                
+                <h5>5. 您的权利</h5>
+                <p>您可以随时在账户设置中查看或更新您提供的个人信息。如需删除账户，请通过页面上的删除账户按钮操作。</p>
+                
+                <h5>6. 关于未成年人</h5>
+                <p>我们的服务主要面向高中生。我们鼓励未成年用户在父母或监护人的指导下使用本平台。</p>
+                
+                <h5>7. 政策变更</h5>
+                <p>我们可能适时更新本政策，更新内容将公布于此页面。</p>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对本隐私政策有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
             `;
             break;
+            
         case 'terms':
-            title = '服务条款';
+            title = '服务条款 (Terms of Service)';
             content = `
                 <h4>生效日期：2026年1月1日</h4>
-                <p>欢迎使用<strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具...</p>
-                <!-- 更多服务条款内容 -->
-            `;
-            break;
-        case 'contact':
-            title = '联系我们';
-            content = `
-                <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。</p>
-                <p>如果您有任何问题，请通过以下邮箱联系我们：</p>
+                
+                <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。这是一个由在读高中生发起并主导的CTB（China Thinks Big）竞赛项目。</p>
+                
+                <p>我们通过问卷调查深入了解同龄人在阅读自然科学论文时的难点，并以此为基础设计了本平台。网站的开发使用了人工智能辅助编程工具，并由我们团队进行全面的测试、调整与维护，旨在打造一个真正适合高中生认知习惯的学习工具。我们计划在比赛结束后持续运营并优化此项目。</p>
+                
+                <p>请在使用前仔细阅读以下条款。</p>
+                
+                <h5>1. 服务描述</h5>
+                <p>本平台是一个基于自适应学习技术的工具，通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
+                
+                <h5>2. 使用规则</h5>
                 <ul>
-                    <li>1182332400@qq.com</li>
-                    <li>biokoala@outlook.com</li>
+                    <li>您必须遵守所有适用的法律和法规。</li>
+                    <li>您不得利用本平台进行任何干扰服务正常运行或损害他人权益的行为。</li>
+                    <li>您应对通过您的账户进行的所有活动负责。</li>
                 </ul>
-                <p>我们会在10个工作日内尽力回复。</p>
+                
+                <h5>3. 免责声明</h5>
+                <ul>
+                    <li>本平台提供的论文摘要、解读和推荐内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。请您务必批判性思考，并以原文为准。</li>
+                    <li>我们尽力确保服务稳定，但不对服务的持续性、无中断性或绝对安全性作任何担保。</li>
+                    <li><strong>关于AI生成代码的说明</strong>：本网站的核心功能代码由人工智能辅助生成，并经过我们的测试与调整。我们团队对其功能与安全性负责，并持续进行优化与维护。</li>
+                </ul>
+                
+                <h5>4. 知识产权</h5>
+                <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。平台内引用的论文摘要、元数据等，其版权归属于原论文作者或出版商，我们按合理使用原则提供以支持教育目的。</p>
+                
+                <h5>5. 终止服务</h5>
+                <p>我们保留因用户违反本条款或自行决定而暂停或终止服务的权利。</p>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对服务条款有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
             `;
             break;
+            
+        case 'cookie':
+            title = 'Cookie 政策 (Cookie Policy)';
+            content = `
+                <h4>Cookie政策说明</h4>
+                
+                <p>我们使用Cookie（小型文本文件）来提升您的浏览体验。</p>
+                
+                <h5>1. Cookie的用途</h5>
+                <ul>
+                    <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态、记住语言偏好等。</li>
+                    <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况，以帮助我们了解如何改进网站设计。</li>
+                    <li><strong>偏好Cookie</strong>：记住您的个性化设置，如字体大小、主题颜色等。</li>
+                </ul>
+                
+                <h5>2. Cookie控制</h5>
+                <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用：</p>
+                <ul>
+                    <li>禁用必要Cookie将导致您无法保持登录状态，每次访问都需要重新登录</li>
+                    <li>禁用偏好Cookie将无法保存您的个性化设置</li>
+                    <li>禁用分析Cookie不会影响网站功能，但我们会失去了解用户行为的途径</li>
+                </ul>
+                
+                <h5>3. 第三方Cookie</h5>
+                <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。所有Cookie仅用于本网站的功能改善和用户体验优化。</p>
+                
+                <h5>4. Cookie存储时间</h5>
+                <p>不同的Cookie有不同的存储时间：</p>
+                <ul>
+                    <li>会话Cookie：在您关闭浏览器时自动删除</li>
+                    <li>持久Cookie：根据设置保留数天至数月</li>
+                    <li>登录状态Cookie：通常保留7-30天</li>
+                </ul>
+                
+                <h5>5. 您的选择</h5>
+                <p>您可以通过以下方式管理Cookie：</p>
+                <ul>
+                    <li><strong>接受所有Cookie</strong>：获得完整的网站体验</li>
+                    <li><strong>仅接受必要Cookie</strong>：保持基本功能，但个性化设置不会被保存</li>
+                    <li><strong>拒绝所有非必要Cookie</strong>：通过浏览器设置实现</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        如果您对Cookie政策有任何疑问，请通过"联系我们"页面与我们联系。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'copyright':
+            title = '版权说明 (Copyright Notice)';
+            content = `
+                <h4>版权声明</h4>
+                
+                <p><strong>ANSAPRA</strong>是一个教育性质的非营利项目。</p>
+                
+                <h5>1. 本网站的版权</h5>
+                <ul>
+                    <li>本网站的整体设计、用户界面、特定功能代码及原创文本内容受版权保护，版权归 <strong>ANSAPRA开发团队</strong> 所有，© 2026。</li>
+                    <li>未经书面许可，任何组织或个人不得复制、修改、分发或商业性使用本网站的设计和内容。</li>
+                </ul>
+                
+                <h5>2. 引用内容的版权</h5>
+                <ul>
+                    <li>网站内为辅助阅读而引用的论文标题、摘要、作者、期刊信息等元数据，其版权归原著作权人所有。</li>
+                    <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利，符合合理使用原则。</li>
+                    <li>所有引用内容均明确标注来源，仅供教育目的使用。</li>
+                </ul>
+                
+                <h5>3. 用户生成内容</h5>
+                <ul>
+                    <li>用户在本平台上传的论文文件、笔记和批注，其版权仍归用户所有。</li>
+                    <li>用户授予本平台存储和展示这些内容的权利，以便提供解读服务。</li>
+                    <li>用户可以随时删除自己上传的内容。</li>
+                </ul>
+                
+                <h5>4. 使用许可</h5>
+                <ul>
+                    <li>任何个人或教育机构可出于非商业性学习目的自由分享网站链接。</li>
+                    <li>如需对本网站的设计或内容进行复制、修改或用于其他公开用途，请事先通过 "联系我们"中的邮箱地址 联系我们，并取得我们的书面许可。</li>
+                    <li>学校和教育机构可在获得许可后，将本网站用于课堂教学目的。</li>
+                </ul>
+                
+                <h5>5. 侵权举报</h5>
+                <p>如果您认为本网站的内容侵犯了您的版权，请通过以下方式联系我们：</p>
+                <ul>
+                    <li>电子邮件：1182332400@qq.com 或 biokoala@outlook.com</li>
+                    <li>请提供详细的侵权证明和您的联系方式</li>
+                    <li>我们会在收到举报后10个工作日内进行处理</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        尊重知识产权，促进学术交流。
+                    </p>
+                </div>
+            `;
+            break;
+            
+        case 'contact':
+            title = '联系我们 (Contact Us)';
+            content = `
+                <h4><i class="fas fa-envelope"></i> 联系我们</h4>
+                
+                <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。因此，我们非常重视您的反馈。</p>
+                
+                <div class="contact-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h5><i class="fas fa-users"></i> 团队介绍</h5>
+                    <p>我们是参加CTB（China Thinks Big）全球青年研究创新论坛的高中生团队。我们的目标是帮助同龄人更好地阅读和理解自然科学学术论文。</p>
+                    
+                    <h5><i class="fas fa-bullseye"></i> 项目背景</h5>
+                    <p>通过前期调研，我们发现高中生阅读科学学术论文的普及率较低，主要原因包括论文可读性差、缺乏个性化辅助工具等。为此，我们开发了ANSAPRA（Adaptive Natural Science Academic Paper Reading Agent）。</p>
+                </div>
+                
+                <h5><i class="fas fa-comment-dots"></i> 您可以联系我们的事项</h5>
+                <ul>
+                    <li><strong>网站功能建议或错误报告</strong>：如果您发现网站存在bug或有改进建议</li>
+                    <li><strong>隐私政策的疑问</strong>：对个人信息处理有任何疑问</li>
+                    <li><strong>合作意向</strong>：学校、教育机构或媒体希望合作</li>
+                    <li><strong>版权相关问题</strong>：涉及内容版权的疑问或举报</li>
+                    <li><strong>学术支持</strong>：希望获得更多学术资源或指导</li>
+                    <li><strong>其他任何问题</strong>：任何与本网站相关的问题</li>
+                </ul>
+                
+                <h5><i class="fas fa-envelope-open-text"></i> 联系方式</h5>
+                <div class="contact-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div class="contact-method" style="text-align: center;">
+                        <i class="fas fa-envelope fa-2x" style="color: #007bff;"></i>
+                        <h6>主要邮箱</h6>
+                        <p><a href="mailto:1182332400@qq.com">1182332400@qq.com</a></p>
+                    </div>
+                    <div class="contact-method" style="text-align: center;">
+                        <i class="fas fa-envelope fa-2x" style="color: #28a745;"></i>
+                        <h6>备用邮箱</h6>
+                        <p><a href="mailto:biokoala@outlook.com">biokoala@outlook.com</a></p>
+                    </div>
+                </div>
+                
+                <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h6><i class="fas fa-clock"></i> 响应时间</h6>
+                    <p>我们会在<strong>10个工作日内</strong>尽力回复您的邮件。由于我们是学生团队，回复可能会在课后时间，敬请谅解。</p>
+                </div>
+                
+                <h5><i class="fas fa-lightbulb"></i> 反馈建议</h5>
+                <p>为了让您的反馈得到更快的处理，建议您在邮件中：</p>
+                <ul>
+                    <li>明确邮件主题，如"[功能建议]"、"[错误报告]"等</li>
+                    <li>提供详细的问题描述和复现步骤</li>
+                    <li>如果是功能建议，请说明您的使用场景和期望效果</li>
+                    <li>留下您的联系方式以便我们进一步沟通</li>
+                </ul>
+                
+                <div class="modal-footer">
+                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        感谢您对ANSAPRA的支持！您的反馈将帮助我们不断改进。
+                    </p>
+                </div>
+            `;
+            break;
+            
         default:
             title = type;
             content = '内容加载中...';
@@ -1528,16 +1747,25 @@ function showModal(type) {
     
     const modalHTML = `
         <div class="modal" id="info-modal">
-            <div class="modal-content" style="max-width: 600px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3>${title}</h3>
-                    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+            <div class="modal-content" style="max-width: 800px; max-height: 85vh;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
+                    <h3 style="margin: 0; color: #007bff;">${title}</h3>
+                    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; transition: color 0.3s ease;">&times;</button>
                 </div>
-                <div style="max-height: 400px; overflow-y: auto;">
-                    ${content}
+                
+                <div class="modal-body" style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
+                    <div class="modal-content-inner" style="line-height: 1.6; font-size: 15px;">
+                        ${content}
+                    </div>
                 </div>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" onclick="closeModal()">关闭</button>
+                
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: center;">
+                    <button class="btn btn-primary" onclick="closeModal()">
+                        <i class="fas fa-check"></i> 我已阅读并理解
+                    </button>
+                    <button class="btn btn-secondary" onclick="printModalContent()" style="margin-left: 10px;">
+                        <i class="fas fa-print"></i> 打印
+                    </button>
                 </div>
             </div>
         </div>
@@ -1545,7 +1773,141 @@ function showModal(type) {
     
     const modalContainer = document.getElementById('modal-container');
     modalContainer.innerHTML = modalHTML;
-    document.getElementById('info-modal').style.display = 'flex';
+    
+    // 添加悬停效果
+    const modal = document.getElementById('info-modal');
+    const closeBtn = modal.querySelector('button[onclick="closeModal()"]');
+    closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.color = '#dc3545';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.color = '#666';
+    });
+    
+    modal.style.display = 'flex';
+    
+    // 添加滚动条样式
+    addModalScrollbarStyles();
+}
+
+// 添加打印功能
+function printModalContent() {
+    const modalContent = document.querySelector('.modal-content-inner');
+    if (modalContent) {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>ANSAPRA - ${document.querySelector('.modal-header h3').textContent}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+                        h1, h2, h3, h4, h5, h6 { color: #007bff; }
+                        ul, ol { margin-left: 20px; }
+                        li { margin-bottom: 5px; }
+                        .contact-methods { display: flex; gap: 20px; }
+                        .modal-footer { border-top: 1px solid #ddd; margin-top: 20px; padding-top: 10px; }
+                        @media print {
+                            body { font-size: 12pt; }
+                            a { color: #007bff; text-decoration: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>${document.querySelector('.modal-header h3').textContent}</h1>
+                    <div>${modalContent.innerHTML}</div>
+                    <div class="modal-footer">
+                        <p>打印时间：${new Date().toLocaleString()}</p>
+                        <p>来源：ANSAPRA 高中生自然科学论文自适应阅读程序</p>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    }
+}
+
+// 添加模态框滚动条样式
+function addModalScrollbarStyles() {
+    const styleId = 'modal-scrollbar-styles';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            .modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .modal-body::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 4px;
+            }
+            
+            .modal-body::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 4px;
+            }
+            
+            .modal-body::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+            
+            .modal-content {
+                animation: modalFadeIn 0.3s ease;
+            }
+            
+            @keyframes modalFadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .modal {
+                animation: modalBackdropFadeIn 0.3s ease;
+            }
+            
+            @keyframes modalBackdropFadeIn {
+                from {
+                    background-color: rgba(0,0,0,0);
+                }
+                to {
+                    background-color: rgba(0,0,0,0.5);
+                }
+            }
+            
+            .contact-info {
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                border-left: 4px solid #007bff;
+            }
+            
+            .contact-method {
+                transition: transform 0.3s ease;
+                padding: 15px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                background: white;
+            }
+            
+            .contact-method:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+            
+            .response-time {
+                background: linear-gradient(135deg, #e8f4ff 0%, #d1ecf1 100%);
+                border-left: 4px solid #17a2b8;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 function closeModal() {
