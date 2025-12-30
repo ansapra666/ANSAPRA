@@ -33,6 +33,8 @@ SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
 # 用户数据文件路径
 USERS_FILE = 'data/users.json'
 
+
+
 def load_users():
     """加载用户数据"""
     try:
@@ -392,6 +394,39 @@ def search_springer_papers(query, count=5):
         logger.error(f"Springer API error: {e}")
         return []
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# 处理不同格式的文件内容
+def extract_file_content(file):
+    """提取文件内容，支持PDF、DOCX、TXT"""
+    filename = secure_filename(file.filename)
+    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    
+    try:
+        if file_ext == 'txt':
+            # 读取文本文件
+            content = file.read().decode('utf-8', errors='ignore')
+            return content[:10000]  # 限制文本长度
+        
+        elif file_ext == 'pdf':
+            # 对于PDF，我们发送文件给DeepSeek处理
+            # 注意：实际项目中可能需要使用pdfplumber或PyPDF2来提取文本
+            # 这里简化处理，直接告诉AI我们有PDF文件
+            return f"[上传了PDF文件: {filename}]\n文件大小: {len(file.read())} 字节\n请直接处理PDF文件内容。"
+            
+        elif file_ext == 'docx':
+            # 对于DOCX，类似处理
+            return f"[上传了DOCX文件: {filename}]\n文件大小: {len(file.read())} 字节\n请直接处理DOCX文件内容。"
+            
+        else:
+            return f"[上传了不支持格式的文件: {filename}]"
+            
+    except Exception as e:
+        logger.error(f"文件处理错误: {e}")
+        return f"[文件处理错误: {str(e)}]"
+
 # 路由定义
 @app.route('/')
 def index():
@@ -514,31 +549,44 @@ def interpret():
         return jsonify({'success': False, 'message': '用户不存在'}), 404
     
     try:
-        # 处理文件上传
         paper_content = ""
+        
+        # 处理文件上传
         if file and file.filename:
-            filename = secure_filename(file.filename)
-            file_ext = os.path.splitext(filename)[1].lower()
-            
-            if file_ext not in ['.pdf', '.docx', '.txt']:
+            if not allowed_file(file.filename):
                 return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
             
-            # 读取文件内容
-            if file_ext == '.txt':
-                paper_content = file.read().decode('utf-8', errors='ignore')
+            # 检查文件大小
+            file.seek(0, 2)  # 移动到文件末尾
+            file_size = file.tell()
+            file.seek(0)  # 重置到文件开头
+            
+            if file_size > 16 * 1024 * 1024:  # 16MB
+                return jsonify({'success': False, 'message': '文件大小不能超过16MB'}), 400
+            
+            # 提取文件内容
+            paper_content = extract_file_content(file)
+            
+            # 如果文件内容为空，添加说明
+            if not paper_content.strip():
+                paper_content = f"已上传文件: {secure_filename(file.filename)}，请基于此文件进行解读。"
+        
+        # 处理文本输入
+        if text:
+            if len(text) > 5000:
+                return jsonify({'success': False, 'message': '文本内容不能超过5000字符'}), 400
+            
+            if paper_content:  # 如果已经有文件内容，合并
+                paper_content = f"{paper_content}\n\n用户输入文本:\n{text}"
             else:
-                # 对于PDF和DOCX，我们直接发送原始文件给DeepSeek处理
-                paper_content = f"[上传文件: {filename}]\n"
-                paper_content += "文件已上传，请直接处理文件内容。"
-        else:
-            paper_content = text
+                paper_content = text
         
         # 获取用户设置和历史记录
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
         
-        # 调用DeepSeek API
-        interpretation = call_deepseek_api(user, paper_content, user_settings, history)
+        # 调用DeepSeek API（优化版本）
+        interpretation = call_deepseek_api_safe(user, paper_content, user_settings, history)
         
         # 添加到历史记录
         history_item = {
@@ -548,26 +596,94 @@ def interpret():
         }
         add_to_history(session['user_email'], history_item)
         
-        # 搜索相关论文
-        search_query = "natural science"
-        if paper_content:
-            # 简单提取关键词（实际项目中可以使用更复杂的NLP技术）
-            words = paper_content.split()[:10]
-            search_query = ' '.join(words)
-        
-        recommendations = search_springer_papers(search_query, 3)
-        
         return jsonify({
             'success': True,
             'interpretation': interpretation,
             'original_content': paper_content,
-            'recommendations': recommendations,
+            'recommendations': [],  # 暂时返回空推荐
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
         logger.error(f"Interpretation error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+# 安全的DeepSeek API调用函数
+def call_deepseek_api_safe(user_data, paper_content, user_settings, history):
+    """安全的API调用，避免超时"""
+    if not DEEPSEEK_API_KEY:
+        raise ValueError("DeepSeek API Key not configured")
+    
+    # 构建简化的用户画像（减少token使用）
+    user_profile = {
+        'grade': user_data.get('questionnaire', {}).get('grade', '未知'),
+        'interests': user_data.get('questionnaire', {}).get('interests', {})
+    }
+    
+    # 构建优化的提示词
+    system_prompt = "你是一位自然科学论文解读助手，帮助高中生理解学术论文。"
+    
+    user_prompt = f"""用户需要解读一篇自然科学论文。
+
+用户信息：
+- 年级：{user_profile['grade']}
+- 兴趣领域：{json.dumps(user_profile['interests'], ensure_ascii=False)}
+
+论文内容：
+{paper_content[:3000]}  # 限制内容长度
+
+解读要求：
+1. 使用简洁明了的语言
+2. 分为几个主要部分，每个部分有小标题
+3. 解释关键概念和发现
+4. 最后提供术语解释区
+5. 所有内容使用中文
+
+请开始解读："""
+    
+    headers = {
+        'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'model': 'deepseek-chat',
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        'temperature': 0.7,
+        'max_tokens': 1500,  # 减少token数量
+        'stream': False
+    }
+    
+    try:
+        # 设置较短的超时时间
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=45)
+        
+        if response.status_code != 200:
+            logger.error(f"API返回错误: {response.status_code}, {response.text}")
+            return f"API调用失败: {response.status_code}"
+        
+        result = response.json()
+        
+        if 'choices' in result and len(result['choices']) > 0:
+            content = result['choices'][0]['message']['content']
+            # 确保末尾有提示语
+            if '解读内容由DeepSeek AI生成' not in content:
+                content += '\n\n解读内容由DeepSeek AI生成，仅供参考'
+            return content
+        else:
+            logger.error(f"API返回无内容: {result}")
+            return "抱歉，AI未能生成解读内容。请稍后重试。"
+            
+    except requests.exceptions.Timeout:
+        logger.error("DeepSeek API超时")
+        return "抱歉，解读请求超时。请尝试缩短文本内容或稍后重试。"
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"DeepSeek API请求错误: {e}")
+        return f"网络错误: {str(e)}"
 
 @app.route('/api/history', methods=['GET'])
 def get_reading_history():
