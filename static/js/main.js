@@ -346,6 +346,63 @@ async function logout() {
     }
 }
 
+// 在main.js中添加Cookie同意功能
+function setupCookieConsent() {
+    // 检查用户是否已经同意Cookie
+    if (!localStorage.getItem('cookieConsent')) {
+        const cookieBanner = document.createElement('div');
+        cookieBanner.id = 'cookie-consent-banner';
+        cookieBanner.innerHTML = `
+            <div style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.9); color: white; padding: 20px; z-index: 9999;">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">
+                            <i class="fas fa-cookie-bite" style="margin-right: 10px;"></i>
+                            我们使用Cookie来提升您的浏览体验。继续使用本网站即表示您同意我们的
+                            <a href="#" onclick="showModal('cookie'); return false;" style="color: #4dabf7; text-decoration: underline;">Cookie政策</a>。
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="cookie-accept" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-check"></i> 同意
+                        </button>
+                        <button id="cookie-settings" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-cog"></i> 设置
+                        </button>
+                        <button id="cookie-reject" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-times"></i> 拒绝
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(cookieBanner);
+        
+        // 添加事件监听
+        document.getElementById('cookie-accept').addEventListener('click', () => {
+            localStorage.setItem('cookieConsent', 'accepted');
+            cookieBanner.style.display = 'none';
+        });
+        
+        document.getElementById('cookie-reject').addEventListener('click', () => {
+            localStorage.setItem('cookieConsent', 'rejected');
+            cookieBanner.style.display = 'none';
+            // 这里可以添加拒绝Cookie后的逻辑
+        });
+        
+        document.getElementById('cookie-settings').addEventListener('click', () => {
+            showModal('cookie');
+        });
+    }
+}
+
+// 在DOM加载完成后调用
+document.addEventListener('DOMContentLoaded', function() {
+    // ... 其他初始化代码 ...
+    setupCookieConsent();
+});
+
 // 论文解读
 async function startInterpretation() {
     if (AppState.isProcessing) return;
