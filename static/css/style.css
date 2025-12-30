@@ -5,6 +5,191 @@
     box-sizing: border-box;
 }
 
+/* 在style.css中添加或修改以下样式 */
+
+/* 底部链接样式增强 */
+.footer-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 25px;
+    margin-bottom: 20px;
+    padding: 15px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.footer-link {
+    color: #495057;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 15px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.footer-link:hover {
+    color: #007bff;
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+}
+
+.footer-link::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+.footer-link:hover::after {
+    width: 80%;
+}
+
+.footer-copyright {
+    color: #6c757d;
+    font-size: 14px;
+    text-align: center;
+    padding: 15px 0;
+}
+
+/* 模态框样式改进 */
+.modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+    color: white;
+    margin: 0;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.modal-body h5 {
+    color: #0056b3;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.modal-body ul, .modal-body ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.modal-body li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.modal-body strong {
+    color: #0056b3;
+}
+
+.modal-body a {
+    color: #007bff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.modal-body a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid #dee2e6;
+}
+
+/* 打印按钮样式 */
+.btn-print {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-print:hover {
+    background-color: #138496;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .footer-links {
+        gap: 15px;
+    }
+    
+    .footer-link {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        max-height: 70vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-links {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .footer-link {
+        width: 80%;
+        text-align: center;
+    }
+    
+    .modal-content {
+        padding: 10px;
+    }
+    
+    .modal-header, .modal-body, .modal-footer {
+        padding: 15px;
+    }
+}
+
 /* 问卷样式增强 */
 .questionnaire-section {
     max-height: 500px;
