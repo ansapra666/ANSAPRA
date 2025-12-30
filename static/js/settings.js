@@ -778,6 +778,57 @@ async function loadSavedSettings() {
     }
 }
 
+function loadLanguageSettings() {
+    const container = document.getElementById('language-settings');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="form-group">
+            <label>界面语言</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="language" value="zh" ${languageManager.currentLanguage === 'zh' ? 'checked' : ''}>
+                    <span>中文</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="language" value="en" ${languageManager.currentLanguage === 'en' ? 'checked' : ''}>
+                    <span>English</span>
+                </label>
+            </div>
+            <p class="help-text">切换语言后页面内容将立即更新</p>
+        </div>
+        
+        <div class="language-preview">
+            <h5>语言预览</h5>
+            <div class="preview-box">
+                <p id="language-preview-text">当前语言：${languageManager.currentLanguage === 'zh' ? '中文' : 'English'}</p>
+            </div>
+        </div>
+    `;
+    
+    // 语言选择事件
+    const languageRadios = document.querySelectorAll('input[name="language"]');
+    languageRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                languageManager.setLanguage(this.value);
+                updateLanguagePreview();
+            }
+        });
+    });
+    
+    // 更新预览
+    updateLanguagePreview();
+}
+
+function updateLanguagePreview() {
+    const previewText = document.getElementById('language-preview-text');
+    if (previewText) {
+        previewText.textContent = languageManager.currentLanguage === 'zh' ? 
+            '当前语言：中文' : 'Current Language: English';
+    }
+}
+
 function applyFormSettings(settings) {
     // 阅读设置
     if (settings.reading) {
