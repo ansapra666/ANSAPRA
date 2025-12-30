@@ -204,13 +204,106 @@ function handleFileSelect(e) {
     
     const fileSize = file.size / 1024 / 1024; // MB
     if (fileSize > 16) {
-        alert('文件大小不能超过16MB');
+        showNotification('notification.error.file.size', 'error');
         DOM.fileInput.value = '';
         return;
     }
     
-    DOM.fileInfo.textContent = `已选择: ${file.name} (${fileSize.toFixed(2)} MB)`;
+    // 检查文件类型
+    const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'text/plain'
+    ];
+    
+    // 通过文件扩展名检查
+    const fileName = file.name.toLowerCase();
+    const fileExt = fileName.split('.').pop();
+    const allowedExtensions = ['pdf', 'docx', 'txt'];
+    
+    if (!allowedExtensions.includes(fileExt) && !allowedTypes.includes(file.type)) {
+        showNotification('notification.error.file.format', 'error');
+        DOM.fileInput.value = '';
+        return;
+    }
+    
+    DOM.fileInfo.textContent = `${i18n.t('interpretation.upload.title')}: ${file.name} (${fileSize.toFixed(2)} MB)`;
     DOM.fileInfo.style.color = '#28a745';
+}
+
+// 修改startInterpretation函数
+async function startInterpretation() {
+    if (AppState.isProcessing) return;
+    
+    const file = DOM.fileInput.files[0];
+    const text = DOM.paperText.value.trim();
+    
+    if (!file && !text) {
+        showNotification('notification.error.required.file', 'error');
+        return;
+    }
+    
+    if (text.length > 5000) {
+        showNotification('notification.error.text.length', 'error');
+        return;
+    }
+    
+    AppState.isProcessing = true;
+    DOM.resultsSection.style.display = 'none';
+    DOM.loadingSection.style.display = 'block';
+    
+    try {
+        const formData = new FormData();
+        if (file) {
+            formData.append('file', file);
+            
+            // 添加文件类型信息
+            const fileInfo = {
+                name: file.name,
+                type: file.type,
+                size: file.size
+            };
+            formData.append('file_info', JSON.stringify(fileInfo));
+        }
+        if (text) {
+            formData.append('text', text);
+        }
+        
+        // 添加用户信息
+        if (AppState.user && !AppState.user.is_guest) {
+            formData.append('user_id', AppState.user.email);
+        }
+        
+        const response = await fetch('/api/interpret', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 显示结果
+            DOM.originalContent.textContent = data.original_content;
+            DOM.interpretationContent.innerHTML = formatInterpretation(data.interpretation);
+            
+            // 显示推荐论文
+            displayRecommendations(data.recommendations || []);
+            
+            DOM.resultsSection.style.display = 'block';
+            showNotification('notification.interpretation.success', 'success');
+            
+            // 滚动到结果区域
+            DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            showNotification(data.message || 'Interpretation failed', 'error');
+        }
+    } catch (error) {
+        console.error('Interpretation error:', error);
+        showNotification('notification.error.network', 'error');
+    } finally {
+        AppState.isProcessing = false;
+        DOM.loadingSection.style.display = 'none';
+    }
 }
 
 function updateCharCount() {
