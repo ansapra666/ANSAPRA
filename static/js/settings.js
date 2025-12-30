@@ -778,47 +778,64 @@ async function loadSavedSettings() {
     }
 }
 
+// 在settings.js中添加语言切换支持
 function loadLanguageSettings() {
     const container = document.getElementById('language-settings');
     if (!container) return;
     
     container.innerHTML = `
         <div class="form-group">
-            <label>界面语言</label>
+            <label data-i18n="settings.language.label">界面语言</label>
             <div class="radio-group">
                 <label class="radio-label">
-                    <input type="radio" name="language" value="zh" ${languageManager.currentLanguage === 'zh' ? 'checked' : ''}>
-                    <span>中文</span>
+                    <input type="radio" name="language" value="zh" ${i18n.currentLang === 'zh' ? 'checked' : ''}>
+                    <span data-i18n="settings.language.zh">中文</span>
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="language" value="en" ${languageManager.currentLanguage === 'en' ? 'checked' : ''}>
-                    <span>English</span>
+                    <input type="radio" name="language" value="en" ${i18n.currentLang === 'en' ? 'checked' : ''}>
+                    <span data-i18n="settings.language.en">English</span>
                 </label>
             </div>
-            <p class="help-text">切换语言后页面内容将立即更新</p>
+            <p class="help-text" data-i18n="settings.language.help">切换语言后页面内容将立即更新</p>
         </div>
         
         <div class="language-preview">
-            <h5>语言预览</h5>
+            <h5 data-i18n="settings.language.preview">语言预览</h5>
             <div class="preview-box">
-                <p id="language-preview-text">当前语言：${languageManager.currentLanguage === 'zh' ? '中文' : 'English'}</p>
+                <p id="language-preview-text">${i18n.currentLang === 'zh' ? '当前语言：中文' : 'Current Language: English'}</p>
             </div>
         </div>
     `;
     
     // 语言选择事件
-    const languageRadios = document.querySelectorAll('input[name="language"]');
+    const languageRadios = container.querySelectorAll('input[name="language"]');
     languageRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             if (this.checked) {
-                languageManager.setLanguage(this.value);
+                i18n.setLanguage(this.value);
                 updateLanguagePreview();
             }
         });
     });
     
-    // 更新预览
     updateLanguagePreview();
+}
+
+function updateLanguagePreview() {
+    const previewText = document.getElementById('language-preview-text');
+    if (previewText) {
+        previewText.textContent = i18n.currentLang === 'zh' ? 
+            '当前语言：中文' : 'Current Language: English';
+    }
+}
+
+// 修改视觉设置保存逻辑
+function saveVisualSettingsToLocalStorage() {
+    const settings = collectVisualSettings();
+    localStorage.setItem('visualSettings', JSON.stringify(settings));
+    
+    // 只保存到localStorage，不调用API
+    showNotification('notification.settings.saved');
 }
 
 function updateLanguagePreview() {
