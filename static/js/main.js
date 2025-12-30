@@ -2053,3 +2053,42 @@ if (!document.querySelector('#notification-styles')) {
     `;
     document.head.appendChild(style);
 }
+
+// 在main.js中添加动态主题应用
+function applyUserThemeToModal() {
+    const modalHeader = document.querySelector('.modal-header');
+    if (!modalHeader) return;
+    
+    // 获取用户视觉设置
+    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
+    const theme = visualSettings.theme || 'B';
+    
+    // 主题颜色映射
+    const themeColors = {
+        'A': { bg: '#ffe6f2', text: '#0056b3' }, // 粉色背景
+        'B': { bg: '#e6f7ff', text: '#0056b3' }, // 浅蓝色背景
+        'C': { bg: '#e6ffe6', text: '#0056b3' }, // 浅绿色背景
+        'D': { bg: '#f2e6ff', text: '#0056b3' }, // 浅紫色背景
+        'E': { bg: '#ffffff', text: '#0056b3' }  // 白色背景
+    };
+    
+    const colors = themeColors[theme] || themeColors['B'];
+    
+    // 应用CSS变量
+    document.documentElement.style.setProperty('--modal-header-bg', colors.bg);
+    document.documentElement.style.setProperty('--modal-header-color', colors.text);
+    
+    // 直接应用到模态框标题
+    modalHeader.style.backgroundColor = colors.bg;
+    modalHeader.style.color = colors.text;
+}
+
+// 在显示模态框时调用
+function showModal(type) {
+    // ... 现有代码 ...
+    
+    // 应用用户主题
+    setTimeout(() => {
+        applyUserThemeToModal();
+    }, 50);
+}
