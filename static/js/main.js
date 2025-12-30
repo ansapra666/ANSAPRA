@@ -1085,18 +1085,12 @@ function collectQuestionnaireData() {
     if (educationSystem) data.education_system = educationSystem.value;
     
     // 3. 学科兴趣
-    const interestPhysics = document.querySelector('select[name="interest_physics"]');
-    const interestBiology = document.querySelector('select[name="interest_biology"]');
-    const interestChemistry = document.querySelector('select[name="interest_chemistry"]');
-    const interestGeology = document.querySelector('select[name="interest_geology"]');
-    const interestAstronomy = document.querySelector('select[name="interest_astronomy"]');
-    
     data.interests = {
-        physics: interestPhysics ? interestPhysics.value : null,
-        biology: interestBiology ? interestBiology.value : null,
-        chemistry: interestChemistry ? interestChemistry.value : null,
-        geology: interestGeology ? interestGeology.value : null,
-        astronomy: interestAstronomy ? interestAstronomy.value : null
+        physics: document.querySelector('select[name="interest_physics"]')?.value,
+        biology: document.querySelector('select[name="interest_biology"]')?.value,
+        chemistry: document.querySelector('select[name="interest_chemistry"]')?.value,
+        geology: document.querySelector('select[name="interest_geology"]')?.value,
+        astronomy: document.querySelector('select[name="interest_astronomy"]')?.value
     };
     
     // 4. 学习频率
@@ -1121,18 +1115,12 @@ function collectQuestionnaireData() {
     
     // 二、科学感知
     // 1. 学习方式偏好
-    const learningStyleQuantitative = document.querySelector('select[name="learning_style_quantitative"]');
-    const learningStyleTextual = document.querySelector('select[name="learning_style_textual"]');
-    const learningStyleVisual = document.querySelector('select[name="learning_style_visual"]');
-    const learningStyleInteractive = document.querySelector('select[name="learning_style_interactive"]');
-    const learningStylePractical = document.querySelector('select[name="learning_style_practical"]');
-    
     data.learning_styles = {
-        quantitative: learningStyleQuantitative ? learningStyleQuantitative.value : null,
-        textual: learningStyleTextual ? learningStyleTextual.value : null,
-        visual: learningStyleVisual ? learningStyleVisual.value : null,
-        interactive: learningStyleInteractive ? learningStyleInteractive.value : null,
-        practical: learningStylePractical ? learningStylePractical.value : null
+        quantitative: document.querySelector('select[name="learning_style_quantitative"]')?.value,
+        textual: document.querySelector('select[name="learning_style_textual"]')?.value,
+        visual: document.querySelector('select[name="learning_style_visual"]')?.value,
+        interactive: document.querySelector('select[name="learning_style_interactive"]')?.value,
+        practical: document.querySelector('select[name="learning_style_practical"]')?.value
     };
     
     // 2. 知识结构
@@ -1140,21 +1128,16 @@ function collectQuestionnaireData() {
     if (knowledgeStructure) data.knowledge_structure = knowledgeStructure.value;
     
     // 3-6. 能力自评
-    const scientificThinking = document.querySelector('select[name="scientific_thinking"]');
-    const scientificInsight = document.querySelector('select[name="scientific_insight"]');
-    const scientificSensitivity = document.querySelector('select[name="scientific_sensitivity"]');
-    const interdisciplinaryAbility = document.querySelector('select[name="interdisciplinary_ability"]');
-    
     data.scientific_abilities = {
-        thinking: scientificThinking ? scientificThinking.value : null,
-        insight: scientificInsight ? scientificInsight.value : null,
-        sensitivity: scientificSensitivity ? scientificSensitivity.value : null,
-        interdisciplinary: interdisciplinaryAbility ? interdisciplinaryAbility.value : null
+        thinking: document.querySelector('select[name="scientific_thinking"]')?.value,
+        insight: document.querySelector('select[name="scientific_insight"]')?.value,
+        sensitivity: document.querySelector('select[name="scientific_sensitivity"]')?.value,
+        interdisciplinary: document.querySelector('select[name="interdisciplinary_ability"]')?.value
     };
     
     // 7. 论文评价分数
-    const paperScore = document.querySelector('select[name="paper_evaluation_score"]');
-    if (paperScore) data.paper_evaluation_score = paperScore.value;
+    const paperScore = document.querySelector('select[name="paper_evaluation_score"]')?.value;
+    if (paperScore) data.paper_evaluation_score = paperScore;
     
     // 8. 评价标准（多选）
     const evaluationCriteria = [];
@@ -1167,12 +1150,13 @@ function collectQuestionnaireData() {
     const climateQuestion = document.querySelector('input[name="climate_question"]:checked');
     if (climateQuestion) data.climate_question = climateQuestion.value;
     
-    // 添加时间戳
-    data.submitted_at = new Date().toISOString();
+    // 添加额外字段用于用户画像分析
+    data.analysis_timestamp = new Date().toISOString();
     
     return data;
 }
 
+// 在handleRegister函数中添加用户画像分析
 async function handleRegister() {
     const email = document.getElementById('register-email').value;
     const username = document.getElementById('register-username').value;
@@ -1205,26 +1189,24 @@ async function handleRegister() {
     
     // 问卷验证
     const questionnaire = collectQuestionnaireData();
-    console.log('问卷数据:', questionnaire); // 调试用
     
-    // 检查必填问题是否都回答了 - 使用更友好的中文提示
+    // 检查必填问题是否都回答了
     const requiredFields = [
         { field: 'grade', name: '年级' },
         { field: 'education_system', name: '教育体系' },
         { field: 'learning_frequency', name: '学习频率' },
-        { field: 'physics_question', name: '物理问题' },
-        { field: 'chemistry_question', name: '化学问题' },
-        { field: 'biology_question', name: '生物问题' },
-        { field: 'astronomy_question', name: '天文问题' },
-        { field: 'geology_question', name: '地理问题' },
+        { field: 'physics_question', name: '物理问题（双缝干涉）' },
+        { field: 'chemistry_question', name: '化学问题（醋酸钠）' },
+        { field: 'biology_question', name: '生物问题（仙人掌气孔）' },
+        { field: 'astronomy_question', name: '天文问题（系外行星）' },
+        { field: 'geology_question', name: '地球科学问题（沉积岩芯）' },
         { field: 'knowledge_structure', name: '知识结构认知' },
-        { field: 'climate_question', name: '气候问题' }
+        { field: 'climate_question', name: '气候问题（全球变暖）' }
     ];
     
     for (const { field, name } of requiredFields) {
         if (!questionnaire[field]) {
             showNotification(`请完成问卷中的必填问题：${name}`, 'error');
-            // 滚动到对应问题
             scrollToQuestion(field);
             return;
         }
@@ -1232,57 +1214,60 @@ async function handleRegister() {
     
     // 检查兴趣评分是否都选择了
     const interests = questionnaire.interests;
-    for (const [subject, value] of Object.entries(interests)) {
-        if (!value) {
-            const subjectNames = {
-                physics: '物理学',
-                biology: '生物学/医学',
-                chemistry: '化学',
-                geology: '地理地质学',
-                astronomy: '天体天文学'
-            };
-            showNotification(`请为${subjectNames[subject]}选择兴趣评分`, 'error');
-            scrollToQuestion('interest_' + subject);
+    const interestFields = [
+        { field: 'physics', name: '物理学' },
+        { field: 'biology', name: '生物学/医学' },
+        { field: 'chemistry', name: '化学' },
+        { field: 'geology', name: '地理地质学' },
+        { field: 'astronomy', name: '天体天文学' }
+    ];
+    
+    for (const { field, name } of interestFields) {
+        if (!interests[field]) {
+            showNotification(`请为${name}选择兴趣评分（1-5分）`, 'error');
+            scrollToQuestion('interest_' + field);
             return;
         }
     }
     
     // 检查学习方式评分是否都选择了
     const learningStyles = questionnaire.learning_styles;
-    for (const [style, value] of Object.entries(learningStyles)) {
-        if (!value) {
-            const styleNames = {
-                quantitative: '量化学习',
-                textual: '文字理解',
-                visual: '可视化学习',
-                interactive: '互动性学习',
-                practical: '实践性学习'
-            };
-            showNotification(`请为${styleNames[style]}选择评分`, 'error');
-            scrollToQuestion('learning_style_' + style);
+    const styleFields = [
+        { field: 'quantitative', name: '量化学习' },
+        { field: 'textual', name: '文字理解' },
+        { field: 'visual', name: '可视化学习' },
+        { field: 'interactive', name: '互动性学习' },
+        { field: 'practical', name: '实践性学习' }
+    ];
+    
+    for (const { field, name } of styleFields) {
+        if (!learningStyles[field]) {
+            showNotification(`请为${name}选择评分（1-5分）`, 'error');
+            scrollToQuestion('learning_style_' + field);
             return;
         }
     }
     
     // 检查能力自评是否都选择了
     const abilities = questionnaire.scientific_abilities;
-    for (const [ability, value] of Object.entries(abilities)) {
-        if (!value) {
-            const abilityNames = {
-                thinking: '科学思考力',
-                insight: '科学洞察力',
-                sensitivity: '科学现象敏感度',
-                interdisciplinary: '跨学科联系能力'
-            };
-            showNotification(`请完成${abilityNames[ability]}的自评`, 'error');
-            scrollToQuestion('scientific_' + ability);
+    const abilityFields = [
+        { field: 'thinking', name: '科学思考力' },
+        { field: 'insight', name: '科学洞察力' },
+        { field: 'sensitivity', name: '科学现象敏感度' },
+        { field: 'interdisciplinary', name: '跨学科联系能力' }
+    ];
+    
+    for (const { field, name } of abilityFields) {
+        if (!abilities[field]) {
+            showNotification(`请完成${name}的自评（1-5分）`, 'error');
+            scrollToQuestion('scientific_' + field);
             return;
         }
     }
     
     // 检查论文评价是否选择了
     if (!questionnaire.paper_evaluation_score) {
-        showNotification('请为论文选段打分', 'error');
+        showNotification('请为论文选段打分（1-5分）', 'error');
         scrollToQuestion('paper_evaluation_score');
         return;
     }
@@ -1306,7 +1291,25 @@ async function handleRegister() {
         if (data.success) {
             AppState.user = data.user;
             showApp();
-            showNotification('注册成功！问卷数据已保存。', 'success');
+            
+            // 显示用户画像分析结果（可选）
+            showNotification('注册成功！用户画像分析已保存，将用于个性化解读。', 'success');
+            
+            // 可选：显示简要的用户画像信息
+            setTimeout(() => {
+                const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+                const systemMap = { A: '国际体系', B: '普高体系' };
+                const grade = gradeMap[questionnaire.grade] || '未知';
+                const system = systemMap[questionnaire.education_system] || '未知';
+                
+                const welcomeMsg = `欢迎${username}！您已成功注册。系统将根据您的信息提供个性化解读：\n`
+                    + `- 年级：${grade}\n`
+                    + `- 教育体系：${system}\n`
+                    + `- 问卷数据已保存，将用于优化解读质量`;
+                
+                alert(welcomeMsg);
+            }, 1000);
+            
         } else {
             showNotification(data.message || '注册失败', 'error');
         }
@@ -1314,6 +1317,28 @@ async function handleRegister() {
         console.error('注册错误:', error);
         showNotification('网络错误，请稍后重试', 'error');
     }
+}
+
+// 修改formatInterpretation函数，确保末尾添加提示语
+function formatInterpretation(text) {
+    // 确保文本以提示语结尾
+    if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
+        text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
+    }
+    
+    // 将文本中的标题格式化为HTML
+    let html = text
+        .replace(/\n/g, '<br>')
+        .replace(/^(#{1,3})\s+(.+)$/gm, (match, hashes, title) => {
+            const level = hashes.length;
+            return `<h${level} style="margin-top: 20px; margin-bottom: 10px; color: #007bff;">${title}</h${level}>`;
+        })
+        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^术语解读区.*$/gm, '<div class="glossary-section"><h3 style="color: #dc3545;">$&</h3></div>');
+    
+    return html;
 }
 
 // 新增：滚动到对应问题的辅助函数
