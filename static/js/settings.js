@@ -88,7 +88,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="time" value="B">
-                        <span>B. 10-30分钟内（默认设置）</span>
+                        <span>B. 10-30分钟内</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="time" value="C">
@@ -150,7 +150,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="test_type" value="B">
-                        <span>B. 易错易混选择题（默认设置）</span>
+                        <span>B. 易错易混选择题</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="test_type" value="C">
@@ -186,7 +186,6 @@ function loadReadingSettings() {
     // 加载保存的设置
     loadSavedSettings();
 }
-
 function loadVisualSettings() {
     const container = document.getElementById('visual-settings');
     if (!container) return;
@@ -238,41 +237,87 @@ function loadVisualSettings() {
                 <label>2. 字体设置</label>
                 <div class="form-group">
                     <label>字体大小：</label>
-                    <input type="range" id="font-size-slider" min="16" max="30" value="18" step="1">
-                    <span id="font-size-value">18px</span>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <input type="range" id="font-size-slider" min="14" max="24" value="18" step="1" style="flex: 1;">
+                        <span id="font-size-value" style="min-width: 50px; font-weight: bold;">18px</span>
+                        <button type="button" class="btn btn-small" onclick="resetFontSize()" style="margin-left: 10px;">
+                            <i class="fas fa-undo"></i> 重置
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                        <span>小</span>
+                        <span>标准</span>
+                        <span>大</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label>字体家族：</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="Microsoft YaHei">
-                            <span>微软雅黑</span>
+                    <div class="font-family-grid">
+                        <label class="font-option">
+                            <input type="radio" name="font_family" value="'Microsoft YaHei', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">微软雅黑</div>
+                                <div class="font-sample" style="font-family: 'Microsoft YaHei', sans-serif;">
+                                    这是一段示例文字，展示字体效果。微软雅黑清晰易读。
+                                </div>
+                            </div>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="KaiTi">
-                            <span>华文楷体</span>
+                        <label class="font-option">
+                            <input type="radio" name="font_family" value="'Ma Shan Zheng', cursive">
+                            <div class="font-preview">
+                                <div class="font-name">华文楷体</div>
+                                <div class="font-sample" style="font-family: 'Ma Shan Zheng', cursive;">
+                                    这是一段示例文字，展示字体效果。楷体风格典雅传统。
+                                </div>
+                            </div>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="SongTi">
-                            <span>华文宋体</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="Roboto">
-                            <span>Roboto</span>
+                        <label class="font-option">
+                            <input type="radio" name="font_family" value="'ZCOOL QingKe HuangYou', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">华文中宋</div>
+                                <div class="font-sample" style="font-family: 'ZCOOL QingKe HuangYou', sans-serif;">
+                                    这是一段示例文字，展示字体效果。中宋风格端庄正式。
+                                </div>
+                            </div>
                         </label>
                     </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>行高设置：</label>
+                    <select id="line-height-select" class="form-control">
+                        <option value="1.4">紧凑 (1.4)</option>
+                        <option value="1.6" selected>标准 (1.6)</option>
+                        <option value="1.8">宽松 (1.8)</option>
+                        <option value="2.0">很宽松 (2.0)</option>
+                    </select>
                 </div>
             </div>
             
             <div class="form-group">
                 <label>自定义背景图片</label>
-                <input type="file" id="background-upload" accept="image/*" style="display: none;">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('background-upload').click()">
-                    上传背景图片
-                </button>
-                <p class="help-text">支持JPG、PNG格式，建议尺寸1920x1080</p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                    <input type="file" id="background-upload" accept="image/*" style="display: none;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('background-upload').click()">
+                        <i class="fas fa-upload"></i> 选择图片
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeBackground()" id="remove-bg-btn" style="display: none;">
+                        <i class="fas fa-trash"></i> 移除背景
+                    </button>
+                </div>
+                <p class="help-text">支持JPG、PNG格式，建议尺寸1920x1080，文件大小不超过5MB</p>
                 <div id="background-preview" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>重置所有视觉设置</label>
+                <button type="button" class="btn btn-danger" onclick="resetAllVisualSettings()">
+                    <i class="fas fa-redo"></i> 重置为默认设置
+                </button>
+                <p class="warning-text" style="font-size: 12px; color: #dc3545; margin-top: 5px;">
+                    注意：这将重置所有视觉设置，包括字体、背景和主题
+                </p>
             </div>
         </form>
     `;
@@ -284,50 +329,290 @@ function loadVisualSettings() {
         slider.addEventListener('input', function() {
             valueDisplay.textContent = `${this.value}px`;
             document.documentElement.style.fontSize = `${this.value}px`;
+            // 保存到设置
+            saveVisualSettings();
         });
     }
+    
+    // 行高选择事件
+    const lineHeightSelect = document.getElementById('line-height-select');
+    if (lineHeightSelect) {
+        lineHeightSelect.addEventListener('change', function() {
+            document.body.style.lineHeight = this.value;
+            saveVisualSettings();
+        });
+    }
+    
+    // 字体选择事件
+    const fontRadios = document.querySelectorAll('input[name="font_family"]');
+    fontRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                document.body.style.fontFamily = this.value;
+                saveVisualSettings();
+            }
+        });
+    });
+    
+    // 主题选择事件
+    const themeRadios = document.querySelectorAll('input[name="theme"]');
+    themeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                applyTheme(this.value);
+                saveVisualSettings();
+            }
+        });
+    });
     
     // 背景图片上传
     const uploadInput = document.getElementById('background-upload');
     if (uploadInput) {
         uploadInput.addEventListener('change', handleBackgroundUpload);
     }
+    
+    // 加载保存的设置
+    loadSavedVisualSettings();
 }
 
+// 应用主题
+function applyTheme(theme) {
+    const themes = {
+        'A': '#ffe6f2', // 粉色
+        'B': '#e6f7ff', // 浅蓝色
+        'C': '#e6ffe6', // 浅绿色
+        'D': '#f2e6ff', // 浅紫色
+        'E': '#ffffff'  // 白色
+    };
+    
+    const color = themes[theme] || '#f8f9fa';
+    document.body.style.backgroundColor = color;
+    
+    // 如果有自定义背景，先清除
+    document.body.style.backgroundImage = '';
+    const preview = document.getElementById('background-preview');
+    if (preview) preview.innerHTML = '';
+    
+    const removeBtn = document.getElementById('remove-bg-btn');
+    if (removeBtn) removeBtn.style.display = 'none';
+}
+
+// 保存视觉设置
+function saveVisualSettings() {
+    const settings = collectVisualSettings();
+    localStorage.setItem('visualSettings', JSON.stringify(settings));
+    
+    // 更新用户设置（如果已登录）
+    if (AppState.user && !AppState.user.is_guest) {
+        updateUserVisualSettings(settings);
+    }
+}
+
+// 收集视觉设置数据
+function collectVisualSettings() {
+    const fontFamily = document.querySelector('input[name="font_family"]:checked')?.value || "'Microsoft YaHei', sans-serif";
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    const theme = document.querySelector('input[name="theme"]:checked')?.value || "B";
+    
+    return {
+        font_family: fontFamily,
+        font_size: fontSize,
+        line_height: lineHeight,
+        theme: theme
+    };
+}
+
+// 加载保存的视觉设置
+function loadSavedVisualSettings() {
+    const savedSettings = localStorage.getItem('visualSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        applyVisualSettings(settings);
+    } else if (AppState.user && AppState.user.settings?.visual) {
+        applyVisualSettings(AppState.user.settings.visual);
+    }
+}
+
+// 应用视觉设置
+function applyVisualSettings(settings) {
+    if (!settings) return;
+    
+    // 字体大小
+    const slider = document.getElementById('font-size-slider');
+    const valueDisplay = document.getElementById('font-size-value');
+    if (slider && valueDisplay && settings.font_size) {
+        slider.value = settings.font_size;
+        valueDisplay.textContent = `${settings.font_size}px`;
+        document.documentElement.style.fontSize = `${settings.font_size}px`;
+    }
+    
+    // 字体家族
+    if (settings.font_family) {
+        const fontRadios = document.querySelectorAll('input[name="font_family"]');
+        fontRadios.forEach(radio => {
+            if (radio.value === settings.font_family) {
+                radio.checked = true;
+                document.body.style.fontFamily = settings.font_family;
+            }
+        });
+    }
+    
+    // 行高
+    const lineHeightSelect = document.getElementById('line-height-select');
+    if (lineHeightSelect && settings.line_height) {
+        lineHeightSelect.value = settings.line_height;
+        document.body.style.lineHeight = settings.line_height;
+    }
+    
+    // 主题
+    if (settings.theme) {
+        const themeRadios = document.querySelectorAll('input[name="theme"]');
+        themeRadios.forEach(radio => {
+            if (radio.value === settings.theme) {
+                radio.checked = true;
+                applyTheme(settings.theme);
+            }
+        });
+    }
+}
+
+// 更新用户设置的视觉部分
+async function updateUserVisualSettings(visualSettings) {
+    try {
+        const response = await fetch('/api/user/settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            const newSettings = {
+                ...data.settings,
+                visual: {
+                    ...data.settings.visual,
+                    ...visualSettings
+                }
+            };
+            
+            await fetch('/api/user/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ settings: newSettings })
+            });
+        }
+    } catch (error) {
+        console.error('更新视觉设置失败:', error);
+    }
+}
+
+// 重置字体大小
+function resetFontSize() {
+    const slider = document.getElementById('font-size-slider');
+    const valueDisplay = document.getElementById('font-size-value');
+    if (slider && valueDisplay) {
+        slider.value = "18";
+        valueDisplay.textContent = "18px";
+        document.documentElement.style.fontSize = "18px";
+        saveVisualSettings();
+        showNotification('字体大小已重置为默认值', 'success');
+    }
+}
+
+// 重置所有视觉设置
+function resetAllVisualSettings() {
+    if (confirm('确定要重置所有视觉设置吗？这将恢复为默认设置。')) {
+        const defaultSettings = {
+            font_family: "'Microsoft YaHei', sans-serif",
+            font_size: "18",
+            line_height: "1.6",
+            theme: "B"
+        };
+        
+        applyVisualSettings(defaultSettings);
+        localStorage.setItem('visualSettings', JSON.stringify(defaultSettings));
+        
+        // 清除自定义背景
+        removeBackground();
+        
+        showNotification('视觉设置已重置为默认值', 'success');
+    }
+}
+
+// 处理背景图片上传
 function handleBackgroundUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
     // 检查文件大小（最大5MB）
     if (file.size > 5 * 1024 * 1024) {
-        alert('图片大小不能超过5MB');
+        showNotification('图片大小不能超过5MB', 'error');
+        return;
+    }
+    
+    // 检查文件类型
+    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+        showNotification('只支持JPG和PNG格式的图片', 'error');
         return;
     }
     
     const reader = new FileReader();
     reader.onload = function(e) {
         const preview = document.getElementById('background-preview');
+        const removeBtn = document.getElementById('remove-bg-btn');
+        
         preview.innerHTML = `
             <div style="position: relative; margin-top: 10px;">
-                <img src="${e.target.result}" style="max-width: 300px; max-height: 150px; border-radius: 8px;">
-                <button type="button" onclick="removeBackground()" style="position: absolute; top: 5px; right: 5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
+                <img src="${e.target.result}" style="max-width: 300px; max-height: 150px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+                    <button type="button" onclick="setAsBackground('${e.target.result}')" style="background: #28a745; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">
+                        <i class="fas fa-check"></i> 应用
+                    </button>
+                </div>
             </div>
         `;
         
-        // 应用背景
-        document.body.style.backgroundImage = `url(${e.target.result})`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundAttachment = 'fixed';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
     };
     
     reader.readAsDataURL(file);
 }
 
+// 设置背景图片
+function setAsBackground(imageUrl) {
+    document.body.style.backgroundImage = `url(${imageUrl})`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundPosition = 'center';
+    
+    // 保存到localStorage
+    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
+    visualSettings.custom_background = imageUrl;
+    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
+    
+    showNotification('背景图片已应用', 'success');
+}
+
+// 移除背景图片
 function removeBackground() {
     document.body.style.backgroundImage = '';
-    document.body.style.backgroundColor = '#f8f9fa';
+    document.body.style.backgroundColor = '';
+    
+    // 恢复主题颜色
+    const theme = document.querySelector('input[name="theme"]:checked')?.value || 'B';
+    applyTheme(theme);
+    
     const preview = document.getElementById('background-preview');
     if (preview) preview.innerHTML = '';
+    
+    const removeBtn = document.getElementById('remove-bg-btn');
+    if (removeBtn) removeBtn.style.display = 'none';
+    
+    // 清除localStorage中的背景设置
+    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
+    delete visualSettings.custom_background;
+    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
+    
+    showNotification('背景图片已移除', 'success');
 }
 
 async function loadSavedSettings() {
