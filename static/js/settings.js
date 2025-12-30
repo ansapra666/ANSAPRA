@@ -430,6 +430,148 @@ async function saveSettings() {
     }
 }
 
+// 在settings.js中添加问卷修改功能
+async function loadQuestionnaireSettings() {
+    if (!AppState.user || AppState.user.is_guest) return;
+    
+    try {
+        const response = await fetch('/api/user/settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            // 检查是否有问卷数据
+            const userResponse = await fetch('/api/user/profile');
+            const userData = await userResponse.json();
+            
+            if (userData.success && userData.questionnaire) {
+                // 在设置页面显示问卷修改选项
+                addQuestionnaireToSettings(userData.questionnaire);
+            }
+        }
+    } catch (error) {
+        console.error('加载问卷设置失败:', error);
+    }
+}
+
+function addQuestionnaireToSettings(questionnaire) {
+    const accountSettings = document.getElementById('account-settings');
+    if (!accountSettings) return;
+    
+    const questionnaireSection = document.createElement('div');
+    questionnaireSection.className = 'questionnaire-settings';
+    questionnaireSection.innerHTML = `
+        <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
+        <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
+        <button class="btn btn-secondary" onclick="updateQuestionnaire()">
+            <i class="fas fa-redo"></i> 重新填写问卷
+        </button>
+        <div class="current-questionnaire-summary" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h5>当前问卷摘要：</h5>
+            <p>年级：${getGradeText(questionnaire.grade)}</p>
+            <p>教育体系：${getSystemText(questionnaire.education_system)}</p>
+            <!-- 可以添加更多摘要信息 -->
+        </div>
+    `;
+    
+    accountSettings.appendChild(questionnaireSection);
+}
+
+function getGradeText(grade) {
+    const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+    return gradeMap[grade] || '未知';
+}
+
+function getSystemText(system) {
+    const systemMap = { A: '国际体系', B: '普高体系' };
+    return systemMap[system] || '未知';
+}
+
+async function updateQuestionnaire() {
+    if (!confirm('确定要重新填写知识框架问卷吗？这会影响后续的个性化解读。')) {
+        return;
+    }
+    
+    // 显示问卷模态框
+    showQuestionnaireModal();
+}
+
+function showQuestionnaireModal() {
+    const modalHTML = `
+        <div class="modal" id="questionnaire-modal">
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3><i class="fas fa-clipboard-list"></i> 更新知识框架问卷</h3>
+                    <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+                </div>
+                <div id="modal-questionnaire-container" style="max-height: 70vh; overflow-y: auto;">
+                    加载中...
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
+                        <i class="fas fa-save"></i> 保存更新
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-left: 10px;">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.getElementById('modal-container');
+    modalContainer.innerHTML = modalHTML;
+    
+    // 加载问卷到模态框
+    setTimeout(() => {
+        loadQuestionnaireToModal();
+    }, 100);
+}
+
+function loadQuestionnaireToModal() {
+    const container = document.getElementById('modal-questionnaire-container');
+    if (container) {
+        // 这里可以加载与注册时间相同的问卷HTML
+        container.innerHTML = document.getElementById('questionnaire').innerHTML;
+    }
+}
+
+function closeQuestionnaireModal() {
+    const modal = document.getElementById('questionnaire-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitUpdatedQuestionnaire() {
+    // 收集问卷数据
+    const questionnaire = collectQuestionnaireData();
+    
+    try {
+        const response = await fetch('/api/user/update-questionnaire', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ questionnaire })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('问卷已更新！新的学习画像将应用于后续解读。', 'success');
+            closeQuestionnaireModal();
+            // 刷新页面或重新加载设置
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message || '更新失败', 'error');
+        }
+    } catch (error) {
+        console.error('更新问卷失败:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
 function collectSettings() {
     const settings = {
         reading: {},
