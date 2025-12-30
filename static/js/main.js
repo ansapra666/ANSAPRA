@@ -16,20 +16,6 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
     loadTranslations();
     setupEventListeners();
-
-    // 初始化语言管理器
-    window.languageManager = new LanguageManager();
-    languageManager.applyLanguage();
-    
-    // 监听语言变化事件
-    document.addEventListener('languageChanged', function(e) {
-        // 重新加载设置表单
-        if (AppState.currentPage === 'settings') {
-            loadSettingsForms();
-        }
-        // 更新模态框标题
-        updateModalTitles();
-    });
     
     // 加载问卷数据
     loadQuestionnaire();
@@ -204,106 +190,13 @@ function handleFileSelect(e) {
     
     const fileSize = file.size / 1024 / 1024; // MB
     if (fileSize > 16) {
-        showNotification('notification.error.file.size', 'error');
+        alert('文件大小不能超过16MB');
         DOM.fileInput.value = '';
         return;
     }
     
-    // 检查文件类型
-    const allowedTypes = [
-        'application/pdf',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-        'text/plain'
-    ];
-    
-    // 通过文件扩展名检查
-    const fileName = file.name.toLowerCase();
-    const fileExt = fileName.split('.').pop();
-    const allowedExtensions = ['pdf', 'docx', 'txt'];
-    
-    if (!allowedExtensions.includes(fileExt) && !allowedTypes.includes(file.type)) {
-        showNotification('notification.error.file.format', 'error');
-        DOM.fileInput.value = '';
-        return;
-    }
-    
-    DOM.fileInfo.textContent = `${i18n.t('interpretation.upload.title')}: ${file.name} (${fileSize.toFixed(2)} MB)`;
+    DOM.fileInfo.textContent = `已选择: ${file.name} (${fileSize.toFixed(2)} MB)`;
     DOM.fileInfo.style.color = '#28a745';
-}
-
-// 修改startInterpretation函数
-async function startInterpretation() {
-    if (AppState.isProcessing) return;
-    
-    const file = DOM.fileInput.files[0];
-    const text = DOM.paperText.value.trim();
-    
-    if (!file && !text) {
-        showNotification('notification.error.required.file', 'error');
-        return;
-    }
-    
-    if (text.length > 5000) {
-        showNotification('notification.error.text.length', 'error');
-        return;
-    }
-    
-    AppState.isProcessing = true;
-    DOM.resultsSection.style.display = 'none';
-    DOM.loadingSection.style.display = 'block';
-    
-    try {
-        const formData = new FormData();
-        if (file) {
-            formData.append('file', file);
-            
-            // 添加文件类型信息
-            const fileInfo = {
-                name: file.name,
-                type: file.type,
-                size: file.size
-            };
-            formData.append('file_info', JSON.stringify(fileInfo));
-        }
-        if (text) {
-            formData.append('text', text);
-        }
-        
-        // 添加用户信息
-        if (AppState.user && !AppState.user.is_guest) {
-            formData.append('user_id', AppState.user.email);
-        }
-        
-        const response = await fetch('/api/interpret', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // 显示结果
-            DOM.originalContent.textContent = data.original_content;
-            DOM.interpretationContent.innerHTML = formatInterpretation(data.interpretation);
-            
-            // 显示推荐论文
-            displayRecommendations(data.recommendations || []);
-            
-            DOM.resultsSection.style.display = 'block';
-            showNotification('notification.interpretation.success', 'success');
-            
-            // 滚动到结果区域
-            DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            showNotification(data.message || 'Interpretation failed', 'error');
-        }
-    } catch (error) {
-        console.error('Interpretation error:', error);
-        showNotification('notification.error.network', 'error');
-    } finally {
-        AppState.isProcessing = false;
-        DOM.loadingSection.style.display = 'none';
-    }
 }
 
 function updateCharCount() {
@@ -2145,43 +2038,4 @@ if (!document.querySelector('#notification-styles')) {
         }
     `;
     document.head.appendChild(style);
-}
-
-// 在main.js中添加动态主题应用
-function applyUserThemeToModal() {
-    const modalHeader = document.querySelector('.modal-header');
-    if (!modalHeader) return;
-    
-    // 获取用户视觉设置
-    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
-    const theme = visualSettings.theme || 'B';
-    
-    // 主题颜色映射
-    const themeColors = {
-        'A': { bg: '#ffe6f2', text: '#0056b3' }, // 粉色背景
-        'B': { bg: '#e6f7ff', text: '#0056b3' }, // 浅蓝色背景
-        'C': { bg: '#e6ffe6', text: '#0056b3' }, // 浅绿色背景
-        'D': { bg: '#f2e6ff', text: '#0056b3' }, // 浅紫色背景
-        'E': { bg: '#ffffff', text: '#0056b3' }  // 白色背景
-    };
-    
-    const colors = themeColors[theme] || themeColors['B'];
-    
-    // 应用CSS变量
-    document.documentElement.style.setProperty('--modal-header-bg', colors.bg);
-    document.documentElement.style.setProperty('--modal-header-color', colors.text);
-    
-    // 直接应用到模态框标题
-    modalHeader.style.backgroundColor = colors.bg;
-    modalHeader.style.color = colors.text;
-}
-
-// 在显示模态框时调用
-function showModal(type) {
-    // ... 现有代码 ...
-    
-    // 应用用户主题
-    setTimeout(() => {
-        applyUserThemeToModal();
-    }, 50);
 }
