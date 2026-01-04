@@ -1,22 +1,29 @@
-import os
-from dotenv import load_dotenv
+"""
+配置文件
+"""
 
-load_dotenv()
+import os
+from datetime import timedelta
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
-    SPRINGER_API_KEY = os.getenv('SPRINGER_API_KEY')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///ansapra.db')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    """基础配置"""
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    
+    # Session配置
     SESSION_TYPE = 'filesystem'
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+    SESSION_COOKIE_SECURE = False  # 开发环境为False，生产环境应为True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # 文件上传
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
     UPLOAD_FOLDER = 'uploads'
-    ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
     
-    # DeepSeek API configuration
-    DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-    DEEPSEEK_MODEL = "deepseek-chat"
+    # API密钥
+    DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+    SPRINGER_API_KEY = os.environ.get('SPRINGER_API_KEY')
     
-    # Springer API configuration
-    SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
+    # 数据库配置
+    DATABASE_URL = os.environ.get('DATABASE_URL')
