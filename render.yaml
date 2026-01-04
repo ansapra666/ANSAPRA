@@ -2,26 +2,16 @@ services:
   - type: web
     name: ansapra
     env: python
-    region: singapore  # 可选择其他地区
-    plan: free  # 免费计划，如需要升级请选择starter或更高
-    
-    buildCommand: |
-      pip install --upgrade pip==25.3
-      pip install -r requirements.txt
-      
-    startCommand: gunicorn --bind 0.0.0.0:10000 app:app
-    
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
     envVars:
+      - key: PORT
+        value: 10000
       - key: SECRET_KEY
         generateValue: true
       - key: DEEPSEEK_API_KEY
-        sync: false  # 需要手动在Render控制台设置
+        sync: false
       - key: SPRINGER_API_KEY
-        sync: false  # 需要手动在Render控制台设置
-      - key: PYTHON_VERSION
-        value: 3.11.0
-        
-    disk:
-      name: uploads
-      mountPath: /opt/render/project/src/uploads
-      sizeGB: 1
+        sync: false
+    autoDeploy: true
