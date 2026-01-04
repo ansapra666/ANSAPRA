@@ -125,19 +125,25 @@ def get_history(email):
     return []
 
 def call_deepseek_api(user_data, paper_content, user_settings, history):
-    """调用DeepSeek API"""
+    """调用DeepSeek API，包含完整的用户画像分析"""
     if not DEEPSEEK_API_KEY:
         raise ValueError("DeepSeek API Key not configured")
     
+    # 构建用户画像分析
+    user_profile = analyze_user_profile(user_data)
+    
     # 构建提示词
-    system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置和知识框架，生成适合高中生的论文解读。"""
+    system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置、知识框架问卷结果和用户画像，生成适合高中生的论文解读。"""
     
     user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。请根据以下信息生成解读：
+
+用户画像分析：
+{json.dumps(user_profile, ensure_ascii=False, indent=2)}
 
 用户个性化设置：
 {json.dumps(user_settings, ensure_ascii=False, indent=2)}
 
-用户知识框架问卷：
+用户知识框架问卷详细结果：
 {json.dumps(user_data.get('questionnaire', {}), ensure_ascii=False, indent=2)}
 
 过往阅读记录（最近5条）：
@@ -147,14 +153,21 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
 {paper_content}
 
 解读要求：
-1. 句子简短、清晰，避免冗长
-2. 逻辑清晰地分出小标题，有条理地分开各部分
-3. 遵循论文本身的分段逻辑
-4. 只进行论文内容的解读，不生成其他内容
-5. 注重用户知识框架的薄弱点，发挥用户的长处
-6. 在解读的最后附上"术语解读区"
-7. 所有内容使用中文
-8. 不要对文本长度进行限制
+1. 根据用户画像中的知识储备水平，调整解读的深度和广度
+2. 根据用户的学习方式偏好，采用对应的解读方式
+3. 根据用户的知识框架形式，组织解读内容的逻辑结构
+4. 根据用户的各项能力评分，在解读中适当引导和提升薄弱能力
+5. 根据用户的科学辨伪能力，在解读中强调批判性思维的重要性
+6. 句子简短、清晰，避免冗长
+7. 逻辑清晰地分出小标题，有条理地分开各部分
+8. 遵循论文本身的分段逻辑
+9. 只进行论文内容的解读，不生成其他内容
+10. 注重用户知识框架的薄弱点，发挥用户的长处
+11. 在解读的最后附上"术语解读区"
+12. 所有内容使用中文
+13. 不要对文本长度进行限制
+
+请在解读的末尾添加："解读内容由DeepSeek AI生成，仅供参考"
 
 请开始解读："""
     
@@ -186,6 +199,163 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
+
+def analyze_user_profile(user_data):
+    """根据问卷数据分析用户画像"""
+    questionnaire = user_data.get('questionnaire', {})
+    profile = {
+        '知识储备': {},
+        '学习方式偏好': {},
+        '知识框架形式': '',
+        '能力水平': {},
+        '科学辨伪能力': '',
+        '阅读关注点': '',
+        '探究倾向': ''
+    }
+    
+    # 1. 分析知识储备
+    profile['知识储备'] = analyze_knowledge_reserve(questionnaire)
+    
+    # 2. 分析学习方式偏好
+    if 'learning_styles' in questionnaire:
+        profile['学习方式偏好'] = questionnaire['learning_styles']
+    
+    # 3. 分析知识框架形式
+    if 'knowledge_structure' in questionnaire:
+        structure_map = {
+            'A': '线性递进式（注重知识深度递进）',
+            'B': '网络联系式（注重学科间联系）',
+            'C': '独立存储式（注重学科独立性）',
+            'D': '零散工具箱式（知识框架尚未建立）'
+        }
+        profile['知识框架形式'] = structure_map.get(questionnaire['knowledge_structure'], '未知')
+    
+    # 4. 分析能力水平
+    if 'scientific_abilities' in questionnaire:
+        abilities = questionnaire['scientific_abilities']
+        profile['能力水平'] = {
+            '科学思考力': int(abilities.get('thinking', 3)),
+            '科学洞察力': int(abilities.get('insight', 3)),
+            '科学现象敏感度': int(abilities.get('sensitivity', 3)),
+            '跨学科联系能力': int(abilities.get('interdisciplinary', 3))
+        }
+    
+    # 5. 分析科学辨伪能力
+    if 'paper_evaluation_score' in questionnaire:
+        score = int(questionnaire['paper_evaluation_score'])
+        if score >= 4:
+            profile['科学辨伪能力'] = '较弱（需要加强批判性思维培养）'
+        elif score == 3:
+            profile['科学辨伪能力'] = '一般'
+        else:
+            profile['科学辨伪能力'] = '较强（具有一定辨伪能力）'
+    
+    # 6. 分析阅读关注点
+    if 'evaluation_criteria' in questionnaire:
+        criteria = questionnaire.get('evaluation_criteria', [])
+        if 'E' in criteria:
+            profile['阅读关注点'] = '凭感觉判断（缺乏系统评价标准）'
+        elif criteria:
+            criteria_map = {
+                'A': '学术语言表达',
+                'B': '科学技术方法',
+                'C': '实验数据',
+                'D': '科学理论'
+            }
+            main_criteria = criteria[0] if criteria else 'E'
+            profile['阅读关注点'] = criteria_map.get(main_criteria, '多样化的评价标准')
+    
+    # 7. 分析探究倾向
+    if 'climate_question' in questionnaire:
+        climate_map = {
+            'A': '关注社会影响与后果',
+            'B': '关注现象成因与机制',
+            'C': '关注技术解决方案',
+            'D': '关注理论推导与学科联系',
+            'E': '关注类似现象对比'
+        }
+        profile['探究倾向'] = climate_map.get(questionnaire['climate_question'], '未知')
+    
+    return profile
+
+def analyze_knowledge_reserve(questionnaire):
+    """分析用户的知识储备水平"""
+    knowledge_reserve = {
+        '课内知识': {},
+        '课外知识': {},
+        '本科预备水平': {}
+    }
+    
+    # 1. 课内知识储备（根据教育体系和年级）
+    if 'education_system' in questionnaire and 'grade' in questionnaire:
+        system = questionnaire['education_system']
+        grade = questionnaire['grade']
+        
+        if system == 'A':  # 国际体系
+            knowledge_reserve['课内知识']['体系'] = '国际课程体系'
+            # 根据年级推断课程内容
+            grade_levels = {'A': '9年级', 'B': '10年级', 'C': '11年级', 'D': '12年级'}
+            knowledge_reserve['课内知识']['年级'] = grade_levels.get(grade, '未知')
+            knowledge_reserve['课内知识']['说明'] = '参考AP/AL/DSE/IGCSE等国际课程自然科学考纲'
+        else:  # 普高体系
+            knowledge_reserve['课内知识']['体系'] = '国内普高体系'
+            grade_levels = {'A': '高一', 'B': '高二', 'C': '高三', 'D': '高三'}
+            knowledge_reserve['课内知识']['年级'] = grade_levels.get(grade, '未知')
+            knowledge_reserve['课内知识']['说明'] = '参考人教版教材自然科学课程内容'
+    
+    # 2. 课外知识储备（根据兴趣程度和学习频率）
+    if 'interests' in questionnaire:
+        interests = questionnaire['interests']
+        learning_freq = questionnaire.get('learning_frequency', 'C')
+        
+        # 兴趣程度影响课外知识储备
+        for subject, score in interests.items():
+            if score and int(score) >= 4:  # 4-5分表示高兴趣
+                subject_cn = {
+                    'physics': '物理学',
+                    'biology': '生物学/医学',
+                    'chemistry': '化学',
+                    'geology': '地理地质学',
+                    'astronomy': '天体天文学'
+                }.get(subject, subject)
+                knowledge_reserve['课外知识'][subject_cn] = '较高（兴趣浓厚）'
+        
+        # 学习频率影响整体课外知识储备
+        freq_map = {
+            'A': '较高（经常学习课外知识）',
+            'B': '中等（偶尔学习）',
+            'C': '基础（较少学习）'
+        }
+        knowledge_reserve['课外知识']['整体水平'] = freq_map.get(learning_freq, '未知')
+    
+    # 3. 本科预备水平（根据学科问题正确率）
+    correct_answers = {
+        'physics_question': 'B',
+        'chemistry_question': 'B',
+        'biology_question': 'B',
+        'astronomy_question': 'B',
+        'geology_question': 'C'
+    }
+    
+    for question, correct_answer in correct_answers.items():
+        user_answer = questionnaire.get(question)
+        subject = question.split('_')[0]
+        subject_cn = {
+            'physics': '物理学',
+            'chemistry': '化学',
+            'biology': '生物学',
+            'astronomy': '天文学',
+            'geology': '地球科学'
+        }.get(subject, subject)
+        
+        if user_answer == correct_answer:
+            knowledge_reserve['本科预备水平'][subject_cn] = '达到本科预备水平'
+        elif user_answer:
+            knowledge_reserve['本科预备水平'][subject_cn] = '未达本科预备水平'
+        else:
+            knowledge_reserve['本科预备水平'][subject_cn] = '未回答'
+    
+    return knowledge_reserve
 
 def search_springer_papers(query, count=5):
     """搜索Springer论文"""
@@ -447,3 +617,38 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
+@app.route('/api/user/update-questionnaire', methods=['POST'])
+def update_questionnaire():
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    data = request.json
+    questionnaire = data.get('questionnaire', {})
+    
+    users = load_users()
+    if session['user_email'] in users:
+        users[session['user_email']]['questionnaire'] = questionnaire
+        save_users(users)
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    user = get_user_by_email(session['user_email'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    return jsonify({
+        'success': True,
+        'user': {
+            'email': user['email'],
+            'username': user['username']
+        },
+        'questionnaire': user.get('questionnaire', {}),
+        'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
+    })
