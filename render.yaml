@@ -2,24 +2,26 @@ services:
   - type: web
     name: ansapra
     env: python
+    region: singapore  # 可选择其他地区
+    plan: free  # 免费计划，如需要升级请选择starter或更高
+    
     buildCommand: |
       pip install --upgrade pip==25.3
-      pip install wheel
-      pip install setuptools==68.2.2
-      # 使用无需编译的依赖
-      pip install -r requirements-no-compile.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --workers 2 --threads 4 --timeout 120 --worker-class gevent
+      pip install -r requirements.txt
+      
+    startCommand: gunicorn --bind 0.0.0.0:10000 app:app
+    
     envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEEPSEEK_API_KEY
+        sync: false  # 需要手动在Render控制台设置
+      - key: SPRINGER_API_KEY
+        sync: false  # 需要手动在Render控制台设置
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: PIP_VERSION
-        value: 25.3
-      - key: PYMUPDF_BUILD_OPTIONS
-        value: "--no-cache-dir --no-binary :all:"
-      - key: RENDER_EXTERNAL_URL
-        fromService:
-          type: web
-          property: url
-    autoDeploy: true
-    healthCheckPath: /health
-    healthCheckTimeout: 30s
+        
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
