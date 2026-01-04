@@ -4,17 +4,22 @@ services:
     env: python
     buildCommand: |
       pip install --upgrade pip==25.3
-      pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --workers 2 --threads 4 --timeout 120
+      pip install wheel
+      pip install setuptools==68.2.2
+      # 使用无需编译的依赖
+      pip install -r requirements-no-compile.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --workers 2 --threads 4 --timeout 120 --worker-class gevent
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PIP_VERSION
         value: 25.3
+      - key: PYMUPDF_BUILD_OPTIONS
+        value: "--no-cache-dir --no-binary :all:"
       - key: RENDER_EXTERNAL_URL
         fromService:
           type: web
           property: url
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /health
     healthCheckTimeout: 30s
