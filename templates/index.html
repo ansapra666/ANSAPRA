@@ -1,18 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ANSAPRA - 高中生自然科学论文自适应阅读程序</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&family=Noto+Serif+SC:wght@400;700&family=LXGW+WenKai+TC&family=Eczar&family=Cabin&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&family=Noto+Serif+SC:wght@400;700&family=LXGW+WenKai+TC&family=Eczar:wght@400;700&family=Cabin:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- 登录/注册模态框 -->
     <div id="auth-modal" class="modal">
         <div class="modal-content">
-            <div class="auth-tabs tabs">
+            <span class="close-modal" onclick="hideAuthModal()">&times;</span>
+            <div class="auth-tabs">
                 <button class="tab-btn active" onclick="showTab('login')">登录</button>
                 <button class="tab-btn" onclick="showTab('register')">注册</button>
                 <button class="tab-btn" onclick="showTab('guest')">游客体验</button>
@@ -20,7 +22,7 @@
             
             <div id="login-tab" class="tab-content active">
                 <h3>登录到 ANSAPRA</h3>
-                <form id="login-form">
+                <form id="login-form" onsubmit="loginUser(event)">
                     <div class="form-group">
                         <label for="login-email">邮箱</label>
                         <input type="email" id="login-email" required>
@@ -35,7 +37,7 @@
             
             <div id="register-tab" class="tab-content">
                 <h3>注册 ANSAPRA 账户</h3>
-                <form id="register-form">
+                <form id="register-form" onsubmit="registerUser(event)">
                     <div class="form-group">
                         <label for="register-email">邮箱</label>
                         <input type="email" id="register-email" required>
@@ -53,8 +55,8 @@
                         <input type="password" id="confirm-password" required>
                     </div>
                     
-                    <div class="questionnaire-section" id="questionnaire">
-                        <!-- 问卷内容将通过JS动态加载 -->
+                    <div class="questionnaire-section" id="questionnaire-container">
+                        <!-- 问卷将通过JS动态加载 -->
                     </div>
                     
                     <button type="submit" class="btn btn-primary">注册</button>
@@ -72,19 +74,19 @@
     <!-- 主应用容器 -->
     <div id="app-container" style="display: none;">
         <!-- 顶部导航栏 -->
-        <header class="header">
-            <div class="header-content container">
+        <header class="header" id="main-header">
+            <div class="header-content">
                 <div class="logo-section">
-                    <h1 class="logo" data-translate="ANSAPRA">ANSAPRA</h1>
-                    <p class="tagline" data-translate="高中生自然科学论文自适应阅读程序">高中生自然科学论文自适应阅读程序</p>
+                    <h1 class="logo">ANSAPRA</h1>
+                    <p class="tagline">高中生自然科学论文自适应阅读程序</p>
                 </div>
                 
                 <nav class="main-nav">
                     <ul>
-                        <li><a href="#" class="nav-link active" data-page="intro" data-translate="网站介绍">网站介绍</a></li>
-                        <li><a href="#" class="nav-link" data-page="instructions" data-translate="使用说明">使用说明</a></li>
-                        <li><a href="#" class="nav-link" data-page="interpretation" data-translate="论文解读">论文解读</a></li>
-                        <li><a href="#" class="nav-link" data-page="settings" data-translate="用户设置">用户设置</a></li>
+                        <li><a href="#" class="nav-link active" data-page="intro">网站介绍</a></li>
+                        <li><a href="#" class="nav-link" data-page="instructions">使用说明</a></li>
+                        <li><a href="#" class="nav-link" data-page="interpretation">论文解读</a></li>
+                        <li><a href="#" class="nav-link" data-page="settings">用户设置</a></li>
                     </ul>
                 </nav>
                 
@@ -96,11 +98,11 @@
         </header>
 
         <!-- 主内容区域 -->
-        <main class="main-content container">
+        <main class="main-content">
             <!-- 网站介绍页面 -->
             <section id="intro-page" class="page active">
                 <div class="page-header">
-                    <h2 data-translate="网站介绍">网站介绍</h2>
+                    <h2>网站介绍</h2>
                 </div>
                 
                 <div class="page-content">
@@ -129,18 +131,18 @@
             <!-- 使用说明页面 -->
             <section id="instructions-page" class="page">
                 <div class="page-header">
-                    <h2 data-translate="使用说明">使用说明</h2>
+                    <h2>使用说明</h2>
                 </div>
                 
-                <div class="page-content">
-                    <!-- 使用说明内容通过JS动态加载 -->
+                <div class="page-content" id="instructions-content">
+                    <!-- 内容通过JS动态加载 -->
                 </div>
             </section>
 
             <!-- 论文解读页面 -->
             <section id="interpretation-page" class="page">
                 <div class="page-header">
-                    <h2 data-translate="论文解读">论文解读</h2>
+                    <h2>论文解读</h2>
                 </div>
                 
                 <div class="page-content">
@@ -151,7 +153,7 @@
                                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
                                 <h3>上传论文文件</h3>
                                 <p>支持PDF、DOCX、TXT格式，最大16MB</p>
-                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
+                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;" onchange="handleFileUpload(event)">
                                 <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
                                     选择文件
                                 </button>
@@ -160,7 +162,7 @@
                             
                             <div class="text-input-section">
                                 <h3>或输入论文文本</h3>
-                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8"></textarea>
+                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8" oninput="updateCharCount()"></textarea>
                                 <div class="char-count">
                                     <span id="char-count">0</span> / 5000 字符
                                 </div>
@@ -229,7 +231,7 @@
             <!-- 用户设置页面 -->
             <section id="settings-page" class="page">
                 <div class="page-header">
-                    <h2 data-translate="用户设置">用户设置</h2>
+                    <h2>用户设置</h2>
                 </div>
                 
                 <div class="page-content">
@@ -244,12 +246,12 @@
                         <div class="settings-content">
                             <!-- 阅读习惯设置 -->
                             <div id="reading-settings" class="settings-panel active">
-                                <!-- 阅读习惯设置表单将通过JS动态加载 -->
+                                <!-- 内容通过JS动态加载 -->
                             </div>
                             
                             <!-- 视觉设置 -->
                             <div id="visual-settings" class="settings-panel">
-                                <!-- 视觉设置表单将通过JS动态加载 -->
+                                <!-- 内容通过JS动态加载 -->
                             </div>
                             
                             <!-- 语言设置 -->
@@ -258,11 +260,11 @@
                                     <label>界面语言</label>
                                     <div class="radio-group">
                                         <label class="radio-label">
-                                            <input type="radio" name="language" value="zh" checked>
+                                            <input type="radio" name="language" value="zh" checked onchange="changeLanguage('zh')">
                                             <span>中文</span>
                                         </label>
                                         <label class="radio-label">
-                                            <input type="radio" name="language" value="en">
+                                            <input type="radio" name="language" value="en" onchange="changeLanguage('en')">
                                             <span>English</span>
                                         </label>
                                     </div>
@@ -279,15 +281,6 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="settings-actions">
-                            <button class="btn btn-primary" onclick="saveSettings()">
-                                <i class="fas fa-save"></i> 保存设置
-                            </button>
-                            <button class="btn btn-secondary" onclick="resetSettings()">
-                                <i class="fas fa-undo"></i> 恢复默认
-                            </button>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -295,13 +288,13 @@
 
         <!-- 底部导航 -->
         <footer class="footer">
-            <div class="footer-content container">
+            <div class="footer-content">
                 <div class="footer-links">
-                    <a href="#" class="footer-link" data-modal="contact" data-translate="联系我们">联系我们</a>
-                    <a href="#" class="footer-link" data-modal="copyright" data-translate="版权说明">版权说明</a>
-                    <a href="#" class="footer-link" data-modal="terms" data-translate="服务条款">服务条款</a>
-                    <a href="#" class="footer-link" data-modal="privacy" data-translate="隐私政策">隐私政策</a>
-                    <a href="#" class="footer-link" data-modal="cookie" data-translate="Cookie政策">Cookie政策</a>
+                    <a href="#" class="footer-link" data-modal="contact">联系我们</a>
+                    <a href="#" class="footer-link" data-modal="copyright">版权说明</a>
+                    <a href="#" class="footer-link" data-modal="terms">服务条款</a>
+                    <a href="#" class="footer-link" data-modal="privacy">隐私政策</a>
+                    <a href="#" class="footer-link" data-modal="cookie">Cookie政策</a>
                 </div>
                 <div class="footer-copyright">
                     <p>&copy; 2025 ANSAPRA开发团队 | 高中生自然科学论文自适应阅读程序</p>
@@ -313,7 +306,18 @@
     <!-- 模态框容器 -->
     <div id="modal-container"></div>
 
+    <!-- 模态框模板 -->
+    <template id="modal-template">
+        <div class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <div class="modal-body"></div>
+            </div>
+        </div>
+    </template>
+
     <!-- JavaScript 文件 -->
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 </body>
