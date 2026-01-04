@@ -48,7 +48,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="preparation" value="B">
-                        <span>B. 做一些准备（默认设置）</span>
+                        <span>B. 做一些准备</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="preparation" value="C">
@@ -66,7 +66,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="B">
-                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解（默认设置）</span>
+                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="C">
@@ -88,7 +88,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="time" value="B">
-                        <span>B. 10-30分钟内（默认设置）</span>
+                        <span>B. 10-30分钟内</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="time" value="C">
@@ -110,7 +110,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="style" value="C">
-                        <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整（默认设置）</span>
+                        <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="style" value="D">
@@ -132,7 +132,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="depth" value="B">
-                        <span>B. 平衡详细（默认设置）</span>
+                        <span>B. 平衡详细</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="depth" value="C">
@@ -150,7 +150,7 @@ function loadReadingSettings() {
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="test_type" value="B">
-                        <span>B. 易错易混选择题（默认设置）</span>
+                        <span>B. 易错易混选择题</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="test_type" value="C">
@@ -164,7 +164,7 @@ function loadReadingSettings() {
                 <div class="checkbox-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="chart_types" value="A" checked>
-                        <span>A. 思维导图（树状）（默认设置）</span>
+                        <span>A. 思维导图（树状）</span>
                     </label>
                     <label class="checkbox-label">
                         <input type="checkbox" name="chart_types" value="B">
@@ -186,7 +186,6 @@ function loadReadingSettings() {
     // 加载保存的设置
     loadSavedSettings();
 }
-
 function loadVisualSettings() {
     const container = document.getElementById('visual-settings');
     if (!container) return;
@@ -238,41 +237,156 @@ function loadVisualSettings() {
                 <label>2. 字体设置</label>
                 <div class="form-group">
                     <label>字体大小：</label>
-                    <input type="range" id="font-size-slider" min="16" max="30" value="18" step="1">
-                    <span id="font-size-value">18px</span>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <input type="range" id="font-size-slider" min="14" max="24" value="18" step="1" style="flex: 1;">
+                        <span id="font-size-value" style="min-width: 50px; font-weight: bold;">18px</span>
+                        <button type="button" class="btn btn-small" onclick="resetFontSize()" style="margin-left: 10px;">
+                            <i class="fas fa-undo"></i> 重置
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                        <span>小</span>
+                        <span>标准</span>
+                        <span>大</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>字体家族：</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="Microsoft YaHei">
-                            <span>微软雅黑</span>
+                    <label>中文字体：</label>
+                    <div class="font-family-grid">
+                        <label class="font-option">
+                            <input type="radio" name="chinese_font" value="'Microsoft YaHei', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">微软雅黑</div>
+                                <div class="font-sample" style="font-family: 'Microsoft YaHei', sans-serif;">
+                                    这是一段示例文字，展示字体效果。微软雅黑清晰易读。
+                                </div>
+                                <div class="font-description">现代无衬线字体，适合屏幕阅读</div>
+                            </div>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="KaiTi">
-                            <span>华文楷体</span>
+                        <label class="font-option">
+                            <input type="radio" name="chinese_font" value="'LXGW WenKai TC', cursive">
+                            <div class="font-preview">
+                                <div class="font-name">霞鹜文楷</div>
+                                <div class="font-sample" style="font-family: 'LXGW WenKai TC', cursive;">
+                                    这是一段示例文字，展示字体效果。霞鹜文楷清新秀美。
+                                </div>
+                                <div class="font-description">开源手写楷体，文艺清新风格</div>
+                            </div>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="SongTi">
-                            <span>华文宋体</span>
+                        <label class="font-option">
+                            <input type="radio" name="chinese_font" value="'STKaiti', 'KaiTi', serif">
+                            <div class="font-preview">
+                                <div class="font-name">华文楷体</div>
+                                <div class="font-sample" style="font-family: 'STKaiti', 'KaiTi', serif;">
+                                    这是一段示例文字，展示字体效果。华文楷体典雅传统。
+                                </div>
+                                <div class="font-description">系统标准楷体，古典优雅</div>
+                            </div>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="font_family" value="Roboto">
-                            <span>Roboto</span>
+                        <label class="font-option">
+                            <input type="radio" name="chinese_font" value="'Noto Serif SC', serif">
+                            <div class="font-preview">
+                                <div class="font-name">思源宋体</div>
+                                <div class="font-sample" style="font-family: 'Noto Serif SC', serif;">
+                                    这是一段示例文字，展示字体效果。思源宋体端庄清晰。
+                                </div>
+                                <div class="font-description">谷歌开源宋体，适合正式文档</div>
+                            </div>
                         </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>英文字体：</label>
+                    <div class="font-family-grid">
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Eczar', serif">
+                            <div class="font-preview">
+                                <div class="font-name">Eczar (衬线体)</div>
+                                <div class="font-sample" style="font-family: 'Eczar', serif;">
+                                    This is sample text showing Eczar font. Elegant serif for English.
+                                </div>
+                                <div class="font-description">优雅的衬线字体，适合学术文本</div>
+                            </div>
+                        </label>
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Cabin', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">Cabin (无衬线体)</div>
+                                <div class="font-sample" style="font-family: 'Cabin', sans-serif;">
+                                    This is sample text showing Cabin font. Modern sans-serif for English.
+                                </div>
+                                <div class="font-description">现代无衬线字体，适合科技内容</div>
+                            </div>
+                        </label>
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Arial', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">Arial (系统默认)</div>
+                                <div class="font-sample" style="font-family: 'Arial', sans-serif;">
+                                    This is sample text showing Arial font. System default English font.
+                                </div>
+                                <div class="font-description">系统默认字体，兼容性好</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>行高设置：</label>
+                    <select id="line-height-select" class="form-control">
+                        <option value="1.4">紧凑 (1.4)</option>
+                        <option value="1.6" selected>标准 (1.6)</option>
+                        <option value="1.8">宽松 (1.8)</option>
+                        <option value="2.0">很宽松 (2.0)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>字间距设置：</label>
+                    <select id="letter-spacing-select" class="form-control">
+                        <option value="-0.5px">紧密 (-0.5px)</option>
+                        <option value="0px" selected>标准 (0px)</option>
+                        <option value="0.5px">宽松 (0.5px)</option>
+                        <option value="1px">很宽松 (1px)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <div class="preview-section">
+                        <label>实时预览：</label>
+                        <div class="preview-box" id="font-preview-box">
+                            <p style="margin: 0; line-height: 1.6;">这是一段预览文字，展示当前字体设置的效果。This is preview text showing the current font settings.</p>
+                        </div>
+                        <p class="preview-info" id="font-info" style="font-size: 12px; color: #666; margin-top: 8px;"></p>
                     </div>
                 </div>
             </div>
             
             <div class="form-group">
                 <label>自定义背景图片</label>
-                <input type="file" id="background-upload" accept="image/*" style="display: none;">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('background-upload').click()">
-                    上传背景图片
-                </button>
-                <p class="help-text">支持JPG、PNG格式，建议尺寸1920x1080</p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                    <input type="file" id="background-upload" accept="image/*" style="display: none;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('background-upload').click()">
+                        <i class="fas fa-upload"></i> 选择图片
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeBackground()" id="remove-bg-btn" style="display: none;">
+                        <i class="fas fa-trash"></i> 移除背景
+                    </button>
+                </div>
+                <p class="help-text">支持JPG、PNG格式，建议尺寸1920x1080，文件大小不超过5MB</p>
                 <div id="background-preview" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>重置所有视觉设置</label>
+                <button type="button" class="btn btn-danger" onclick="resetAllVisualSettings()">
+                    <i class="fas fa-redo"></i> 重置为默认设置
+                </button>
+                <p class="warning-text" style="font-size: 12px; color: #dc3545; margin-top: 5px;">
+                    注意：这将重置所有视觉设置，包括字体、背景和主题
+                </p>
             </div>
         </form>
     `;
@@ -283,51 +397,372 @@ function loadVisualSettings() {
     if (slider && valueDisplay) {
         slider.addEventListener('input', function() {
             valueDisplay.textContent = `${this.value}px`;
-            document.documentElement.style.fontSize = `${this.value}px`;
+            updateFontPreview();
+            saveVisualSettings();
         });
     }
+    
+    // 行高选择事件
+    const lineHeightSelect = document.getElementById('line-height-select');
+    if (lineHeightSelect) {
+        lineHeightSelect.addEventListener('change', function() {
+            updateFontPreview();
+            saveVisualSettings();
+        });
+    }
+    
+    // 字间距选择事件
+    const letterSpacingSelect = document.getElementById('letter-spacing-select');
+    if (letterSpacingSelect) {
+        letterSpacingSelect.addEventListener('change', function() {
+            updateFontPreview();
+            saveVisualSettings();
+        });
+    }
+    
+    // 中文字体选择事件
+    const chineseFontRadios = document.querySelectorAll('input[name="chinese_font"]');
+    chineseFontRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                updateFontPreview();
+                updateFontInfo();
+                saveVisualSettings();
+            }
+        });
+    });
+    
+    // 英文字体选择事件
+    const englishFontRadios = document.querySelectorAll('input[name="english_font"]');
+    englishFontRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                updateFontPreview();
+                updateFontInfo();
+                saveVisualSettings();
+            }
+        });
+    });
+    
+    // 主题选择事件
+    const themeRadios = document.querySelectorAll('input[name="theme"]');
+    themeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                applyTheme(this.value);
+                saveVisualSettings();
+            }
+        });
+    });
     
     // 背景图片上传
     const uploadInput = document.getElementById('background-upload');
     if (uploadInput) {
         uploadInput.addEventListener('change', handleBackgroundUpload);
     }
+    
+    // 加载保存的设置
+    loadSavedVisualSettings();
 }
 
+// 更新字体预览
+function updateFontPreview() {
+    const previewBox = document.getElementById('font-preview-box');
+    if (!previewBox) return;
+    
+    // 获取中文字体
+    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value || "'Microsoft YaHei', sans-serif";
+    
+    // 获取英文字体
+    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value || "'Eczar', serif";
+    
+    // 获取字体大小
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    
+    // 获取行高
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    
+    // 获取字间距
+    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
+    
+    // 构建字体堆栈（优先使用中文字体，英文字体作为后备）
+    const fontStack = `${chineseFont}, ${englishFont}`;
+    
+    // 应用预览样式
+    previewBox.style.fontFamily = fontStack;
+    previewBox.style.fontSize = `${fontSize}px`;
+    previewBox.style.lineHeight = lineHeight;
+    previewBox.style.letterSpacing = letterSpacing;
+    
+    // 同时更新整个页面的字体（实时效果）
+    document.body.style.fontFamily = fontStack;
+    document.body.style.fontSize = `${fontSize}px`;
+    document.body.style.lineHeight = lineHeight;
+    document.body.style.letterSpacing = letterSpacing;
+}
+
+// 更新字体信息
+function updateFontInfo() {
+    const infoElement = document.getElementById('font-info');
+    if (!infoElement) return;
+    
+    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value;
+    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value;
+    
+    let chineseName = "微软雅黑";
+    if (chineseFont?.includes('LXGW WenKai TC')) chineseName = "霞鹜文楷";
+    if (chineseFont?.includes('STKaiti')) chineseName = "华文楷体";
+    if (chineseFont?.includes('Noto Serif SC')) chineseName = "思源宋体";
+    
+    let englishName = "Eczar";
+    if (englishFont?.includes('Cabin')) englishName = "Cabin";
+    if (englishFont?.includes('Arial')) englishName = "Arial";
+    
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
+    
+    infoElement.textContent = `当前设置：${chineseName} / ${englishName} | 字号：${fontSize}px | 行高：${lineHeight} | 字间距：${letterSpacing}`;
+}
+
+// 应用主题
+function applyTheme(theme) {
+    const themes = {
+        'A': '#ffe6f2', // 粉色
+        'B': '#e6f7ff', // 浅蓝色
+        'C': '#e6ffe6', // 浅绿色
+        'D': '#f2e6ff', // 浅紫色
+        'E': '#ffffff'  // 白色
+    };
+    
+    const color = themes[theme] || '#f8f9fa';
+    document.body.style.backgroundColor = color;
+    
+    // 如果有自定义背景，先清除
+    document.body.style.backgroundImage = '';
+    const preview = document.getElementById('background-preview');
+    if (preview) preview.innerHTML = '';
+    
+    const removeBtn = document.getElementById('remove-bg-btn');
+    if (removeBtn) removeBtn.style.display = 'none';
+}
+
+// 保存视觉设置
+function saveVisualSettings() {
+    const settings = collectVisualSettings();
+    localStorage.setItem('visualSettings', JSON.stringify(settings));
+    
+    // 更新用户设置（如果已登录）
+    if (AppState.user && !AppState.user.is_guest) {
+        updateUserVisualSettings(settings);
+    }
+}
+
+// 收集视觉设置数据
+function collectVisualSettings() {
+    const fontFamily = document.querySelector('input[name="font_family"]:checked')?.value || "'Microsoft YaHei', sans-serif";
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    const theme = document.querySelector('input[name="theme"]:checked')?.value || "B";
+    
+    return {
+        font_family: fontFamily,
+        font_size: fontSize,
+        line_height: lineHeight,
+        theme: theme
+    };
+}
+
+// 加载保存的视觉设置
+function loadSavedVisualSettings() {
+    const savedSettings = localStorage.getItem('visualSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        applyVisualSettings(settings);
+    } else if (AppState.user && AppState.user.settings?.visual) {
+        applyVisualSettings(AppState.user.settings.visual);
+    }
+}
+
+// 应用视觉设置
+function applyVisualSettings(settings) {
+    if (!settings) return;
+    
+    // 字体大小
+    const slider = document.getElementById('font-size-slider');
+    const valueDisplay = document.getElementById('font-size-value');
+    if (slider && valueDisplay && settings.font_size) {
+        slider.value = settings.font_size;
+        valueDisplay.textContent = `${settings.font_size}px`;
+        document.documentElement.style.fontSize = `${settings.font_size}px`;
+    }
+    
+    // 字体家族
+    if (settings.font_family) {
+        const fontRadios = document.querySelectorAll('input[name="font_family"]');
+        fontRadios.forEach(radio => {
+            if (radio.value === settings.font_family) {
+                radio.checked = true;
+                document.body.style.fontFamily = settings.font_family;
+            }
+        });
+    }
+    
+    // 行高
+    const lineHeightSelect = document.getElementById('line-height-select');
+    if (lineHeightSelect && settings.line_height) {
+        lineHeightSelect.value = settings.line_height;
+        document.body.style.lineHeight = settings.line_height;
+    }
+    
+    // 主题
+    if (settings.theme) {
+        const themeRadios = document.querySelectorAll('input[name="theme"]');
+        themeRadios.forEach(radio => {
+            if (radio.value === settings.theme) {
+                radio.checked = true;
+                applyTheme(settings.theme);
+            }
+        });
+    }
+}
+
+// 更新用户设置的视觉部分
+async function updateUserVisualSettings(visualSettings) {
+    try {
+        const response = await fetch('/api/user/settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            const newSettings = {
+                ...data.settings,
+                visual: {
+                    ...data.settings.visual,
+                    ...visualSettings
+                }
+            };
+            
+            await fetch('/api/user/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ settings: newSettings })
+            });
+        }
+    } catch (error) {
+        console.error('更新视觉设置失败:', error);
+    }
+}
+
+// 重置字体大小
+function resetFontSize() {
+    const slider = document.getElementById('font-size-slider');
+    const valueDisplay = document.getElementById('font-size-value');
+    if (slider && valueDisplay) {
+        slider.value = "18";
+        valueDisplay.textContent = "18px";
+        document.documentElement.style.fontSize = "18px";
+        saveVisualSettings();
+        showNotification('字体大小已重置为默认值', 'success');
+    }
+}
+
+// 重置所有视觉设置
+function resetAllVisualSettings() {
+    if (confirm('确定要重置所有视觉设置吗？这将恢复为默认设置。')) {
+        const defaultSettings = {
+            font_family: "'Microsoft YaHei', sans-serif",
+            font_size: "18",
+            line_height: "1.6",
+            theme: "B"
+        };
+        
+        applyVisualSettings(defaultSettings);
+        localStorage.setItem('visualSettings', JSON.stringify(defaultSettings));
+        
+        // 清除自定义背景
+        removeBackground();
+        
+        showNotification('视觉设置已重置为默认值', 'success');
+    }
+}
+
+// 处理背景图片上传
 function handleBackgroundUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
     // 检查文件大小（最大5MB）
     if (file.size > 5 * 1024 * 1024) {
-        alert('图片大小不能超过5MB');
+        showNotification('图片大小不能超过5MB', 'error');
+        return;
+    }
+    
+    // 检查文件类型
+    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+        showNotification('只支持JPG和PNG格式的图片', 'error');
         return;
     }
     
     const reader = new FileReader();
     reader.onload = function(e) {
         const preview = document.getElementById('background-preview');
+        const removeBtn = document.getElementById('remove-bg-btn');
+        
         preview.innerHTML = `
             <div style="position: relative; margin-top: 10px;">
-                <img src="${e.target.result}" style="max-width: 300px; max-height: 150px; border-radius: 8px;">
-                <button type="button" onclick="removeBackground()" style="position: absolute; top: 5px; right: 5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
+                <img src="${e.target.result}" style="max-width: 300px; max-height: 150px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+                    <button type="button" onclick="setAsBackground('${e.target.result}')" style="background: #28a745; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">
+                        <i class="fas fa-check"></i> 应用
+                    </button>
+                </div>
             </div>
         `;
         
-        // 应用背景
-        document.body.style.backgroundImage = `url(${e.target.result})`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundAttachment = 'fixed';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
     };
     
     reader.readAsDataURL(file);
 }
 
+// 设置背景图片
+function setAsBackground(imageUrl) {
+    document.body.style.backgroundImage = `url(${imageUrl})`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundPosition = 'center';
+    
+    // 保存到localStorage
+    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
+    visualSettings.custom_background = imageUrl;
+    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
+    
+    showNotification('背景图片已应用', 'success');
+}
+
+// 移除背景图片
 function removeBackground() {
     document.body.style.backgroundImage = '';
-    document.body.style.backgroundColor = '#f8f9fa';
+    document.body.style.backgroundColor = '';
+    
+    // 恢复主题颜色
+    const theme = document.querySelector('input[name="theme"]:checked')?.value || 'B';
+    applyTheme(theme);
+    
     const preview = document.getElementById('background-preview');
     if (preview) preview.innerHTML = '';
+    
+    const removeBtn = document.getElementById('remove-bg-btn');
+    if (removeBtn) removeBtn.style.display = 'none';
+    
+    // 清除localStorage中的背景设置
+    const visualSettings = JSON.parse(localStorage.getItem('visualSettings') || '{}');
+    delete visualSettings.custom_background;
+    localStorage.setItem('visualSettings', JSON.stringify(visualSettings));
+    
+    showNotification('背景图片已移除', 'success');
 }
 
 async function loadSavedSettings() {
@@ -430,6 +865,148 @@ async function saveSettings() {
     }
 }
 
+// 在settings.js中添加问卷修改功能
+async function loadQuestionnaireSettings() {
+    if (!AppState.user || AppState.user.is_guest) return;
+    
+    try {
+        const response = await fetch('/api/user/settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            // 检查是否有问卷数据
+            const userResponse = await fetch('/api/user/profile');
+            const userData = await userResponse.json();
+            
+            if (userData.success && userData.questionnaire) {
+                // 在设置页面显示问卷修改选项
+                addQuestionnaireToSettings(userData.questionnaire);
+            }
+        }
+    } catch (error) {
+        console.error('加载问卷设置失败:', error);
+    }
+}
+
+function addQuestionnaireToSettings(questionnaire) {
+    const accountSettings = document.getElementById('account-settings');
+    if (!accountSettings) return;
+    
+    const questionnaireSection = document.createElement('div');
+    questionnaireSection.className = 'questionnaire-settings';
+    questionnaireSection.innerHTML = `
+        <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
+        <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
+        <button class="btn btn-secondary" onclick="updateQuestionnaire()">
+            <i class="fas fa-redo"></i> 重新填写问卷
+        </button>
+        <div class="current-questionnaire-summary" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h5>当前问卷摘要：</h5>
+            <p>年级：${getGradeText(questionnaire.grade)}</p>
+            <p>教育体系：${getSystemText(questionnaire.education_system)}</p>
+            <!-- 可以添加更多摘要信息 -->
+        </div>
+    `;
+    
+    accountSettings.appendChild(questionnaireSection);
+}
+
+function getGradeText(grade) {
+    const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+    return gradeMap[grade] || '未知';
+}
+
+function getSystemText(system) {
+    const systemMap = { A: '国际体系', B: '普高体系' };
+    return systemMap[system] || '未知';
+}
+
+async function updateQuestionnaire() {
+    if (!confirm('确定要重新填写知识框架问卷吗？这会影响后续的个性化解读。')) {
+        return;
+    }
+    
+    // 显示问卷模态框
+    showQuestionnaireModal();
+}
+
+function showQuestionnaireModal() {
+    const modalHTML = `
+        <div class="modal" id="questionnaire-modal">
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3><i class="fas fa-clipboard-list"></i> 更新知识框架问卷</h3>
+                    <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+                </div>
+                <div id="modal-questionnaire-container" style="max-height: 70vh; overflow-y: auto;">
+                    加载中...
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
+                        <i class="fas fa-save"></i> 保存更新
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-left: 10px;">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.getElementById('modal-container');
+    modalContainer.innerHTML = modalHTML;
+    
+    // 加载问卷到模态框
+    setTimeout(() => {
+        loadQuestionnaireToModal();
+    }, 100);
+}
+
+function loadQuestionnaireToModal() {
+    const container = document.getElementById('modal-questionnaire-container');
+    if (container) {
+        // 这里可以加载与注册时间相同的问卷HTML
+        container.innerHTML = document.getElementById('questionnaire').innerHTML;
+    }
+}
+
+function closeQuestionnaireModal() {
+    const modal = document.getElementById('questionnaire-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitUpdatedQuestionnaire() {
+    // 收集问卷数据
+    const questionnaire = collectQuestionnaireData();
+    
+    try {
+        const response = await fetch('/api/user/update-questionnaire', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ questionnaire })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('问卷已更新！新的学习画像将应用于后续解读。', 'success');
+            closeQuestionnaireModal();
+            // 刷新页面或重新加载设置
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message || '更新失败', 'error');
+        }
+    } catch (error) {
+        console.error('更新问卷失败:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
 function collectSettings() {
     const settings = {
         reading: {},
