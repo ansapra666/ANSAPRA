@@ -1,19 +1,17 @@
 <!DOCTYPE html>
-<html lang="zh-CN" id="html-root">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ANSAPRA - 高中生自然科学论文自适应阅读程序</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&family=Noto+Serif+SC:wght@400;700&family=LXGW+WenKai+TC&family=Eczar:wght@400;700&family=Cabin:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&family=KaiTi&family=SongTi&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- 登录/注册模态框 -->
     <div id="auth-modal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="hideAuthModal()">&times;</span>
             <div class="auth-tabs">
                 <button class="tab-btn active" onclick="showTab('login')">登录</button>
                 <button class="tab-btn" onclick="showTab('register')">注册</button>
@@ -22,7 +20,7 @@
             
             <div id="login-tab" class="tab-content active">
                 <h3>登录到 ANSAPRA</h3>
-                <form id="login-form" onsubmit="loginUser(event)">
+                <form id="login-form">
                     <div class="form-group">
                         <label for="login-email">邮箱</label>
                         <input type="email" id="login-email" required>
@@ -37,7 +35,7 @@
             
             <div id="register-tab" class="tab-content">
                 <h3>注册 ANSAPRA 账户</h3>
-                <form id="register-form" onsubmit="registerUser(event)">
+                <form id="register-form">
                     <div class="form-group">
                         <label for="register-email">邮箱</label>
                         <input type="email" id="register-email" required>
@@ -55,8 +53,8 @@
                         <input type="password" id="confirm-password" required>
                     </div>
                     
-                    <div class="questionnaire-section" id="questionnaire-container">
-                        <!-- 问卷将通过JS动态加载 -->
+                    <div class="questionnaire-section" id="questionnaire">
+                        <!-- 问卷内容将通过JS动态加载 -->
                     </div>
                     
                     <button type="submit" class="btn btn-primary">注册</button>
@@ -74,7 +72,7 @@
     <!-- 主应用容器 -->
     <div id="app-container" style="display: none;">
         <!-- 顶部导航栏 -->
-        <header class="header" id="main-header">
+        <header class="header">
             <div class="header-content">
                 <div class="logo-section">
                     <h1 class="logo">ANSAPRA</h1>
@@ -134,8 +132,8 @@
                     <h2>使用说明</h2>
                 </div>
                 
-                <div class="page-content" id="instructions-content">
-                    <!-- 内容通过JS动态加载 -->
+                <div class="page-content">
+                    <!-- 使用说明内容通过JS动态加载 -->
                 </div>
             </section>
 
@@ -153,7 +151,7 @@
                                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
                                 <h3>上传论文文件</h3>
                                 <p>支持PDF、DOCX、TXT格式，最大16MB</p>
-                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;" onchange="handleFileUpload(event)">
+                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
                                 <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
                                     选择文件
                                 </button>
@@ -162,7 +160,7 @@
                             
                             <div class="text-input-section">
                                 <h3>或输入论文文本</h3>
-                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8" oninput="updateCharCount()"></textarea>
+                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8"></textarea>
                                 <div class="char-count">
                                     <span id="char-count">0</span> / 5000 字符
                                 </div>
@@ -246,12 +244,12 @@
                         <div class="settings-content">
                             <!-- 阅读习惯设置 -->
                             <div id="reading-settings" class="settings-panel active">
-                                <!-- 内容通过JS动态加载 -->
+                                <!-- 阅读习惯设置表单将通过JS动态加载 -->
                             </div>
                             
                             <!-- 视觉设置 -->
                             <div id="visual-settings" class="settings-panel">
-                                <!-- 内容通过JS动态加载 -->
+                                <!-- 视觉设置表单将通过JS动态加载 -->
                             </div>
                             
                             <!-- 语言设置 -->
@@ -260,11 +258,11 @@
                                     <label>界面语言</label>
                                     <div class="radio-group">
                                         <label class="radio-label">
-                                            <input type="radio" name="language" value="zh" checked onchange="changeLanguage('zh')">
+                                            <input type="radio" name="language" value="zh" checked>
                                             <span>中文</span>
                                         </label>
                                         <label class="radio-label">
-                                            <input type="radio" name="language" value="en" onchange="changeLanguage('en')">
+                                            <input type="radio" name="language" value="en">
                                             <span>English</span>
                                         </label>
                                     </div>
@@ -280,6 +278,15 @@
                                     <p class="warning-text">注意：删除账户将永久清除所有数据，包括解读历史和个性化设置。</p>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <div class="settings-actions">
+                            <button class="btn btn-primary" onclick="saveSettings()">
+                                <i class="fas fa-save"></i> 保存设置
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetSettings()">
+                                <i class="fas fa-undo"></i> 恢复默认
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -306,18 +313,7 @@
     <!-- 模态框容器 -->
     <div id="modal-container"></div>
 
-    <!-- 模态框模板 -->
-    <template id="modal-template">
-        <div class="modal">
-            <div class="modal-content">
-                <span class="close-modal">&times;</span>
-                <div class="modal-body"></div>
-            </div>
-        </div>
-    </template>
-
     <!-- JavaScript 文件 -->
-    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 </body>
