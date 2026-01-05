@@ -1453,7 +1453,7 @@ function setupCookieConsent() {
     }
 }
 
-// 论文解读
+// 修改文件处理逻辑，确保正确传递文件
 async function startInterpretation() {
     if (AppState.isProcessing) return;
     
@@ -1465,24 +1465,29 @@ async function startInterpretation() {
         return;
     }
     
-    if (text.length > 5000) {
-        showNotification('文本内容不能超过5000字符', 'error');
-        return;
-    }
-    
     AppState.isProcessing = true;
     DOM.resultsSection.style.display = 'none';
     DOM.loadingSection.style.display = 'block';
     
     try {
         const formData = new FormData();
+        
+        // 如果有文件，添加文件
         if (file) {
             formData.append('file', file);
         }
+        
+        // 如果有文本，添加文本
         if (text) {
             formData.append('text', text);
         }
         
+        // 显示上传进度
+        const progressElement = document.createElement('div');
+        progressElement.innerHTML = '<p>正在上传文件到DeepSeek API...</p>';
+        DOM.loadingSection.appendChild(progressElement);
+        
+        // 发送请求
         const response = await fetch('/api/interpret', {
             method: 'POST',
             body: formData
@@ -1506,6 +1511,7 @@ async function startInterpretation() {
         } else {
             showNotification(data.message || '解读失败', 'error');
         }
+        
     } catch (error) {
         console.error('解读错误:', error);
         showNotification('网络错误，请稍后重试', 'error');
