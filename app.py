@@ -706,3 +706,16 @@ def get_user_profile():
         'questionnaire': user.get('questionnaire', {}),
         'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
     })
+@app.route('/static/lang/translations.json')
+def get_translations():
+    # 确保语言文件存在
+    import os
+    translations_path = os.path.join(app.static_folder, 'lang', 'translations.json')
+    if os.path.exists(translations_path):
+        return send_file(translations_path)
+    else:
+        # 返回默认翻译
+        return jsonify({
+            "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
+            "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
+        })
