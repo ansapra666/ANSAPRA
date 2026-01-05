@@ -1,3 +1,4 @@
+
 // 全局状态管理
 const AppState = {
     user: null,
@@ -16,6 +17,20 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
     loadTranslations();
     setupEventListeners();
+
+    // 初始化语言管理器
+    window.languageManager = new LanguageManager();
+    languageManager.applyLanguage();
+    
+    // 监听语言变化事件
+    document.addEventListener('languageChanged', function(e) {
+        // 重新加载设置表单
+        if (AppState.currentPage === 'settings') {
+            loadSettingsForms();
+        }
+        // 更新模态框标题
+        updateModalTitles();
+    });
     
     // 加载问卷数据
     loadQuestionnaire();
