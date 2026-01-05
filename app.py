@@ -176,6 +176,8 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         'Content-Type': 'application/json'
     }
     
+    api_url = "https://api.deepseek.com/chat/completions"
+    
     payload = {
         'model': 'deepseek-chat',
         'messages': [
