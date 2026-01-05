@@ -241,40 +241,127 @@ async function handleLogin() {
     }
 }
 
-// 注册处理
+// 全屏问卷显示
+function showFullQuestionnaire() {
+    const modal = document.getElementById('full-questionnaire-modal');
+    const container = document.getElementById('full-questionnaire-container');
+    
+    // 加载问卷内容
+    if (container.innerHTML.trim() === '') {
+        loadQuestionnaireToContainer(container);
+    }
+    
+    modal.style.display = 'flex';
+    
+    // 添加ESC键关闭支持
+    const escHandler = function(e) {
+        if (e.key === 'Escape') {
+            closeFullQuestionnaire();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+}
+
+function closeFullQuestionnaire() {
+    const modal = document.getElementById('full-questionnaire-modal');
+    modal.style.display = 'none';
+}
+
+function loadQuestionnaireToContainer(container) {
+    // 这里可以加载与注册时间相同的问卷HTML
+    // 暂时使用现有的问卷HTML
+    const questionnaireContent = document.getElementById('questionnaire');
+    if (questionnaireContent) {
+        container.innerHTML = questionnaireContent.innerHTML;
+    }
+}
+
+// 保存问卷数据
+function saveQuestionnaire() {
+    const questionnaire = collectQuestionnaireData();
+    
+    // 验证问卷数据
+    if (!validateQuestionnaire(questionnaire)) {
+        return;
+    }
+    
+    // 保存到全局变量或本地存储
+    window.currentQuestionnaire = questionnaire;
+    localStorage.setItem('pendingQuestionnaire', JSON.stringify(questionnaire));
+    
+    showNotification('问卷已保存，可以继续注册', 'success');
+    closeFullQuestionnaire();
+    
+    // 更新注册表单中的问卷显示
+    updateRegisterFormQuestionnaire();
+}
+
+function updateRegisterFormQuestionnaire() {
+    const questionnaireDiv = document.getElementById('questionnaire');
+    if (questionnaireDiv && window.currentQuestionnaire) {
+        questionnaireDiv.innerHTML = `
+            <div class="questionnaire-summary" style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
+                <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> 问卷已完成</h5>
+                <p>知识框架问卷已完成填写，包含${Object.keys(window.currentQuestionnaire).length}项数据。</p>
+                <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()">
+                    <i class="fas fa-edit"></i> 修改问卷
+                </button>
+            </div>
+        `;
+    }
+}
+
+// 修改handleRegister函数，使用全屏问卷
 async function handleRegister() {
     const email = document.getElementById('register-email').value;
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
-    
+
     // 基本验证
     if (!email || !username || !password) {
         showNotification('请填写所有必填项', 'error');
         return;
     }
-    
+
     // 邮箱格式验证
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         showNotification('请输入有效的邮箱地址', 'error');
         return;
     }
-    
+
     // 密码验证
     if (password.length < 6) {
         showNotification('密码长度至少6位', 'error');
         return;
     }
-    
+
     if (password !== confirmPassword) {
         showNotification('两次输入的密码不一致', 'error');
         return;
     }
-    
-    // 问卷验证
-    const questionnaire = collectQuestionnaireData();
-    
+
+    // 问卷验证 - 使用全局变量或本地存储中的问卷数据
+    let questionnaire = window.currentQuestionnaire;
+    if (!questionnaire) {
+        questionnaire = JSON.parse(localStorage.getItem('pendingQuestionnaire') || '{}');
+    }
+
+    if (Object.keys(questionnaire).length === 0) {
+        showNotification('请先完成知识框架问卷', 'error');
+        showFullQuestionnaire();
+        return;
+    }
+
+    // 验证问卷完整性
+    if (!validateQuestionnaire(questionnaire)) {
+        showNotification('问卷填写不完整，请修改', 'error');
+        showFullQuestionnaire();
+        return;
+    }
+
     try {
         const response = await fetch('/api/register', {
             method: 'POST',
@@ -288,13 +375,16 @@ async function handleRegister() {
                 questionnaire
             })
         });
-        
+
         const data = await response.json();
-        
         if (data.success) {
             AppState.user = data.user;
             showApp();
             showNotification('注册成功！', 'success');
+            
+            // 清除临时问卷数据
+            localStorage.removeItem('pendingQuestionnaire');
+            window.currentQuestionnaire = null;
         } else {
             showNotification(data.message || '注册失败', 'error');
         }
@@ -304,6 +394,28 @@ async function handleRegister() {
     }
 }
 
+// 添加修改注册表单中的问卷部分
+document.addEventListener('DOMContentLoaded', function() {
+    // 在注册标签页中添加问卷按钮
+    const registerTab = document.getElementById('register-tab');
+    if (registerTab) {
+        const existingQuestionnaire = document.getElementById('questionnaire');
+        if (existingQuestionnaire) {
+            existingQuestionnaire.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <h4><i class="fas fa-clipboard-list"></i> 知识框架调查问卷</h4>
+                    <p>请填写问卷以帮助我们更好地为您提供个性化解读</p>
+                    <button type="button" class="btn btn-primary" onclick="showFullQuestionnaire()">
+                        <i class="fas fa-pen"></i> 开始填写问卷
+                    </button>
+                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                        问卷完成后即可注册
+                    </p>
+                </div>
+            `;
+        }
+    }
+});
 // 游客登录
 async function enterAsGuest() {
     try {
