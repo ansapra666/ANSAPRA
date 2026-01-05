@@ -312,7 +312,6 @@ function updateRegisterFormQuestionnaire() {
     }
 }
 
-// 修改handleRegister函数，使用全屏问卷
 async function handleRegister() {
     const email = document.getElementById('register-email').value;
     const username = document.getElementById('register-username').value;
@@ -320,7 +319,7 @@ async function handleRegister() {
     const confirmPassword = document.getElementById('confirm-password').value;
 
     // 基本验证
-    if (!email || !username || !password) {
+    if (!email || !username || !password || !confirmPassword) {
         showNotification('请填写所有必填项', 'error');
         return;
     }
@@ -343,25 +342,97 @@ async function handleRegister() {
         return;
     }
 
-    // 问卷验证 - 使用全局变量或本地存储中的问卷数据
-    let questionnaire = window.currentQuestionnaire;
-    if (!questionnaire) {
-        questionnaire = JSON.parse(localStorage.getItem('pendingQuestionnaire') || '{}');
-    }
-
-    if (Object.keys(questionnaire).length === 0) {
-        showNotification('请先完成知识框架问卷', 'error');
+    // 检查是否有保存的问卷数据
+    let questionnaire = null;
+    const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
+    
+    if (savedQuestionnaire) {
+        questionnaire = JSON.parse(savedQuestionnaire);
+        
+        // 验证问卷数据完整性
+        if (validateQuestionnaire(questionnaire)) {
+            // 问卷完整，直接提交注册
+            await submitRegistration(email, username, password, questionnaire);
+        } else {
+            // 问卷不完整，显示问卷
+            showNotification('问卷填写不完整，请完成问卷后再注册', 'warning');
+            saveBasicInfo(email, username, password);
+            showFullQuestionnaire();
+        }
+    } else {
+        // 没有问卷数据，先保存基本信息，然后显示问卷
+        saveBasicInfo(email, username, password);
         showFullQuestionnaire();
-        return;
+        showNotification('请先完成知识框架问卷', 'info');
     }
+}
 
-    // 验证问卷完整性
-    if (!validateQuestionnaire(questionnaire)) {
-        showNotification('问卷填写不完整，请修改', 'error');
-        showFullQuestionnaire();
-        return;
+// 保存基本信息
+function saveBasicInfo(email, username, password) {
+    window.pendingRegistration = {
+        email,
+        username,
+        password,
+        timestamp: new Date().getTime()
+    };
+    
+    // 保存到localStorage（可选）
+    localStorage.setItem('pendingRegistration', JSON.stringify({
+        email,
+        username,
+        password
+    }));
+}
+
+// 验证问卷数据
+function validateQuestionnaire(questionnaire) {
+    if (!questionnaire) return false;
+    
+    // 检查基本信息部分
+    const requiredFields = [
+        'grade',
+        'education_system',
+        'learning_frequency'
+    ];
+    
+    for (const field of requiredFields) {
+        if (!questionnaire[field]) {
+            return false;
+        }
     }
+    
+    // 检查学科兴趣
+    if (questionnaire.interests) {
+        const interestFields = ['physics', 'biology', 'chemistry', 'geology', 'astronomy'];
+        for (const field of interestFields) {
+            if (!questionnaire.interests[field]) {
+                return false;
+            }
+        }
+    } else {
+        return false;
+    }
+    
+    // 检查学科问题
+    const questionFields = [
+        'physics_question',
+        'chemistry_question', 
+        'biology_question',
+        'astronomy_question',
+        'geology_question'
+    ];
+    
+    for (const field of questionFields) {
+        if (!questionnaire[field]) {
+            return false;
+        }
+    }
+    
+    return true;
+}
 
+// 提交注册
+async function submitRegistration(email, username, password, questionnaire) {
     try {
         const response = await fetch('/api/register', {
             method: 'POST',
@@ -380,11 +451,30 @@ async function handleRegister() {
         if (data.success) {
             AppState.user = data.user;
             showApp();
+            
+            // 清除临时数据
+            localStorage.removeItem('pendingQuestionnaire');
+            localStorage.removeItem('pendingRegistration');
+            delete window.pendingRegistration;
+            delete window.currentQuestionnaire;
+            
             showNotification('注册成功！', 'success');
             
-            // 清除临时问卷数据
-            localStorage.removeItem('pendingQuestionnaire');
-            window.currentQuestionnaire = null;
+            // 显示欢迎信息
+            setTimeout(() => {
+                const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+                const systemMap = { A: '国际体系', B: '普高体系' };
+                const grade = gradeMap[questionnaire.grade] || '未知';
+                const system = systemMap[questionnaire.education_system] || '未知';
+                
+                const welcomeMsg = `欢迎${username}！\n\n` +
+                    `系统已记录您的学习画像：\n` +
+                    `- 年级：${grade}\n` +
+                    `- 教育体系：${system}\n` +
+                    `- 问卷数据已保存，将用于个性化解读`;
+                
+                alert(welcomeMsg);
+            }, 1000);
         } else {
             showNotification(data.message || '注册失败', 'error');
         }
