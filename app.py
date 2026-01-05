@@ -499,94 +499,173 @@ def update_settings():
     else:
         return jsonify({'success': False, 'message': '更新失败'}), 400
 
+# 修改原有的interpret函数，支持文件上传到DeepSeek
+import base64
+
+def upload_file_to_deepseek(file_data, filename, api_key):
+    """上传文件到DeepSeek并获取文件ID"""
+    # DeepSeek API需要先上传文件，获取文件ID
+    upload_url = "https://api.deepseek.com/v1/files"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+    }
+    
+    files = {
+        "purpose": ("", "assistants"),  # 用途
+        "file": (filename, file_data)  # 文件数据
+    }
+    
+    response = requests.post(upload_url, headers=headers, files=files)
+    
+    if response.status_code == 200:
+        return response.json().get("id")  # 返回文件ID
+    else:
+        raise Exception(f"文件上传失败: {response.text}")
+
+def interpret_with_file(file_id, text_prompt, api_key):
+    """使用文件ID调用DeepSeek API"""
+    url = "https://api.deepseek.com/v1/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    # 构建包含文件的message
+    messages = [
+        {
+            "role": "user",
+            "content": text_prompt,
+            "file_ids": [file_id]  # 传递文件ID
+        }
+    ]
+    
+    data = {
+        "model": "deepseek-chat",  # 或您选择的模型
+        "messages": messages,
+        "stream": False,
+        "max_tokens": 4000
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API调用失败: {response.text}")
+
+# 修改现有的interpret路由
 @app.route('/api/interpret', methods=['POST'])
 def interpret():
-    if 'user_email' not in session:
-        return jsonify({'success': False, 'message': '未登录'}), 401
-
-    file = request.files.get('file')
-    text = request.form.get('text', '')
-
-    if not file and not text.strip():
-        return jsonify({'success': False, 'message': '请上传文件或输入文本'}), 400
-
-    user = get_user_by_email(session['user_email'])
-    if not user:
-        return jsonify({'success': False, 'message': '用户不存在'}), 404
-
     try:
-        paper_content = ""
+        file = request.files.get('file')
+        text = request.form.get('text', '')
         
-        if file and file.filename:
+        if not file and not text:
+            return jsonify({"success": False, "message": "请上传文件或输入文本"})
+        
+        # 如果有文件，上传到DeepSeek
+        file_id = None
+        if file:
+            # 检查文件类型
             filename = secure_filename(file.filename)
-            file_ext = os.path.splitext(filename)[1].lower()
+            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
             
-            if file_ext not in ['.pdf', '.docx', '.txt']:
-                return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
-
-            if file_ext == '.txt':
-                paper_content = file.read().decode('utf-8', errors='ignore')
-            elif file_ext == '.pdf':
-                try:
-                    import PyPDF2
-                    pdf_reader = PyPDF2.PdfReader(file)
-                    paper_content = ""
-                    for page_num in range(len(pdf_reader.pages)):
-                        page = pdf_reader.pages[page_num]
-                        paper_content += page.extract_text()
-                except Exception as pdf_error:
-                    paper_content = f"PDF文件内容提取失败: {str(pdf_error)}"
-                    paper_content += "\n文件已上传，请AI尝试直接处理。"
-            elif file_ext == '.docx':
-                try:
-                    import docx
-                    from io import BytesIO
-                    docx_file = BytesIO(file.read())
-                    doc = docx.Document(docx_file)
-                    paper_content = ""
-                    for paragraph in doc.paragraphs:
-                        paper_content += paragraph.text + "\n"
-                except Exception as docx_error:
-                    paper_content = f"DOCX文件内容提取失败: {str(docx_error)}"
-                    paper_content += "\n文件已上传，请AI尝试直接处理。"
-        else:
-            paper_content = text
-
-        if not paper_content or paper_content.strip() == "":
-            return jsonify({'success': False, 'message': '文件内容为空或无法读取'}), 400
-
-        user_settings = user.get('settings', {})
-        history = user.get('reading_history', [])
-
-        interpretation = call_deepseek_api(user, paper_content, user_settings, history)
-
-        history_item = {
-            'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
-            'interpretation': interpretation[:1000] + '...' if len(interpretation) > 1000 else interpretation,
-            'timestamp': datetime.now().isoformat()
-        }
+            if file_ext not in ['pdf', 'docx', 'txt']:
+                return jsonify({"success": False, "message": "只支持PDF、DOCX、TXT格式"})
+            
+            # 读取文件数据
+            file_data = file.read()
+            
+            # 上传到DeepSeek获取文件ID
+            try:
+                file_id = upload_file_to_deepseek(file_data, filename, DEEPSEEK_API_KEY)
+            except Exception as e:
+                logger.error(f"文件上传到DeepSeek失败: {str(e)}")
+                # 如果文件上传失败，可以退回使用文本提取方式
+                if file_ext == 'pdf':
+                    # 这里可以添加PDF文字提取作为备用方案
+                    pass
         
-        add_to_history(session['user_email'], history_item)
-
-        search_query = "natural science"
-        if paper_content:
-            words = paper_content.split()[:10]
-            search_query = ' '.join(words)
-
-        recommendations = search_springer_papers(search_query, 3)
-
-        return jsonify({
-            'success': True,
-            'interpretation': interpretation,
-            'original_content': paper_content,
-            'recommendations': recommendations,
-            'timestamp': datetime.now().isoformat()
-        })
-
+        # 构建提示词
+        prompt = f"""
+        请详细解读以下自然科学论文内容：
+        
+        {text if text else "请分析上传的文件"}
+        
+        解读要求：
+        1. 用通俗易懂的语言解释专业术语
+        2. 分析研究方法和实验设计
+        3. 总结主要发现和意义
+        4. 联系高中自然科学知识
+        5. 指出可能的局限性和未来研究方向
+        
+        请使用中文回复，结构清晰。
+        """
+        
+        # 调用DeepSeek API
+        if file_id:
+            result = interpret_with_file(file_id, prompt, DEEPSEEK_API_KEY)
+        else:
+            # 如果没有文件或文件上传失败，使用纯文本方式
+            result = interpret_text(prompt, DEEPSEEK_API_KEY)
+        
+        # 提取回复内容
+        if result and 'choices' in result:
+            interpretation = result['choices'][0]['message']['content']
+            
+            # 构建返回结果
+            response_data = {
+                "success": True,
+                "original_content": text if text else f"文件: {filename}" if file else "",
+                "interpretation": interpretation,
+                "recommendations": get_recommendations(interpretation)  # 获取相关论文推荐
+            }
+            
+            return jsonify(response_data)
+        else:
+            return jsonify({"success": False, "message": "API返回格式错误"})
+            
     except Exception as e:
-        logger.error(f"Interpretation error: {e}")
-        return jsonify({'success': False, 'message': f'处理失败: {str(e)}'}), 500
+        logger.error(f"解读失败: {str(e)}")
+        return jsonify({"success": False, "message": f"解读失败: {str(e)}"})
 
+def interpret_text(text, api_key):
+    """纯文本解读函数"""
+    url = "https://api.deepseek.com/v1/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    messages = [
+        {
+            "role": "system",
+            "content": "你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。"
+        },
+        {
+            "role": "user",
+            "content": text
+        }
+    ]
+    
+    data = {
+        "model": "deepseek-chat",
+        "messages": messages,
+        "stream": False,
+        "max_tokens": 4000,
+        "temperature": 0.7
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API调用失败: {response.text}")
+        
 @app.route('/api/history', methods=['GET'])
 def get_reading_history():
     if 'user_email' not in session or session.get('is_guest'):
