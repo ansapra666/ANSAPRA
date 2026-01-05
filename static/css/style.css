@@ -289,14 +289,22 @@
 
 .modal-header {
     background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    color: white;
+    color: white;  /* 确保所有文字都是白色 */
     padding: 20px 30px;
     border-radius: 12px 12px 0 0;
 }
 
 .modal-header h3 {
-    color: white;
+    color: white !important;  /* 强制白色，使用!important确保优先级 */
     margin: 0;
+}
+
+.modal-header button {
+    color: white !important;
+}
+
+.modal-header button:hover {
+    color: #e6f2ff !important;  /* 悬停时稍微亮一点 */
 }
 
 .modal-body {
