@@ -412,10 +412,10 @@ def register():
     username = data.get('username')
     password = data.get('password')
     questionnaire = data.get('questionnaire', {})
-    
+
     if not all([email, username, password]):
         return jsonify({'success': False, 'message': '请填写所有必填项'}), 400
-    
+
     success, result = create_user(email, username, password, questionnaire)
     
     if success:
