@@ -252,33 +252,82 @@ function loadVisualSettings() {
                 </div>
                 
                 <div class="form-group">
-                    <label>字体家族：</label>
+                    <label>中文字体：</label>
                     <div class="font-family-grid">
                         <label class="font-option">
-                            <input type="radio" name="font_family" value="'Microsoft YaHei', sans-serif">
+                            <input type="radio" name="chinese_font" value="'Microsoft YaHei', sans-serif">
                             <div class="font-preview">
                                 <div class="font-name">微软雅黑</div>
                                 <div class="font-sample" style="font-family: 'Microsoft YaHei', sans-serif;">
                                     这是一段示例文字，展示字体效果。微软雅黑清晰易读。
                                 </div>
+                                <div class="font-description">现代无衬线字体，适合屏幕阅读</div>
                             </div>
                         </label>
                         <label class="font-option">
-                            <input type="radio" name="font_family" value="'Ma Shan Zheng', cursive">
+                            <input type="radio" name="chinese_font" value="'LXGW WenKai TC', cursive">
+                            <div class="font-preview">
+                                <div class="font-name">霞鹜文楷</div>
+                                <div class="font-sample" style="font-family: 'LXGW WenKai TC', cursive;">
+                                    这是一段示例文字，展示字体效果。霞鹜文楷清新秀美。
+                                </div>
+                                <div class="font-description">开源手写楷体，文艺清新风格</div>
+                            </div>
+                        </label>
+                        <label class="font-option">
+                            <input type="radio" name="chinese_font" value="'STKaiti', 'KaiTi', serif">
                             <div class="font-preview">
                                 <div class="font-name">华文楷体</div>
-                                <div class="font-sample" style="font-family: 'Ma Shan Zheng', cursive;">
-                                    这是一段示例文字，展示字体效果。楷体风格典雅传统。
+                                <div class="font-sample" style="font-family: 'STKaiti', 'KaiTi', serif;">
+                                    这是一段示例文字，展示字体效果。华文楷体典雅传统。
                                 </div>
+                                <div class="font-description">系统标准楷体，古典优雅</div>
                             </div>
                         </label>
                         <label class="font-option">
-                            <input type="radio" name="font_family" value="'ZCOOL QingKe HuangYou', sans-serif">
+                            <input type="radio" name="chinese_font" value="'Noto Serif SC', serif">
                             <div class="font-preview">
-                                <div class="font-name">华文中宋</div>
-                                <div class="font-sample" style="font-family: 'ZCOOL QingKe HuangYou', sans-serif;">
-                                    这是一段示例文字，展示字体效果。中宋风格端庄正式。
+                                <div class="font-name">思源宋体</div>
+                                <div class="font-sample" style="font-family: 'Noto Serif SC', serif;">
+                                    这是一段示例文字，展示字体效果。思源宋体端庄清晰。
                                 </div>
+                                <div class="font-description">谷歌开源宋体，适合正式文档</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>英文字体：</label>
+                    <div class="font-family-grid">
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Eczar', serif">
+                            <div class="font-preview">
+                                <div class="font-name">Eczar (衬线体)</div>
+                                <div class="font-sample" style="font-family: 'Eczar', serif;">
+                                    This is sample text showing Eczar font. Elegant serif for English.
+                                </div>
+                                <div class="font-description">优雅的衬线字体，适合学术文本</div>
+                            </div>
+                        </label>
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Cabin', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">Cabin (无衬线体)</div>
+                                <div class="font-sample" style="font-family: 'Cabin', sans-serif;">
+                                    This is sample text showing Cabin font. Modern sans-serif for English.
+                                </div>
+                                <div class="font-description">现代无衬线字体，适合科技内容</div>
+                            </div>
+                        </label>
+                        <label class="font-option">
+                            <input type="radio" name="english_font" value="'Arial', sans-serif">
+                            <div class="font-preview">
+                                <div class="font-name">Arial (系统默认)</div>
+                                <div class="font-sample" style="font-family: 'Arial', sans-serif;">
+                                    This is sample text showing Arial font. System default English font.
+                                </div>
+                                <div class="font-description">系统默认字体，兼容性好</div>
                             </div>
                         </label>
                     </div>
@@ -292,6 +341,26 @@ function loadVisualSettings() {
                         <option value="1.8">宽松 (1.8)</option>
                         <option value="2.0">很宽松 (2.0)</option>
                     </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>字间距设置：</label>
+                    <select id="letter-spacing-select" class="form-control">
+                        <option value="-0.5px">紧密 (-0.5px)</option>
+                        <option value="0px" selected>标准 (0px)</option>
+                        <option value="0.5px">宽松 (0.5px)</option>
+                        <option value="1px">很宽松 (1px)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <div class="preview-section">
+                        <label>实时预览：</label>
+                        <div class="preview-box" id="font-preview-box">
+                            <p style="margin: 0; line-height: 1.6;">这是一段预览文字，展示当前字体设置的效果。This is preview text showing the current font settings.</p>
+                        </div>
+                        <p class="preview-info" id="font-info" style="font-size: 12px; color: #666; margin-top: 8px;"></p>
+                    </div>
                 </div>
             </div>
             
@@ -328,8 +397,7 @@ function loadVisualSettings() {
     if (slider && valueDisplay) {
         slider.addEventListener('input', function() {
             valueDisplay.textContent = `${this.value}px`;
-            document.documentElement.style.fontSize = `${this.value}px`;
-            // 保存到设置
+            updateFontPreview();
             saveVisualSettings();
         });
     }
@@ -338,17 +406,39 @@ function loadVisualSettings() {
     const lineHeightSelect = document.getElementById('line-height-select');
     if (lineHeightSelect) {
         lineHeightSelect.addEventListener('change', function() {
-            document.body.style.lineHeight = this.value;
+            updateFontPreview();
             saveVisualSettings();
         });
     }
     
-    // 字体选择事件
-    const fontRadios = document.querySelectorAll('input[name="font_family"]');
-    fontRadios.forEach(radio => {
+    // 字间距选择事件
+    const letterSpacingSelect = document.getElementById('letter-spacing-select');
+    if (letterSpacingSelect) {
+        letterSpacingSelect.addEventListener('change', function() {
+            updateFontPreview();
+            saveVisualSettings();
+        });
+    }
+    
+    // 中文字体选择事件
+    const chineseFontRadios = document.querySelectorAll('input[name="chinese_font"]');
+    chineseFontRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             if (this.checked) {
-                document.body.style.fontFamily = this.value;
+                updateFontPreview();
+                updateFontInfo();
+                saveVisualSettings();
+            }
+        });
+    });
+    
+    // 英文字体选择事件
+    const englishFontRadios = document.querySelectorAll('input[name="english_font"]');
+    englishFontRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                updateFontPreview();
+                updateFontInfo();
                 saveVisualSettings();
             }
         });
@@ -373,6 +463,66 @@ function loadVisualSettings() {
     
     // 加载保存的设置
     loadSavedVisualSettings();
+}
+
+// 更新字体预览
+function updateFontPreview() {
+    const previewBox = document.getElementById('font-preview-box');
+    if (!previewBox) return;
+    
+    // 获取中文字体
+    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value || "'Microsoft YaHei', sans-serif";
+    
+    // 获取英文字体
+    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value || "'Eczar', serif";
+    
+    // 获取字体大小
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    
+    // 获取行高
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    
+    // 获取字间距
+    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
+    
+    // 构建字体堆栈（优先使用中文字体，英文字体作为后备）
+    const fontStack = `${chineseFont}, ${englishFont}`;
+    
+    // 应用预览样式
+    previewBox.style.fontFamily = fontStack;
+    previewBox.style.fontSize = `${fontSize}px`;
+    previewBox.style.lineHeight = lineHeight;
+    previewBox.style.letterSpacing = letterSpacing;
+    
+    // 同时更新整个页面的字体（实时效果）
+    document.body.style.fontFamily = fontStack;
+    document.body.style.fontSize = `${fontSize}px`;
+    document.body.style.lineHeight = lineHeight;
+    document.body.style.letterSpacing = letterSpacing;
+}
+
+// 更新字体信息
+function updateFontInfo() {
+    const infoElement = document.getElementById('font-info');
+    if (!infoElement) return;
+    
+    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value;
+    const englishFont = document.querySelector('input[name="english_font"]:checked')?.value;
+    
+    let chineseName = "微软雅黑";
+    if (chineseFont?.includes('LXGW WenKai TC')) chineseName = "霞鹜文楷";
+    if (chineseFont?.includes('STKaiti')) chineseName = "华文楷体";
+    if (chineseFont?.includes('Noto Serif SC')) chineseName = "思源宋体";
+    
+    let englishName = "Eczar";
+    if (englishFont?.includes('Cabin')) englishName = "Cabin";
+    if (englishFont?.includes('Arial')) englishName = "Arial";
+    
+    const fontSize = document.getElementById('font-size-slider')?.value || "18";
+    const lineHeight = document.getElementById('line-height-select')?.value || "1.6";
+    const letterSpacing = document.getElementById('letter-spacing-select')?.value || "0px";
+    
+    infoElement.textContent = `当前设置：${chineseName} / ${englishName} | 字号：${fontSize}px | 行高：${lineHeight} | 字间距：${letterSpacing}`;
 }
 
 // 应用主题
@@ -625,6 +775,57 @@ async function loadSavedSettings() {
         }
     } catch (error) {
         console.error('加载设置失败:', error);
+    }
+}
+
+function loadLanguageSettings() {
+    const container = document.getElementById('language-settings');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="form-group">
+            <label>界面语言</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="language" value="zh" ${languageManager.currentLanguage === 'zh' ? 'checked' : ''}>
+                    <span>中文</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="language" value="en" ${languageManager.currentLanguage === 'en' ? 'checked' : ''}>
+                    <span>English</span>
+                </label>
+            </div>
+            <p class="help-text">切换语言后页面内容将立即更新</p>
+        </div>
+        
+        <div class="language-preview">
+            <h5>语言预览</h5>
+            <div class="preview-box">
+                <p id="language-preview-text">当前语言：${languageManager.currentLanguage === 'zh' ? '中文' : 'English'}</p>
+            </div>
+        </div>
+    `;
+    
+    // 语言选择事件
+    const languageRadios = document.querySelectorAll('input[name="language"]');
+    languageRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                languageManager.setLanguage(this.value);
+                updateLanguagePreview();
+            }
+        });
+    });
+    
+    // 更新预览
+    updateLanguagePreview();
+}
+
+function updateLanguagePreview() {
+    const previewText = document.getElementById('language-preview-text');
+    if (previewText) {
+        previewText.textContent = languageManager.currentLanguage === 'zh' ? 
+            '当前语言：中文' : 'Current Language: English';
     }
 }
 
