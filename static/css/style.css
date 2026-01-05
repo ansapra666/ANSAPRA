@@ -5,18 +5,6 @@
     box-sizing: border-box;
 }
 
-/* 在style.css中添加霞鹜文楷相关样式 */
-
-/* 霞鹜文楷优化 */
-.font-sample[style*="LXGW WenKai TC"] {
-    font-size: 18px; /* 文楷稍大显示更佳 */
-    color: #1a202c;
-    font-weight: 400;
-    letter-spacing: 0.3px;
-    line-height: 1.8;
-    font-family: 'LXGW WenKai TC', cursive;
-    font-style: normal;
-}
 
 /* 华文楷体优化 */
 .font-sample[style*="STKaiti"],
@@ -58,13 +46,7 @@
     font-style: italic;
 }
 
-/* 特定字体预览效果 */
-.preview-box[style*="LXGW WenKai TC"] {
-    font-family: 'LXGW WenKai TC', cursive, var(--english-font, 'Eczar', serif);
-    letter-spacing: 0.4px;
-    font-weight: 400;
-    font-style: normal;
-}
+
 
 .preview-box[style*="STKaiti"],
 .preview-box[style*="KaiTi"] {
