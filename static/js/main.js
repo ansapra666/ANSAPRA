@@ -601,23 +601,122 @@ function applyTheme(theme) {
 }
 
 // 语言切换
+// 更新loadTranslations函数
 async function loadTranslations() {
-    try {
-        // 这里可以加载语言包
-        AppState.translations = {
-            zh: {},
-            en: {}
-        };
-    } catch (error) {
-        console.error('加载翻译错误:', error);
-    }
+  try {
+    const response = await fetch('/static/lang/translations.json');
+    AppState.translations = await response.json();
+  } catch (error) {
+    console.error('加载翻译错误:', error);
+    // 设置默认翻译
+    AppState.translations = {
+      zh: {},
+      en: {}
+    };
+  }
 }
 
+// 更新updateLanguage函数
 function updateLanguage() {
-    // 更新页面语言
-    document.documentElement.lang = AppState.language;
-    
-    // 这里可以添加具体的语言切换逻辑
+  const lang = AppState.language;
+  document.documentElement.lang = lang;
+  
+  // 更新界面文本
+  updateUIText(lang);
+}
+
+// 新增：更新界面文本的函数
+function updateUIText(lang) {
+  const translations = AppState.translations[lang] || AppState.translations.zh;
+  
+  // 更新标题
+  document.title = translations.appName || 'ANSAPRA';
+  
+  // 更新导航栏
+  updateNavigationText(translations);
+  
+  // 更新按钮文本
+  updateButtonsText(translations);
+  
+  // 更新表单标签
+  updateFormLabels(translations);
+}
+
+function updateNavigationText(translations) {
+  const navLinks = document.querySelectorAll('.nav-link');
+  const pages = {
+    'intro': '网站介绍',
+    'instructions': '使用说明',
+    'interpretation': '论文解读',
+    'settings': '用户设置'
+  };
+  
+  // 这里可以根据翻译对象更新导航文本
+  // 暂时保留中文，可以根据需要扩展
+}
+
+function updateButtonsText(translations) {
+  // 更新登录注册页面的按钮
+  const loginBtn = document.querySelector('#login-form button[type="submit"]');
+  if (loginBtn) loginBtn.textContent = translations.login || '登录';
+  
+  const registerBtn = document.querySelector('#register-form button[type="submit"]');
+  if (registerBtn) registerBtn.textContent = translations.register || '注册';
+  
+  // 更新解读页面的按钮
+  const startBtn = document.querySelector('.action-buttons .btn-large');
+  if (startBtn) {
+    const icon = startBtn.querySelector('i');
+    startBtn.innerHTML = '';
+    if (icon) startBtn.appendChild(icon);
+    startBtn.appendChild(document.createTextNode(' ' + (translations.startInterpretation || '开始解读')));
+  }
+  
+  const clearBtn = document.querySelector('.action-buttons .btn-secondary');
+  if (clearBtn) clearBtn.innerHTML = '<i class="fas fa-trash"></i> ' + (translations.clear || '清空');
+}
+
+// 在switchPage函数中添加语言更新
+function switchPage(pageName) {
+  AppState.currentPage = pageName;
+  localStorage.setItem('lastPage', pageName);
+  
+  // 更新导航链接状态
+  DOM.navLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.dataset.page === pageName) {
+      link.classList.add('active');
+    }
+  });
+  
+  // 切换页面显示
+  DOM.pages.forEach(page => {
+    page.classList.remove('active');
+    if (page.id === `${pageName}-page`) {
+      page.classList.add('active');
+    }
+  });
+  
+  // 如果切换到设置页面，确保语言设置正确显示
+  if (pageName === 'settings') {
+    updateLanguageSettingsTab();
+  }
+  
+  // 滚动到顶部
+  window.scrollTo(0, 0);
+}
+
+// 更新设置页面的语言标签
+function updateLanguageSettingsTab() {
+  const langSettings = document.getElementById('language-settings');
+  if (langSettings) {
+    const labels = langSettings.querySelectorAll('.radio-label span');
+    if (labels.length >= 2) {
+      const translations = AppState.translations[AppState.language] || AppState.translations.zh;
+      labels[0].textContent = translations.zh || '中文';
+      labels[1].textContent = translations.en || 'English';
+    }
+  }
 }
 
 // 问卷处理
