@@ -1096,6 +1096,70 @@ async function deleteAccount() {
     }
 }
 
+// 添加语言切换功能
+function setupLanguageSettings() {
+  const languageRadios = document.querySelectorAll('input[name="language"]');
+  languageRadios.forEach(radio => {
+    radio.addEventListener('change', function() {
+      if (this.checked) {
+        AppState.language = this.value;
+        updateLanguage();
+        saveLanguageSetting();
+      }
+    });
+  });
+}
+
+function applyLanguageChange() {
+  const selectedLang = document.querySelector('input[name="language"]:checked').value;
+  AppState.language = selectedLang;
+  updateLanguage();
+  saveLanguageSetting();
+  showNotification('语言设置已更新，部分页面可能需要刷新才能完全生效', 'success');
+}
+
+async function saveLanguageSetting() {
+  if (!AppState.user || AppState.user.is_guest) {
+    localStorage.setItem('userLanguage', AppState.language);
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/user/settings');
+    const data = await response.json();
+    
+    if (data.success && data.settings) {
+      const newSettings = {
+        ...data.settings,
+        language: AppState.language
+      };
+      
+      await fetch('/api/user/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ settings: newSettings })
+      });
+    }
+  } catch (error) {
+    console.error('保存语言设置失败:', error);
+    localStorage.setItem('userLanguage', AppState.language);
+  }
+}
+
+// 在DOMContentLoaded中添加
+document.addEventListener('DOMContentLoaded', function() {
+  // ... 其他初始化代码 ...
+  setupLanguageSettings();
+  
+  // 加载保存的语言设置
+  const savedLang = localStorage.getItem('userLanguage') || 'zh';
+  AppState.language = savedLang;
+  const langRadio = document.querySelector(`input[name="language"][value="${savedLang}"]`);
+  if (langRadio) langRadio.checked = true;
+  updateLanguage();
+});
 // 暴露函数到全局作用域
 window.saveSettings = saveSettings;
 window.resetSettings = resetSettings;
