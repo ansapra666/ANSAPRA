@@ -516,22 +516,75 @@ def interpret():
     try:
         # 处理文件上传
         paper_content = ""
+        
         if file and file.filename:
             filename = secure_filename(file.filename)
             file_ext = os.path.splitext(filename)[1].lower()
             
-            if file_ext not in ['.pdf', '.docx', '.txt']:
-                return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
+            # 允许的文件格式
+            allowed_extensions = ['.pdf', '.docx', '.doc', '.txt']
+            if file_ext not in allowed_extensions:
+                return jsonify({'success': False, 'message': f'不支持的文件格式。支持: {", ".join(allowed_extensions)}'}), 400
             
-            # 读取文件内容
-            if file_ext == '.txt':
-                paper_content = file.read().decode('utf-8', errors='ignore')
-            else:
-                # 对于PDF和DOCX，我们直接发送原始文件给DeepSeek处理
-                paper_content = f"[上传文件: {filename}]\n"
-                paper_content += "文件已上传，请直接处理文件内容。"
+            # 保存临时文件并读取内容
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}{file_ext}")
+            file.save(temp_path)
+            
+            try:
+                # 读取文件内容
+                if file_ext == '.txt':
+                    with open(temp_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        paper_content = f.read()
+                elif file_ext == '.pdf':
+                    # 对于PDF文件，提取文本内容
+                    try:
+                        import PyPDF2
+                        with open(temp_path, 'rb') as f:
+                            pdf_reader = PyPDF2.PdfReader(f)
+                            text_parts = []
+                            for page_num in range(len(pdf_reader.pages)):
+                                page = pdf_reader.pages[page_num]
+                                text_parts.append(page.extract_text())
+                            paper_content = '\n'.join(text_parts)
+                    except ImportError:
+                        # 如果PyPDF2未安装，返回提示
+                        paper_content = f"[PDF文件: {filename}]\n"
+                        paper_content += "PDF内容解析需要安装PyPDF2库，当前仅上传了文件。"
+                        paper_content += f"\n文件名: {filename}\n文件大小: {os.path.getsize(temp_path)}字节"
+                elif file_ext in ['.docx', '.doc']:
+                    # 对于Word文档，提取文本内容
+                    try:
+                        import docx
+                        doc = docx.Document(temp_path)
+                        text_parts = [paragraph.text for paragraph in doc.paragraphs]
+                        paper_content = '\n'.join(text_parts)
+                    except ImportError:
+                        # 如果python-docx未安装，返回提示
+                        paper_content = f"[Word文档: {filename}]\n"
+                        paper_content += "Word文档解析需要安装python-docx库，当前仅上传了文件。"
+                        paper_content += f"\n文件名: {filename}\n文件大小: {os.path.getsize(temp_path)}字节"
+                
+                # 清理临时文件
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+            except Exception as file_error:
+                logger.error(f"文件处理错误: {file_error}")
+                # 清理临时文件
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                paper_content = f"[文件上传失败: {filename}]\n"
+                paper_content += f"错误信息: {str(file_error)}"
         else:
             paper_content = text
+        
+        # 如果内容为空，返回错误
+        if not paper_content.strip():
+            return jsonify({
+                'success': False, 
+                'message': '文件内容为空或无法读取，请检查文件格式是否正确'
+            }), 400
         
         # 获取用户设置和历史记录
         user_settings = user.get('settings', {})
@@ -551,9 +604,10 @@ def interpret():
         # 搜索相关论文
         search_query = "natural science"
         if paper_content:
-            # 简单提取关键词（实际项目中可以使用更复杂的NLP技术）
-            words = paper_content.split()[:10]
-            search_query = ' '.join(words)
+            # 提取关键词
+            import re
+            words = re.findall(r'\b\w{4,}\b', paper_content)[:10]
+            search_query = ' '.join(words) or "natural science"
         
         recommendations = search_springer_papers(search_query, 3)
         
