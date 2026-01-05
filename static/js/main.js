@@ -20,11 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 加载问卷数据
     loadQuestionnaire();
 
-     // 延迟一点确保问卷HTML已加载
-    setTimeout(() => {
-        initRatingSystem();
-    }, 100);
-    
     // 加载使用说明
     loadInstructions();
     
@@ -85,7 +80,9 @@ function initializeDOM() {
         recommendationsList: document.getElementById('recommendations-list'),
         usernameDisplay: document.getElementById('username-display'),
         navLinks: document.querySelectorAll('.nav-link'),
-        pages: document.querySelectorAll('.page')
+        pages: document.querySelectorAll('.page'),
+        fullQuestionnaireModal: document.getElementById('full-questionnaire-modal'),
+        fullQuestionnaireContainer: document.getElementById('full-questionnaire-container')
     };
 }
 
@@ -294,13 +291,11 @@ async function handleLogin() {
 
 // 全屏问卷显示
 function showFullQuestionnaire() {
-    const modal = document.getElementById('full-questionnaire-modal');
-    const container = document.getElementById('full-questionnaire-container');
+    const modal = DOM.fullQuestionnaireModal;
+    const container = DOM.fullQuestionnaireContainer;
     
-    // 加载问卷内容
-    if (!container.innerHTML || container.innerHTML.trim() === '') {
-        loadQuestionnaireToContainer(container);
-    }
+    // 加载问卷内容 - 每次都重新加载确保内容完整
+    loadFullQuestionnaire(container);
     
     modal.style.display = 'flex';
     
@@ -315,68 +310,79 @@ function showFullQuestionnaire() {
 }
 
 function closeFullQuestionnaire() {
-    const modal = document.getElementById('full-questionnaire-modal');
+    const modal = DOM.fullQuestionnaireModal;
     modal.style.display = 'none';
 }
 
-// 修改后的loadQuestionnaireToContainer函数 - 包含完整的问卷HTML
-function loadQuestionnaireToContainer(container) {
-    container.innerHTML = `
-        <div class="questionnaire-section">
-            <h4>知识框架调查问卷</h4>
-            <p>请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+// 加载完整问卷到容器
+function loadFullQuestionnaire(container) {
+    // 清空容器
+    container.innerHTML = '';
+    
+    // 创建问卷内容
+    const questionnaireHTML = `
+        <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+            <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
+                <h3 style="color: #007bff; margin-bottom: 10px;">知识框架调查问卷</h3>
+                <p style="color: #666; font-size: 16px;">请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+            </div>
             
-            <div class="question-group">
-                <h5>一、基本情况</h5>
+            <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
+                <h4 style="color: #28a745; margin-bottom: 20px;">一、基本情况</h4>
                 
-                <div class="form-group">
-                    <label>1. 您所在的年级是？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="grade" value="A" required>
+                <!-- 年级 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">1. 您所在的年级是？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="grade" value="A" required style="margin-right: 10px;">
                             <span>A. 9年级</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="grade" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="grade" value="B" style="margin-right: 10px;">
                             <span>B. 10年级</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="grade" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="grade" value="C" style="margin-right: 10px;">
                             <span>C. 11年级</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="grade" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="grade" value="D" style="margin-right: 10px;">
                             <span>D. 12年级</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>2. 您所处的教育体系是？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="education_system" value="A" required>
+                <!-- 教育体系 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您所处的教育体系是？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="education_system" value="A" required style="margin-right: 10px;">
                             <span>A. 国际体系</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="education_system" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="education_system" value="B" style="margin-right: 10px;">
                             <span>B. 普高体系</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
-                    <p class="help-text">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
+                <!-- 学科兴趣 -->
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
                     
-                    <div class="rating-grid">
-                        <div class="rating-item">
-                            <label>物理学：</label>
+                    <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                        <!-- 物理学 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">物理学：</label>
                             <div class="rating-control">
-                                <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -384,7 +390,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不感兴趣</span>
                                     <span>一般</span>
                                     <span>非常感兴趣</span>
@@ -392,13 +398,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>生物学、医学等：</label>
+                        <!-- 生物学 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">生物学、医学等：</label>
                             <div class="rating-control">
-                                <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -406,7 +414,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不感兴趣</span>
                                     <span>一般</span>
                                     <span>非常感兴趣</span>
@@ -414,13 +422,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>化学：</label>
+                        <!-- 化学 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">化学：</label>
                             <div class="rating-control">
-                                <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -428,7 +438,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不感兴趣</span>
                                     <span>一般</span>
                                     <span>非常感兴趣</span>
@@ -436,13 +446,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>地理地质学：</label>
+                        <!-- 地理地质学 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">地理地质学：</label>
                             <div class="rating-control">
-                                <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -450,7 +462,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不感兴趣</span>
                                     <span>一般</span>
                                     <span>非常感兴趣</span>
@@ -458,13 +470,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>天体天文学：</label>
+                        <!-- 天体天文学 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">天体天文学：</label>
                             <div class="rating-control">
-                                <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -472,7 +486,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不感兴趣</span>
                                     <span>一般</span>
                                     <span>非常感兴趣</span>
@@ -482,151 +496,159 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>4. 您学习自然科学课外知识的频率是？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="learning_frequency" value="A" required>
+                <!-- 学习频率 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. 您学习自然科学课外知识的频率是？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="learning_frequency" value="A" required style="margin-right: 10px;">
                             <span>A. 一周1次或更频繁</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="learning_frequency" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="learning_frequency" value="B" style="margin-right: 10px;">
                             <span>B. 一个月1-3次</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="learning_frequency" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="learning_frequency" value="C" style="margin-right: 10px;">
                             <span>C. 几个月1次</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="physics_question" value="A" required>
+                <!-- 物理问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="physics_question" value="A" required style="margin-right: 10px;">
                             <span>A. 变为原来的n倍</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="physics_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="physics_question" value="B" style="margin-right: 10px;">
                             <span>B. 变为原来的1/n</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="physics_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="physics_question" value="C" style="margin-right: 10px;">
                             <span>C. 保持不变</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="physics_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="physics_question" value="D" style="margin-right: 10px;">
                             <span>D. 无法确定，因为光的频率也改变了</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="chemistry_question" value="A" required>
+                <!-- 化学问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="chemistry_question" value="A" required style="margin-right: 10px;">
                             <span>A. pH值显著下降</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="chemistry_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="chemistry_question" value="B" style="margin-right: 10px;">
                             <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="chemistry_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="chemistry_question" value="C" style="margin-right: 10px;">
                             <span>C. 醋酸的电离度显著降低</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="chemistry_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="chemistry_question" value="D" style="margin-right: 10px;">
                             <span>D. 水的离子积常数Kw增大</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>
-                    据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="biology_question" value="A" required>
+                <!-- 生物问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="biology_question" value="A" required style="margin-right: 10px;">
                             <span>A. 为了在夜间更有效地进行光反应。</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="biology_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="biology_question" value="B" style="margin-right: 10px;">
                             <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="biology_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="biology_question" value="C" style="margin-right: 10px;">
                             <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="biology_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="biology_question" value="D" style="margin-right: 10px;">
                             <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="astronomy_question" value="A" required>
+                <!-- 天文问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="astronomy_question" value="A" required style="margin-right: 10px;">
                             <span>A. 行星的精确质量</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="astronomy_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="astronomy_question" value="B" style="margin-right: 10px;">
                             <span>B. 行星轨道周期的最小质量（M sin i）</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="astronomy_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="astronomy_question" value="C" style="margin-right: 10px;">
                             <span>C. 行星的半径</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="astronomy_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="astronomy_question" value="D" style="margin-right: 10px;">
                             <span>D. 行星大气的成分</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="geology_question" value="A" required>
+                <!-- 地质问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="geology_question" value="A" required style="margin-right: 10px;">
                             <span>A. 持续的海平面上升</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="geology_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="geology_question" value="B" style="margin-right: 10px;">
                             <span>B. 一次海平面下降，随后又上升</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="geology_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="geology_question" value="C" style="margin-right: 10px;">
                             <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="geology_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="geology_question" value="D" style="margin-right: 10px;">
                             <span>D. 持续的构造抬升</span>
                         </label>
                     </div>
                 </div>
             </div>
             
-            <div class="question-group">
-                <h5>二、科学感知</h5>
+            <div class="question-group" style="margin-bottom: 40px;">
+                <h4 style="color: #28a745; margin-bottom: 20px;">二、科学感知</h4>
                 
-                <div class="form-group">
-                    <label>1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
-                    <p class="help-text">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
+                <!-- 学习方式偏好 -->
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
                     
-                    <div class="rating-grid">
-                        <div class="rating-item">
-                            <label>A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
+                    <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                        <!-- 量化学习 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
                             <div class="rating-control">
-                                <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -634,7 +656,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不喜欢</span>
                                     <span>一般</span>
                                     <span>非常喜欢</span>
@@ -642,13 +664,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>B. 文字理解，通过清晰详细的语言表述知识点：</label>
+                        <!-- 文字理解 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">B. 文字理解，通过清晰详细的语言表述知识点：</label>
                             <div class="rating-control">
-                                <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -656,7 +680,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不喜欢</span>
                                     <span>一般</span>
                                     <span>非常喜欢</span>
@@ -664,13 +688,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
+                        <!-- 可视化学习 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
                             <div class="rating-control">
-                                <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -678,7 +704,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不喜欢</span>
                                     <span>一般</span>
                                     <span>非常喜欢</span>
@@ -686,13 +712,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
+                        <!-- 互动性学习 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
                             <div class="rating-control">
-                                <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -700,7 +728,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不喜欢</span>
                                     <span>一般</span>
                                     <span>非常喜欢</span>
@@ -708,13 +736,15 @@ function loadQuestionnaireToContainer(container) {
                             </div>
                         </div>
                         
-                        <div class="rating-item">
-                            <label>E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
+                        <!-- 实践性学习 -->
+                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
                             <div class="rating-control">
-                                <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                                <div class="rating-display">
-                                    <span class="rating-value">3</span>
-                                    <div class="rating-stars">
+                                <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                         <span class="star" data-value="1">☆</span>
                                         <span class="star" data-value="2">☆</span>
                                         <span class="star active" data-value="3">☆</span>
@@ -722,7 +752,7 @@ function loadQuestionnaireToContainer(container) {
                                         <span class="star" data-value="5">☆</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels">
+                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                                     <span>不喜欢</span>
                                     <span>一般</span>
                                     <span>非常喜欢</span>
@@ -732,35 +762,38 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="knowledge_structure" value="A" required>
+                <!-- 知识结构 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="knowledge_structure" value="A" required style="margin-right: 10px;">
                             <span>A. 一本厚重的教科书，由浅入深</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="knowledge_structure" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="knowledge_structure" value="B" style="margin-right: 10px;">
                             <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="knowledge_structure" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="knowledge_structure" value="C" style="margin-right: 10px;">
                             <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="knowledge_structure" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="knowledge_structure" value="D" style="margin-right: 10px;">
                             <span>D. 一个全能但是无序的工具箱</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
-                    <div class="rating-control single-rating">
-                        <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                        <div class="rating-display">
-                            <span class="rating-value">3分（一般）</span>
-                            <div class="rating-stars">
+                <!-- 科学思考力 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
+                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                 <span class="star" data-value="1">☆</span>
                                 <span class="star" data-value="2">☆</span>
                                 <span class="star active" data-value="3">☆</span>
@@ -768,7 +801,7 @@ function loadQuestionnaireToContainer(container) {
                                 <span class="star" data-value="5">☆</span>
                             </div>
                         </div>
-                        <div class="rating-labels">
+                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                             <span>很差</span>
                             <span>较差</span>
                             <span>一般</span>
@@ -778,13 +811,15 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
-                    <div class="rating-control single-rating">
-                        <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                        <div class="rating-display">
-                            <span class="rating-value">3分（一般）</span>
-                            <div class="rating-stars">
+                <!-- 科学洞察力 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
+                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                 <span class="star" data-value="1">☆</span>
                                 <span class="star" data-value="2">☆</span>
                                 <span class="star active" data-value="3">☆</span>
@@ -792,7 +827,7 @@ function loadQuestionnaireToContainer(container) {
                                 <span class="star" data-value="5">☆</span>
                             </div>
                         </div>
-                        <div class="rating-labels">
+                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                             <span>很差</span>
                             <span>较差</span>
                             <span>一般</span>
@@ -802,13 +837,15 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
-                    <div class="rating-control single-rating">
-                        <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                        <div class="rating-display">
-                            <span class="rating-value">3分（一般）</span>
-                            <div class="rating-stars">
+                <!-- 科学现象敏感度 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
+                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                 <span class="star" data-value="1">☆</span>
                                 <span class="star" data-value="2">☆</span>
                                 <span class="star active" data-value="3">☆</span>
@@ -816,7 +853,7 @@ function loadQuestionnaireToContainer(container) {
                                 <span class="star" data-value="5">☆</span>
                             </div>
                         </div>
-                        <div class="rating-labels">
+                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                             <span>很差</span>
                             <span>较差</span>
                             <span>一般</span>
@@ -826,13 +863,15 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
-                    <div class="rating-control single-rating">
-                        <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                        <div class="rating-display">
-                            <span class="rating-value">3分（一般）</span>
-                            <div class="rating-stars">
+                <!-- 跨学科联系能力 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
+                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                 <span class="star" data-value="1">☆</span>
                                 <span class="star" data-value="2">☆</span>
                                 <span class="star active" data-value="3">☆</span>
@@ -840,7 +879,7 @@ function loadQuestionnaireToContainer(container) {
                                 <span class="star" data-value="5">☆</span>
                             </div>
                         </div>
-                        <div class="rating-labels">
+                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                             <span>很差</span>
                             <span>较差</span>
                             <span>一般</span>
@@ -850,17 +889,19 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
-                    <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <!-- 论文评价 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
+                    <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0; font-size: 14px; line-height: 1.6; color: #666;">
                         <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
                     </div>
-                    <label>请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
-                    <div class="rating-control single-rating">
-                        <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                        <div class="rating-display">
-                            <span class="rating-value">3分（一般）</span>
-                            <div class="rating-stars">
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
+                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
                                 <span class="star" data-value="1">☆</span>
                                 <span class="star" data-value="2">☆</span>
                                 <span class="star active" data-value="3">☆</span>
@@ -868,7 +909,7 @@ function loadQuestionnaireToContainer(container) {
                                 <span class="star" data-value="5">☆</span>
                             </div>
                         </div>
-                        <div class="rating-labels">
+                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
                             <span>很差</span>
                             <span>较差</span>
                             <span>一般</span>
@@ -878,241 +919,75 @@ function loadQuestionnaireToContainer(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
-                    <div class="checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evaluation_criteria" value="A">
+                <!-- 评价标准 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
+                    <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0;">
+                        <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
                             <span>A. 选段对现象描述的学术语言使用</span>
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evaluation_criteria" value="B">
+                        <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
                             <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evaluation_criteria" value="C">
+                        <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
                             <span>C. 选段中提及的实验数据</span>
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evaluation_criteria" value="D">
+                        <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
                             <span>D. 选段中涉及的科学理论（现象和本质）</span>
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evaluation_criteria" value="E">
+                        <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
                             <span>E. 单纯凭感觉评分</span>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="climate_question" value="A" required>
+                <!-- 气候问题 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
+                    <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="climate_question" value="A" required style="margin-right: 10px;">
                             <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="climate_question" value="B">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="climate_question" value="B" style="margin-right: 10px;">
                             <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="climate_question" value="C">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="climate_question" value="C" style="margin-right: 10px;">
                             <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="climate_question" value="D">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="climate_question" value="D" style="margin-right: 10px;">
                             <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
                         </label>
-                        <label class="radio-label">
-                            <input type="radio" name="climate_question" value="E">
+                        <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
+                            <input type="radio" name="climate_question" value="E" style="margin-right: 10px;">
                             <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
                         </label>
                     </div>
                 </div>
             </div>
             
-            <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee;">
-                <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()">
+            <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
+                <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
+                        style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
                     <i class="fas fa-times"></i> 取消
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()">
+                <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
+                        style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
                     <i class="fas fa-save"></i> 保存问卷
                 </button>
             </div>
         </div>
-        
-        <style>
-            .rating-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                gap: 25px;
-                margin: 20px 0;
-            }
-            
-            .rating-item {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px solid #e9ecef;
-                transition: all 0.3s ease;
-            }
-            
-            .rating-item:hover {
-                border-color: #007bff;
-                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
-            }
-            
-            .rating-item label {
-                font-weight: 500;
-                margin-bottom: 15px;
-                display: block;
-                color: #333;
-            }
-            
-            .rating-control {
-                position: relative;
-                margin-top: 10px;
-            }
-            
-            .rating-control.single-rating {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px solid #e9ecef;
-            }
-            
-            .rating-slider {
-                width: 100%;
-                height: 8px;
-                -webkit-appearance: none;
-                appearance: none;
-                background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0);
-                border-radius: 4px;
-                outline: none;
-                margin: 15px 0;
-            }
-            
-            .rating-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 24px;
-                height: 24px;
-                background: #007bff;
-                border-radius: 50%;
-                cursor: pointer;
-                border: 3px solid white;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            }
-            
-            .rating-slider::-moz-range-thumb {
-                width: 24px;
-                height: 24px;
-                background: #007bff;
-                border-radius: 50%;
-                cursor: pointer;
-                border: 3px solid white;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            }
-            
-            .rating-display {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 10px;
-            }
-            
-            .rating-value {
-                font-size: 24px;
-                font-weight: bold;
-                color: #007bff;
-                min-width: 40px;
-            }
-            
-            .rating-stars {
-                display: flex;
-                gap: 8px;
-                font-size: 28px;
-                cursor: pointer;
-            }
-            
-            .rating-stars .star {
-                color: #ddd;
-                transition: all 0.2s ease;
-                user-select: none;
-            }
-            
-            .rating-stars .star:hover {
-                color: #ffd700;
-                transform: scale(1.2);
-            }
-            
-            .rating-stars .star.active {
-                color: #ffd700;
-            }
-            
-            .rating-labels {
-                display: flex;
-                justify-content: space-between;
-                font-size: 12px;
-                color: #666;
-                margin-top: 5px;
-            }
-            
-            .help-text {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 15px;
-                font-style: italic;
-            }
-            
-            .checkbox-group {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                margin: 10px 0;
-            }
-            
-            .checkbox-label {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                cursor: pointer;
-            }
-            
-            .checkbox-label input[type="checkbox"] {
-                margin: 0;
-            }
-            
-            .paper-excerpt {
-                font-size: 14px;
-                line-height: 1.6;
-                color: #666;
-                max-height: 200px;
-                overflow-y: auto;
-                border: 1px solid #ddd;
-            }
-            
-            .question-group {
-                margin-bottom: 40px;
-                padding-bottom: 30px;
-                border-bottom: 2px solid #eee;
-            }
-            
-            .question-group:last-child {
-                border-bottom: none;
-            }
-            
-            @media (max-width: 768px) {
-                .rating-grid {
-                    grid-template-columns: 1fr;
-                }
-                
-                .rating-item {
-                    padding: 15px;
-                }
-            }
-        </style>
     `;
+    
+    container.innerHTML = questionnaireHTML;
     
     // 初始化评分系统
     setTimeout(() => {
@@ -1399,29 +1274,6 @@ async function submitRegistration(email, username, password, questionnaire) {
         showNotification('网络错误，请稍后重试', 'error');
     }
 }
-
-// 添加修改注册表单中的问卷部分
-document.addEventListener('DOMContentLoaded', function() {
-    // 在注册标签页中添加问卷按钮
-    const registerTab = document.getElementById('register-tab');
-    if (registerTab) {
-        const existingQuestionnaire = document.getElementById('questionnaire');
-        if (existingQuestionnaire) {
-            existingQuestionnaire.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <h4><i class="fas fa-clipboard-list"></i> 知识框架调查问卷</h4>
-                    <p>请填写问卷以帮助我们更好地为您提供个性化解读</p>
-                    <button type="button" class="btn btn-primary" onclick="showFullQuestionnaire()">
-                        <i class="fas fa-pen"></i> 开始填写问卷
-                    </button>
-                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                        问卷完成后即可注册
-                    </p>
-                </div>
-            `;
-        }
-    }
-});
 
 // 游客登录
 async function enterAsGuest() {
@@ -1869,19 +1721,23 @@ function updateRatingDisplay(slider, value) {
     const stars = ratingControl.querySelectorAll('.rating-stars .star');
     
     // 更新数字显示
-    ratingValue.textContent = value;
+    if (ratingValue) {
+        ratingValue.textContent = value;
+    }
     
     // 更新星星显示
-    stars.forEach(star => {
-        const starValue = parseInt(star.getAttribute('data-value'));
-        if (starValue <= value) {
-            star.classList.add('active');
-            star.textContent = '★';
-        } else {
-            star.classList.remove('active');
-            star.textContent = '☆';
-        }
-    });
+    if (stars) {
+        stars.forEach(star => {
+            const starValue = parseInt(star.getAttribute('data-value'));
+            if (starValue <= value) {
+                star.classList.add('active');
+                star.textContent = '★';
+            } else {
+                star.classList.remove('active');
+                star.textContent = '☆';
+            }
+        });
+    }
     
     // 更新滑块的自定义属性
     slider.setAttribute('data-rating', value);
@@ -2579,21 +2435,25 @@ function showModal(type) {
     `;
     
     const modalContainer = document.getElementById('modal-container');
-    modalContainer.innerHTML = modalHTML;
-    
-    const modal = document.getElementById('info-modal');
-    const closeBtn = modal.querySelector('button[onclick="closeModal()"]');
-    closeBtn.addEventListener('mouseenter', () => {
-        closeBtn.style.color = '#dc3545';
-    });
-    closeBtn.addEventListener('mouseleave', () => {
-        closeBtn.style.color = '#666';
-    });
-    
-    modal.style.display = 'flex';
-    
-    // 添加滚动条样式
-    addModalScrollbarStyles();
+    if (modalContainer) {
+        modalContainer.innerHTML = modalHTML;
+        
+        const modal = document.getElementById('info-modal');
+        const closeBtn = modal.querySelector('button[onclick="closeModal()"]');
+        if (closeBtn) {
+            closeBtn.addEventListener('mouseenter', () => {
+                closeBtn.style.color = '#dc3545';
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+                closeBtn.style.color = '#666';
+            });
+        }
+        
+        modal.style.display = 'flex';
+        
+        // 添加滚动条样式
+        addModalScrollbarStyles();
+    }
 }
 
 // 添加打印功能
