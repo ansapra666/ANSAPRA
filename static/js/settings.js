@@ -261,16 +261,6 @@ function loadVisualSettings() {
                                 <div class="font-sample" style="font-family: 'Microsoft YaHei', sans-serif;">
                                     这是一段示例文字，展示字体效果。微软雅黑清晰易读。
                                 </div>
-                                <div class="font-description">现代无衬线字体，适合屏幕阅读</div>
-                            </div>
-                        </label>
-                        <label class="font-option">
-                            <input type="radio" name="chinese_font" value="'LXGW WenKai TC', cursive">
-                            <div class="font-preview">
-                                <div class="font-name">霞鹜文楷</div>
-                                <div class="font-sample" style="font-family: 'LXGW WenKai TC', cursive;">
-                                    这是一段示例文字，展示字体效果。霞鹜文楷清新秀美。
-                                </div>
                                 <div class="font-description">开源手写楷体，文艺清新风格</div>
                             </div>
                         </label>
