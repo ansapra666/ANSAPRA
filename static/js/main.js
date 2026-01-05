@@ -10,7 +10,7 @@ const AppState = {
 // DOM 元素
 let DOM = {};
 
-// 初始化
+// 在DOM加载完成后添加
 document.addEventListener('DOMContentLoaded', function() {
     initializeDOM();
     checkAuthentication();
@@ -25,6 +25,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 加载设置表单
     loadSettingsForms();
+    
+    // 检查是否有已保存的问卷
+    const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
+    if (savedQuestionnaire) {
+        try {
+            window.currentQuestionnaire = JSON.parse(savedQuestionnaire);
+            updateRegisterFormQuestionnaire();
+        } catch (e) {
+            console.error('解析保存的问卷数据时出错:', e);
+        }
+    }
+    
+    // 检查是否有待处理的注册信息
+    const savedRegistration = localStorage.getItem('pendingRegistration');
+    if (savedRegistration) {
+        try {
+            window.pendingRegistration = JSON.parse(savedRegistration);
+            
+            // 自动填充注册表单
+            const emailInput = document.getElementById('register-email');
+            const usernameInput = document.getElementById('register-username');
+            const passwordInput = document.getElementById('register-password');
+            const confirmPasswordInput = document.getElementById('confirm-password');
+            
+            if (emailInput && window.pendingRegistration.email) emailInput.value = window.pendingRegistration.email;
+            if (usernameInput && window.pendingRegistration.username) usernameInput.value = window.pendingRegistration.username;
+            if (passwordInput && window.pendingRegistration.password) passwordInput.value = window.pendingRegistration.password;
+            if (confirmPasswordInput && window.pendingRegistration.password) confirmPasswordInput.value = window.pendingRegistration.password;
+            
+        } catch (e) {
+            console.error('解析保存的注册信息时出错:', e);
+        }
+    }
 });
 
 function initializeDOM() {
@@ -278,38 +311,112 @@ function loadQuestionnaireToContainer(container) {
 }
 
 // 保存问卷数据
+// 保存问卷数据
 function saveQuestionnaire() {
     const questionnaire = collectQuestionnaireData();
     
-    // 验证问卷数据
-    if (!validateQuestionnaire(questionnaire)) {
-        return;
-    }
-    
-    // 保存到全局变量或本地存储
+    // 保存问卷数据
     window.currentQuestionnaire = questionnaire;
     localStorage.setItem('pendingQuestionnaire', JSON.stringify(questionnaire));
     
-    showNotification('问卷已保存，可以继续注册', 'success');
+    showNotification('问卷已保存', 'success');
     closeFullQuestionnaire();
     
-    // 更新注册表单中的问卷显示
-    updateRegisterFormQuestionnaire();
+    // 检查是否有待处理的注册
+    if (window.pendingRegistration) {
+        // 验证问卷完整性
+        if (validateQuestionnaire(questionnaire)) {
+            // 问卷完整，提交注册
+            submitRegistration(
+                window.pendingRegistration.email,
+                window.pendingRegistration.username,
+                window.pendingRegistration.password,
+                questionnaire
+            );
+        } else {
+            showNotification('问卷填写不完整，请完成所有必填项', 'warning');
+        }
+    } else {
+        // 更新注册表单中的问卷显示
+        updateRegisterFormQuestionnaire();
+    }
 }
 
+// 更新注册表单中的问卷显示
 function updateRegisterFormQuestionnaire() {
-    const questionnaireDiv = document.getElementById('questionnaire');
-    if (questionnaireDiv && window.currentQuestionnaire) {
-        questionnaireDiv.innerHTML = `
-            <div class="questionnaire-summary" style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
-                <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> 问卷已完成</h5>
-                <p>知识框架问卷已完成填写，包含${Object.keys(window.currentQuestionnaire).length}项数据。</p>
-                <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()">
-                    <i class="fas fa-edit"></i> 修改问卷
-                </button>
-            </div>
+    const registerTab = document.getElementById('register-tab');
+    if (registerTab && window.currentQuestionnaire) {
+        // 查找或创建问卷摘要区域
+        let summaryDiv = registerTab.querySelector('.questionnaire-summary');
+        if (!summaryDiv) {
+            summaryDiv = document.createElement('div');
+            summaryDiv.className = 'questionnaire-summary';
+            summaryDiv.style.cssText = 'padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;';
+            
+            // 插入到注册表单的适当位置
+            const form = registerTab.querySelector('form');
+            if (form) {
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    form.insertBefore(summaryDiv, submitButton);
+                } else {
+                    form.appendChild(summaryDiv);
+                }
+            }
+        }
+        
+        const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+        const systemMap = { A: '国际体系', B: '普高体系' };
+        const grade = gradeMap[window.currentQuestionnaire.grade] || '未知';
+        const system = systemMap[window.currentQuestionnaire.education_system] || '未知';
+        
+        summaryDiv.innerHTML = `
+            <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> 问卷已完成</h5>
+            <p><strong>基本信息：</strong>${grade} | ${system}</p>
+            <p>知识框架问卷已完成填写，包含${Object.keys(window.currentQuestionnaire).length}项数据。</p>
+            <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()" style="margin-right: 10px;">
+                <i class="fas fa-edit"></i> 修改问卷
+            </button>
+            <button type="button" class="btn btn-small btn-success" onclick="useSavedQuestionnaire()">
+                <i class="fas fa-check"></i> 使用此问卷注册
+            </button>
         `;
     }
+}
+
+// 使用已保存的问卷注册
+function useSavedQuestionnaire() {
+    if (!window.currentQuestionnaire) {
+        showNotification('请先填写问卷', 'error');
+        return;
+    }
+    
+    // 验证问卷完整性
+    if (!validateQuestionnaire(window.currentQuestionnaire)) {
+        showNotification('问卷填写不完整，请修改', 'warning');
+        showFullQuestionnaire();
+        return;
+    }
+    
+    // 获取注册表单数据
+    const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    // 验证基本信息
+    if (!email || !username || !password || !confirmPassword) {
+        showNotification('请填写所有注册信息', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('两次输入的密码不一致', 'error');
+        return;
+    }
+    
+    // 提交注册
+    submitRegistration(email, username, password, window.currentQuestionnaire);
 }
 
 async function handleRegister() {
@@ -1435,83 +1542,92 @@ function loadQuestionnaire() {
 function collectQuestionnaireData() {
     const data = {};
     
-    // 一、基本情况
-    // 1. 年级
-    const grade = document.querySelector('input[name="grade"]:checked');
-    if (grade) data.grade = grade.value;
-    
-    // 2. 教育体系
-    const educationSystem = document.querySelector('input[name="education_system"]:checked');
-    if (educationSystem) data.education_system = educationSystem.value;
-    
-    // 3. 学科兴趣
-    data.interests = {
-        physics: document.querySelector('select[name="interest_physics"]')?.value,
-        biology: document.querySelector('select[name="interest_biology"]')?.value,
-        chemistry: document.querySelector('select[name="interest_chemistry"]')?.value,
-        geology: document.querySelector('select[name="interest_geology"]')?.value,
-        astronomy: document.querySelector('select[name="interest_astronomy"]')?.value
-    };
-    
-    // 4. 学习频率
-    const learningFrequency = document.querySelector('input[name="learning_frequency"]:checked');
-    if (learningFrequency) data.learning_frequency = learningFrequency.value;
-    
-    // 5-9. 学科问题
-    const physicsQuestion = document.querySelector('input[name="physics_question"]:checked');
-    if (physicsQuestion) data.physics_question = physicsQuestion.value;
-    
-    const chemistryQuestion = document.querySelector('input[name="chemistry_question"]:checked');
-    if (chemistryQuestion) data.chemistry_question = chemistryQuestion.value;
-    
-    const biologyQuestion = document.querySelector('input[name="biology_question"]:checked');
-    if (biologyQuestion) data.biology_question = biologyQuestion.value;
-    
-    const astronomyQuestion = document.querySelector('input[name="astronomy_question"]:checked');
-    if (astronomyQuestion) data.astronomy_question = astronomyQuestion.value;
-    
-    const geologyQuestion = document.querySelector('input[name="geology_question"]:checked');
-    if (geologyQuestion) data.geology_question = geologyQuestion.value;
-    
-    // 二、科学感知
-    // 1. 学习方式偏好
-    data.learning_styles = {
-        quantitative: document.querySelector('select[name="learning_style_quantitative"]')?.value,
-        textual: document.querySelector('select[name="learning_style_textual"]')?.value,
-        visual: document.querySelector('select[name="learning_style_visual"]')?.value,
-        interactive: document.querySelector('select[name="learning_style_interactive"]')?.value,
-        practical: document.querySelector('select[name="learning_style_practical"]')?.value
-    };
-    
-    // 2. 知识结构
-    const knowledgeStructure = document.querySelector('input[name="knowledge_structure"]:checked');
-    if (knowledgeStructure) data.knowledge_structure = knowledgeStructure.value;
-    
-    // 3-6. 能力自评
-    data.scientific_abilities = {
-        thinking: document.querySelector('select[name="scientific_thinking"]')?.value,
-        insight: document.querySelector('select[name="scientific_insight"]')?.value,
-        sensitivity: document.querySelector('select[name="scientific_sensitivity"]')?.value,
-        interdisciplinary: document.querySelector('select[name="interdisciplinary_ability"]')?.value
-    };
-    
-    // 7. 论文评价分数
-    const paperScore = document.querySelector('select[name="paper_evaluation_score"]')?.value;
-    if (paperScore) data.paper_evaluation_score = paperScore;
-    
-    // 8. 评价标准（多选）
-    const evaluationCriteria = [];
-    document.querySelectorAll('input[name="evaluation_criteria"]:checked').forEach(checkbox => {
-        evaluationCriteria.push(checkbox.value);
-    });
-    if (evaluationCriteria.length > 0) data.evaluation_criteria = evaluationCriteria;
-    
-    // 9. 气候问题
-    const climateQuestion = document.querySelector('input[name="climate_question"]:checked');
-    if (climateQuestion) data.climate_question = climateQuestion.value;
-    
-    // 添加额外字段用于用户画像分析
-    data.analysis_timestamp = new Date().toISOString();
+    try {
+        // 一、基本情况
+        
+        // 1. 年级
+        const grade = document.querySelector('input[name="grade"]:checked');
+        if (grade) data.grade = grade.value;
+        
+        // 2. 教育体系
+        const educationSystem = document.querySelector('input[name="education_system"]:checked');
+        if (educationSystem) data.education_system = educationSystem.value;
+        
+        // 3. 学科兴趣
+        data.interests = {
+            physics: document.querySelector('select[name="interest_physics"]')?.value,
+            biology: document.querySelector('select[name="interest_biology"]')?.value,
+            chemistry: document.querySelector('select[name="interest_chemistry"]')?.value,
+            geology: document.querySelector('select[name="interest_geology"]')?.value,
+            astronomy: document.querySelector('select[name="interest_astronomy"]')?.value
+        };
+        
+        // 4. 学习频率
+        const learningFrequency = document.querySelector('input[name="learning_frequency"]:checked');
+        if (learningFrequency) data.learning_frequency = learningFrequency.value;
+        
+        // 5-9. 学科问题
+        const physicsQuestion = document.querySelector('input[name="physics_question"]:checked');
+        if (physicsQuestion) data.physics_question = physicsQuestion.value;
+        
+        const chemistryQuestion = document.querySelector('input[name="chemistry_question"]:checked');
+        if (chemistryQuestion) data.chemistry_question = chemistryQuestion.value;
+        
+        const biologyQuestion = document.querySelector('input[name="biology_question"]:checked');
+        if (biologyQuestion) data.biology_question = biologyQuestion.value;
+        
+        const astronomyQuestion = document.querySelector('input[name="astronomy_question"]:checked');
+        if (astronomyQuestion) data.astronomy_question = astronomyQuestion.value;
+        
+        const geologyQuestion = document.querySelector('input[name="geology_question"]:checked');
+        if (geologyQuestion) data.geology_question = geologyQuestion.value;
+        
+        // 二、科学感知
+        
+        // 1. 学习方式偏好
+        data.learning_styles = {
+            quantitative: document.querySelector('select[name="learning_style_quantitative"]')?.value,
+            textual: document.querySelector('select[name="learning_style_textual"]')?.value,
+            visual: document.querySelector('select[name="learning_style_visual"]')?.value,
+            interactive: document.querySelector('select[name="learning_style_interactive"]')?.value,
+            practical: document.querySelector('select[name="learning_style_practical"]')?.value
+        };
+        
+        // 2. 知识结构
+        const knowledgeStructure = document.querySelector('input[name="knowledge_structure"]:checked');
+        if (knowledgeStructure) data.knowledge_structure = knowledgeStructure.value;
+        
+        // 3-6. 能力自评
+        data.scientific_abilities = {
+            thinking: document.querySelector('select[name="scientific_thinking"]')?.value,
+            insight: document.querySelector('select[name="scientific_insight"]')?.value,
+            sensitivity: document.querySelector('select[name="scientific_sensitivity"]')?.value,
+            interdisciplinary: document.querySelector('select[name="interdisciplinary_ability"]')?.value
+        };
+        
+        // 7. 论文评价分数
+        const paperScore = document.querySelector('select[name="paper_evaluation_score"]')?.value;
+        if (paperScore) data.paper_evaluation_score = paperScore;
+        
+        // 8. 评价标准（多选）
+        const evaluationCriteria = [];
+        document.querySelectorAll('input[name="evaluation_criteria"]:checked').forEach(checkbox => {
+            evaluationCriteria.push(checkbox.value);
+        });
+        if (evaluationCriteria.length > 0) data.evaluation_criteria = evaluationCriteria;
+        
+        // 9. 气候问题
+        const climateQuestion = document.querySelector('input[name="climate_question"]:checked');
+        if (climateQuestion) data.climate_question = climateQuestion.value;
+        
+        // 添加时间戳
+        data.analysis_timestamp = new Date().toISOString();
+        
+        console.log('问卷数据收集完成:', data);
+        
+    } catch (error) {
+        console.error('收集问卷数据时出错:', error);
+    }
     
     return data;
 }
