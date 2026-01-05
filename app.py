@@ -183,12 +183,12 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
             {'role': 'user', 'content': user_prompt}
         ],
         'temperature': 0.7,
-        'max_tokens': 4000,
+        'max_tokens': 10000,
         'stream': False
     }
     
     try:
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=120)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
         response.raise_for_status()
         result = response.json()
         
