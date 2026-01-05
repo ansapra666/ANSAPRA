@@ -128,10 +128,10 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     """调用DeepSeek API，包含完整的用户画像分析"""
     if not DEEPSEEK_API_KEY:
         raise ValueError("DeepSeek API Key not configured")
-    
+
     # 构建用户画像分析
     user_profile = analyze_user_profile(user_data)
-    
+
     # 构建提示词
     system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置、知识框架问卷结果和用户画像，生成适合高中生的论文解读。"""
     
@@ -170,14 +170,12 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
 请在解读的末尾添加："解读内容由DeepSeek AI生成，仅供参考"
 
 请开始解读："""
-    
+
     headers = {
         'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
         'Content-Type': 'application/json'
     }
-    
-    api_url = "https://api.deepseek.com/chat/completions"
-    
+
     payload = {
         'model': 'deepseek-chat',
         'messages': [
@@ -185,10 +183,10 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
             {'role': 'user', 'content': user_prompt}
         ],
         'temperature': 0.7,
-        'max_tokens': 10000,
+        'max_tokens': 8000,
         'stream': False
     }
-    
+
     try:
         response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
         response.raise_for_status()
@@ -198,6 +196,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
             return result['choices'][0]['message']['content']
         else:
             raise ValueError("No response from DeepSeek API")
+            
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
@@ -501,87 +500,81 @@ def update_settings():
         return jsonify({'success': False, 'message': '更新失败'}), 400
 
 @app.route('/api/interpret', methods=['POST'])
-@app.route('/api/interpret', methods=['POST'])
 def interpret():
     if 'user_email' not in session:
         return jsonify({'success': False, 'message': '未登录'}), 401
-    
+
     file = request.files.get('file')
     text = request.form.get('text', '')
-    
+
     if not file and not text.strip():
         return jsonify({'success': False, 'message': '请上传文件或输入文本'}), 400
-    
+
     user = get_user_by_email(session['user_email'])
     if not user:
         return jsonify({'success': False, 'message': '用户不存在'}), 404
-    
+
     try:
         paper_content = ""
         
-        # 简化文件处理
         if file and file.filename:
             filename = secure_filename(file.filename)
             file_ext = os.path.splitext(filename)[1].lower()
             
-            allowed_extensions = ['.pdf', '.docx', '.doc', '.txt']
-            if file_ext not in allowed_extensions:
-                return jsonify({'success': False, 'message': f'不支持的文件格式。支持: {", ".join(allowed_extensions)}'}), 400
-            
-            # 对于测试，先使用文本模式
+            if file_ext not in ['.pdf', '.docx', '.txt']:
+                return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
+
             if file_ext == '.txt':
                 paper_content = file.read().decode('utf-8', errors='ignore')
-            else:
-                paper_content = f"[上传文件: {filename}]\n"
-                paper_content += "文件内容解析需要额外库支持。\n"
-                paper_content += "请确保已安装PyPDF2和python-docx库。"
+            elif file_ext == '.pdf':
+                try:
+                    import PyPDF2
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    paper_content = ""
+                    for page_num in range(len(pdf_reader.pages)):
+                        page = pdf_reader.pages[page_num]
+                        paper_content += page.extract_text()
+                except Exception as pdf_error:
+                    paper_content = f"PDF文件内容提取失败: {str(pdf_error)}"
+                    paper_content += "\n文件已上传，请AI尝试直接处理。"
+            elif file_ext == '.docx':
+                try:
+                    import docx
+                    from io import BytesIO
+                    docx_file = BytesIO(file.read())
+                    doc = docx.Document(docx_file)
+                    paper_content = ""
+                    for paragraph in doc.paragraphs:
+                        paper_content += paragraph.text + "\n"
+                except Exception as docx_error:
+                    paper_content = f"DOCX文件内容提取失败: {str(docx_error)}"
+                    paper_content += "\n文件已上传，请AI尝试直接处理。"
         else:
             paper_content = text
-        
-        # 限制内容长度
-        if len(paper_content) > 5000:
-            paper_content = paper_content[:5000] + "\n\n[内容过长，已截断前5000字符]"
-        
-        # 获取用户设置和历史记录
+
+        if not paper_content or paper_content.strip() == "":
+            return jsonify({'success': False, 'message': '文件内容为空或无法读取'}), 400
+
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
-        
-        # 记录调试信息
-        logger.info(f"Processing interpretation request")
-        logger.info(f"Content length: {len(paper_content)}")
-        logger.info(f"User settings: {json.dumps(user_settings, ensure_ascii=False)}")
-        
-        # 调用DeepSeek API
+
         interpretation = call_deepseek_api(user, paper_content, user_settings, history)
-        
-        # 添加到历史记录
+
         history_item = {
             'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
             'interpretation': interpretation[:1000] + '...' if len(interpretation) > 1000 else interpretation,
             'timestamp': datetime.now().isoformat()
         }
+        
         add_to_history(session['user_email'], history_item)
-        
-        # 简化论文推荐（使用静态数据，避免外部API调用）
-        recommendations = [
-            {
-                'title': 'Nature: Recent advances in natural sciences',
-                'authors': 'Various Authors',
-                'publication': 'Nature',
-                'year': '2024',
-                'abstract': 'Recent research in natural sciences covering physics, chemistry, and biology.',
-                'url': 'https://www.nature.com'
-            },
-            {
-                'title': 'Science: Interdisciplinary approaches',
-                'authors': 'Science Editorial',
-                'publication': 'Science',
-                'year': '2023',
-                'abstract': 'Overview of interdisciplinary research methods in modern science.',
-                'url': 'https://www.science.org'
-            }
-        ]
-        
+
+        search_query = "natural science"
+        if paper_content:
+            words = paper_content.split()[:10]
+            search_query = ' '.join(words)
+
+        recommendations = search_springer_papers(search_query, 3)
+
         return jsonify({
             'success': True,
             'interpretation': interpretation,
@@ -589,10 +582,10 @@ def interpret():
             'recommendations': recommendations,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
-        logger.error(f"Interpretation error: {e}", exc_info=True)
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(f"Interpretation error: {e}")
+        return jsonify({'success': False, 'message': f'处理失败: {str(e)}'}), 500
 
 @app.route('/api/history', methods=['GET'])
 def get_reading_history():
