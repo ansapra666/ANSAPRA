@@ -54,10 +54,6 @@
                         <input type="password" id="confirm-password" required>
                     </div>
                     
-                    <div class="questionnaire-section" id="questionnaire">
-                        <!-- 问卷内容将通过JS动态加载 -->
-                    </div>
-                    
                     <button type="submit" class="btn btn-primary">注册</button>
                 </form>
             </div>
@@ -322,5 +318,28 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language.js') }}"></script>
+    <!-- 全屏问卷模态框 -->
+    <div id="full-questionnaire-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fas fa-clipboard-list"></i> 知识框架调查问卷</h3>
+                <button onclick="closeFullQuestionnaire()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: white;">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="full-questionnaire-container">
+                    <!-- 问卷内容将通过JS动态加载 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveQuestionnaire()">
+                    <i class="fas fa-save"></i> 保存问卷
+                </button>
+                <button class="btn btn-secondary" onclick="closeFullQuestionnaire()">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
+    
 </html>
