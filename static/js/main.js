@@ -335,19 +335,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">1. 您所在的年级是？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="grade" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="grade" value="A" required style="margin-left: 10px;">
                             <span>A. 9年级</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="grade" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="grade" value="B" style="margin-left: 10px;">
                             <span>B. 10年级</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="grade" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="grade" value="C" style="margin-left: 10px;">
                             <span>C. 11年级</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="grade" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="grade" value="D" style="margin-left: 10px;">
                             <span>D. 12年级</span>
                         </label>
                     </div>
@@ -358,11 +358,11 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您所处的教育体系是？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="education_system" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="education_system" value="A" required style="margin-left: 10px;">
                             <span>A. 国际体系</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="education_system" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="education_system" value="B" style="margin-left: 10px;">
                             <span>B. 普高体系</span>
                         </label>
                     </div>
@@ -501,15 +501,15 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. 您学习自然科学课外知识的频率是？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="learning_frequency" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="learning_frequency" value="A" required style="margin-left: 10px;">
                             <span>A. 一周1次或更频繁</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="learning_frequency" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="learning_frequency" value="B" style="margin-left: 10px;">
                             <span>B. 一个月1-3次</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="learning_frequency" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="learning_frequency" value="C" style="margin-left: 10px;">
                             <span>C. 几个月1次</span>
                         </label>
                     </div>
@@ -520,19 +520,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="physics_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="physics_question" value="A" required style="margin-left: 10px;">
                             <span>A. 变为原来的n倍</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="physics_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="physics_question" value="B" style="margin-left: 10px;">
                             <span>B. 变为原来的1/n</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="physics_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="physics_question" value="C" style="margin-left: 10px;">
                             <span>C. 保持不变</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="physics_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="physics_question" value="D" style="margin-left: 10px;">
                             <span>D. 无法确定，因为光的频率也改变了</span>
                         </label>
                     </div>
@@ -543,19 +543,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="chemistry_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="chemistry_question" value="A" required style="margin-left: 10px;">
                             <span>A. pH值显著下降</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="chemistry_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="chemistry_question" value="B" style="margin-left: 10px;">
                             <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="chemistry_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="chemistry_question" value="C" style="margin-left: 10px;">
                             <span>C. 醋酸的电离度显著降低</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="chemistry_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="chemistry_question" value="D" style="margin-left: 10px;">
                             <span>D. 水的离子积常数Kw增大</span>
                         </label>
                     </div>
@@ -566,19 +566,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="biology_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="biology_question" value="A" required style="margin-left: 10px;">
                             <span>A. 为了在夜间更有效地进行光反应。</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="biology_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="biology_question" value="B" style="margin-left: 10px;">
                             <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="biology_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="biology_question" value="C" style="margin-left: 10px;">
                             <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="biology_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="biology_question" value="D" style="margin-left: 10px;">
                             <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
                         </label>
                     </div>
@@ -589,19 +589,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="astronomy_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="astronomy_question" value="A" required style="margin-left: 10px;">
                             <span>A. 行星的精确质量</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="astronomy_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="astronomy_question" value="B" style="margin-left: 10px;">
                             <span>B. 行星轨道周期的最小质量（M sin i）</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="astronomy_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="astronomy_question" value="C" style="margin-left: 10px;">
                             <span>C. 行星的半径</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="astronomy_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="astronomy_question" value="D" style="margin-left: 10px;">
                             <span>D. 行星大气的成分</span>
                         </label>
                     </div>
@@ -612,19 +612,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="geology_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="geology_question" value="A" required style="margin-left: 10px;">
                             <span>A. 持续的海平面上升</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="geology_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="geology_question" value="B" style="margin-left: 10px;">
                             <span>B. 一次海平面下降，随后又上升</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="geology_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="geology_question" value="C" style="margin-left: 10px;">
                             <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="geology_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="geology_question" value="D" style="margin-left: 10px;">
                             <span>D. 持续的构造抬升</span>
                         </label>
                     </div>
@@ -767,19 +767,19 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="knowledge_structure" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="knowledge_structure" value="A" required style="margin-left: 10px;">
                             <span>A. 一本厚重的教科书，由浅入深</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="knowledge_structure" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="knowledge_structure" value="B" style="margin-left: 10px;">
                             <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="knowledge_structure" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="knowledge_structure" value="C" style="margin-left: 10px;">
                             <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="knowledge_structure" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="knowledge_structure" value="D" style="margin-left: 10px;">
                             <span>D. 一个全能但是无序的工具箱</span>
                         </label>
                     </div>
@@ -924,23 +924,23 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
                     <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0;">
                         <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
+                            <input type="checkbox" name="evaluation_criteria" value="A" style="margin-left: 10px;">
                             <span>A. 选段对现象描述的学术语言使用</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
+                            <input type="checkbox" name="evaluation_criteria" value="B" style="margin-left: 10px;">
                             <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
+                            <input type="checkbox" name="evaluation_criteria" value="C" style="margin-left: 10px;">
                             <span>C. 选段中提及的实验数据</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
+                            <input type="checkbox" name="evaluation_criteria" value="D" style="margin-left: 10px;">
                             <span>D. 选段中涉及的科学理论（现象和本质）</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
+                            <input type="checkbox" name="evaluation_criteria" value="E" style="margin-left: 10px;">
                             <span>E. 单纯凭感觉评分</span>
                         </label>
                     </div>
@@ -951,23 +951,23 @@ function loadFullQuestionnaire(container) {
                     <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
                     <div class="radio-group" style="display: flex; flex-direction: column; gap: 10px;">
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="climate_question" value="A" required style="margin-right: 10px;">
+                            <input type="radio" name="climate_question" value="A" required style="margin-left: 10px;">
                             <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="climate_question" value="B" style="margin-right: 10px;">
+                            <input type="radio" name="climate_question" value="B" style="margin-left: 10px;">
                             <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="climate_question" value="C" style="margin-right: 10px;">
+                            <input type="radio" name="climate_question" value="C" style="margin-left: 10px;">
                             <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="climate_question" value="D" style="margin-right: 10px;">
+                            <input type="radio" name="climate_question" value="D" style="margin-left: 10px;">
                             <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
                         </label>
                         <label class="radio-label" style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background-color 0.3s;">
-                            <input type="radio" name="climate_question" value="E" style="margin-right: 10px;">
+                            <input type="radio" name="climate_question" value="E" style="margin-left: 10px;">
                             <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
                         </label>
                     </div>
