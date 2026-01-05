@@ -54,8 +54,27 @@
                         <input type="password" id="confirm-password" required>
                     </div>
                     
+                    <!-- 问卷部分已移除，通过全屏问卷填写 -->
+                    
                     <button type="submit" class="btn btn-primary">注册</button>
                 </form>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <p><strong>注册流程说明：</strong></p>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>填写基本信息（邮箱、用户名、密码）</li>
+                        <li>点击"注册"按钮</li>
+                        <li>系统将引导您填写知识框架问卷</li>
+                        <li>完成问卷后自动完成注册</li>
+                    </ol>
+                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                        或者，您可以先
+                        <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()">
+                            <i class="fas fa-clipboard-list"></i> 填写问卷
+                        </button>
+                        ，然后再填写注册信息
+                    </p>
+                </div>
             </div>
             
             <div id="guest-tab" class="tab-content">
