@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('解析保存的注册信息时出错:', e);
         }
     }
+    
+    // 设置Cookie同意功能
+    setupCookieConsent();
 });
 
 function initializeDOM() {
@@ -195,6 +198,11 @@ function setupEventListeners() {
             }
         }
     });
+    
+    // 问卷验证设置
+    setTimeout(() => {
+        setupQuestionnaireValidation();
+    }, 500);
 }
 
 function switchPage(pageName) {
@@ -216,6 +224,11 @@ function switchPage(pageName) {
             page.classList.add('active');
         }
     });
+    
+    // 如果切换到设置页面，确保语言设置正确显示
+    if (pageName === 'settings') {
+        updateLanguageSettingsTab();
+    }
     
     // 滚动到顶部
     window.scrollTo(0, 0);
@@ -285,7 +298,7 @@ function showFullQuestionnaire() {
     const container = document.getElementById('full-questionnaire-container');
     
     // 加载问卷内容
-    if (container.innerHTML.trim() === '') {
+    if (!container.innerHTML || container.innerHTML.trim() === '') {
         loadQuestionnaireToContainer(container);
     }
     
@@ -306,13 +319,805 @@ function closeFullQuestionnaire() {
     modal.style.display = 'none';
 }
 
+// 修改后的loadQuestionnaireToContainer函数 - 包含完整的问卷HTML
 function loadQuestionnaireToContainer(container) {
-    // 这里可以加载与注册时间相同的问卷HTML
-    // 暂时使用现有的问卷HTML
-    const questionnaireContent = document.getElementById('questionnaire');
-    if (questionnaireContent) {
-        container.innerHTML = questionnaireContent.innerHTML;
-    }
+    container.innerHTML = `
+        <div class="questionnaire-section">
+            <h4>知识框架调查问卷</h4>
+            <p>请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+            
+            <div class="question-group">
+                <h5>一、基本情况</h5>
+                
+                <div class="form-group">
+                    <label>1. 您所在的年级是？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="grade" value="A" required>
+                            <span>A. 9年级</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="grade" value="B">
+                            <span>B. 10年级</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="grade" value="C">
+                            <span>C. 11年级</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="grade" value="D">
+                            <span>D. 12年级</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>2. 您所处的教育体系是？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="education_system" value="A" required>
+                            <span>A. 国际体系</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="education_system" value="B">
+                            <span>B. 普高体系</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
+                    <p class="help-text">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
+                    
+                    <div class="rating-grid">
+                        <div class="rating-item">
+                            <label>物理学：</label>
+                            <div class="rating-control">
+                                <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不感兴趣</span>
+                                    <span>一般</span>
+                                    <span>非常感兴趣</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>生物学、医学等：</label>
+                            <div class="rating-control">
+                                <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不感兴趣</span>
+                                    <span>一般</span>
+                                    <span>非常感兴趣</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>化学：</label>
+                            <div class="rating-control">
+                                <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不感兴趣</span>
+                                    <span>一般</span>
+                                    <span>非常感兴趣</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>地理地质学：</label>
+                            <div class="rating-control">
+                                <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不感兴趣</span>
+                                    <span>一般</span>
+                                    <span>非常感兴趣</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>天体天文学：</label>
+                            <div class="rating-control">
+                                <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不感兴趣</span>
+                                    <span>一般</span>
+                                    <span>非常感兴趣</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>4. 您学习自然科学课外知识的频率是？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="learning_frequency" value="A" required>
+                            <span>A. 一周1次或更频繁</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="learning_frequency" value="B">
+                            <span>B. 一个月1-3次</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="learning_frequency" value="C">
+                            <span>C. 几个月1次</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="physics_question" value="A" required>
+                            <span>A. 变为原来的n倍</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="physics_question" value="B">
+                            <span>B. 变为原来的1/n</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="physics_question" value="C">
+                            <span>C. 保持不变</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="physics_question" value="D">
+                            <span>D. 无法确定，因为光的频率也改变了</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="chemistry_question" value="A" required>
+                            <span>A. pH值显著下降</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="chemistry_question" value="B">
+                            <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="chemistry_question" value="C">
+                            <span>C. 醋酸的电离度显著降低</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="chemistry_question" value="D">
+                            <span>D. 水的离子积常数Kw增大</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>
+                    据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="biology_question" value="A" required>
+                            <span>A. 为了在夜间更有效地进行光反应。</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="biology_question" value="B">
+                            <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="biology_question" value="C">
+                            <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="biology_question" value="D">
+                            <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="astronomy_question" value="A" required>
+                            <span>A. 行星的精确质量</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="astronomy_question" value="B">
+                            <span>B. 行星轨道周期的最小质量（M sin i）</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="astronomy_question" value="C">
+                            <span>C. 行星的半径</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="astronomy_question" value="D">
+                            <span>D. 行星大气的成分</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="geology_question" value="A" required>
+                            <span>A. 持续的海平面上升</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="geology_question" value="B">
+                            <span>B. 一次海平面下降，随后又上升</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="geology_question" value="C">
+                            <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="geology_question" value="D">
+                            <span>D. 持续的构造抬升</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-group">
+                <h5>二、科学感知</h5>
+                
+                <div class="form-group">
+                    <label>1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
+                    <p class="help-text">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
+                    
+                    <div class="rating-grid">
+                        <div class="rating-item">
+                            <label>A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
+                            <div class="rating-control">
+                                <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不喜欢</span>
+                                    <span>一般</span>
+                                    <span>非常喜欢</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>B. 文字理解，通过清晰详细的语言表述知识点：</label>
+                            <div class="rating-control">
+                                <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不喜欢</span>
+                                    <span>一般</span>
+                                    <span>非常喜欢</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
+                            <div class="rating-control">
+                                <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不喜欢</span>
+                                    <span>一般</span>
+                                    <span>非常喜欢</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
+                            <div class="rating-control">
+                                <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不喜欢</span>
+                                    <span>一般</span>
+                                    <span>非常喜欢</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-item">
+                            <label>E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
+                            <div class="rating-control">
+                                <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                                <div class="rating-display">
+                                    <span class="rating-value">3</span>
+                                    <div class="rating-stars">
+                                        <span class="star" data-value="1">☆</span>
+                                        <span class="star" data-value="2">☆</span>
+                                        <span class="star active" data-value="3">☆</span>
+                                        <span class="star" data-value="4">☆</span>
+                                        <span class="star" data-value="5">☆</span>
+                                    </div>
+                                </div>
+                                <div class="rating-labels">
+                                    <span>不喜欢</span>
+                                    <span>一般</span>
+                                    <span>非常喜欢</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="knowledge_structure" value="A" required>
+                            <span>A. 一本厚重的教科书，由浅入深</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="knowledge_structure" value="B">
+                            <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="knowledge_structure" value="C">
+                            <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="knowledge_structure" value="D">
+                            <span>D. 一个全能但是无序的工具箱</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
+                    <div class="rating-control single-rating">
+                        <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                        <div class="rating-display">
+                            <span class="rating-value">3分（一般）</span>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">☆</span>
+                                <span class="star" data-value="2">☆</span>
+                                <span class="star active" data-value="3">☆</span>
+                                <span class="star" data-value="4">☆</span>
+                                <span class="star" data-value="5">☆</span>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>很差</span>
+                            <span>较差</span>
+                            <span>一般</span>
+                            <span>较好</span>
+                            <span>很好</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
+                    <div class="rating-control single-rating">
+                        <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                        <div class="rating-display">
+                            <span class="rating-value">3分（一般）</span>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">☆</span>
+                                <span class="star" data-value="2">☆</span>
+                                <span class="star active" data-value="3">☆</span>
+                                <span class="star" data-value="4">☆</span>
+                                <span class="star" data-value="5">☆</span>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>很差</span>
+                            <span>较差</span>
+                            <span>一般</span>
+                            <span>较好</span>
+                            <span>很好</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
+                    <div class="rating-control single-rating">
+                        <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                        <div class="rating-display">
+                            <span class="rating-value">3分（一般）</span>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">☆</span>
+                                <span class="star" data-value="2">☆</span>
+                                <span class="star active" data-value="3">☆</span>
+                                <span class="star" data-value="4">☆</span>
+                                <span class="star" data-value="5">☆</span>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>很差</span>
+                            <span>较差</span>
+                            <span>一般</span>
+                            <span>较好</span>
+                            <span>很好</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
+                    <div class="rating-control single-rating">
+                        <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                        <div class="rating-display">
+                            <span class="rating-value">3分（一般）</span>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">☆</span>
+                                <span class="star" data-value="2">☆</span>
+                                <span class="star active" data-value="3">☆</span>
+                                <span class="star" data-value="4">☆</span>
+                                <span class="star" data-value="5">☆</span>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>很差</span>
+                            <span>较差</span>
+                            <span>一般</span>
+                            <span>较好</span>
+                            <span>很好</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
+                    <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
+                    </div>
+                    <label>请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
+                    <div class="rating-control single-rating">
+                        <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
+                        <div class="rating-display">
+                            <span class="rating-value">3分（一般）</span>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">☆</span>
+                                <span class="star" data-value="2">☆</span>
+                                <span class="star active" data-value="3">☆</span>
+                                <span class="star" data-value="4">☆</span>
+                                <span class="star" data-value="5">☆</span>
+                            </div>
+                        </div>
+                        <div class="rating-labels">
+                            <span>很差</span>
+                            <span>较差</span>
+                            <span>一般</span>
+                            <span>较好</span>
+                            <span>很好</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="evaluation_criteria" value="A">
+                            <span>A. 选段对现象描述的学术语言使用</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="evaluation_criteria" value="B">
+                            <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="evaluation_criteria" value="C">
+                            <span>C. 选段中提及的实验数据</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="evaluation_criteria" value="D">
+                            <span>D. 选段中涉及的科学理论（现象和本质）</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="evaluation_criteria" value="E">
+                            <span>E. 单纯凭感觉评分</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="climate_question" value="A" required>
+                            <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="climate_question" value="B">
+                            <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="climate_question" value="C">
+                            <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="climate_question" value="D">
+                            <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="climate_question" value="E">
+                            <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee;">
+                <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()">
+                    <i class="fas fa-save"></i> 保存问卷
+                </button>
+            </div>
+        </div>
+        
+        <style>
+            .rating-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 25px;
+                margin: 20px 0;
+            }
+            
+            .rating-item {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #e9ecef;
+                transition: all 0.3s ease;
+            }
+            
+            .rating-item:hover {
+                border-color: #007bff;
+                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+            }
+            
+            .rating-item label {
+                font-weight: 500;
+                margin-bottom: 15px;
+                display: block;
+                color: #333;
+            }
+            
+            .rating-control {
+                position: relative;
+                margin-top: 10px;
+            }
+            
+            .rating-control.single-rating {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #e9ecef;
+            }
+            
+            .rating-slider {
+                width: 100%;
+                height: 8px;
+                -webkit-appearance: none;
+                appearance: none;
+                background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0);
+                border-radius: 4px;
+                outline: none;
+                margin: 15px 0;
+            }
+            
+            .rating-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 24px;
+                height: 24px;
+                background: #007bff;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 3px solid white;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            }
+            
+            .rating-slider::-moz-range-thumb {
+                width: 24px;
+                height: 24px;
+                background: #007bff;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 3px solid white;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            }
+            
+            .rating-display {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 10px;
+            }
+            
+            .rating-value {
+                font-size: 24px;
+                font-weight: bold;
+                color: #007bff;
+                min-width: 40px;
+            }
+            
+            .rating-stars {
+                display: flex;
+                gap: 8px;
+                font-size: 28px;
+                cursor: pointer;
+            }
+            
+            .rating-stars .star {
+                color: #ddd;
+                transition: all 0.2s ease;
+                user-select: none;
+            }
+            
+            .rating-stars .star:hover {
+                color: #ffd700;
+                transform: scale(1.2);
+            }
+            
+            .rating-stars .star.active {
+                color: #ffd700;
+            }
+            
+            .rating-labels {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                color: #666;
+                margin-top: 5px;
+            }
+            
+            .help-text {
+                font-size: 14px;
+                color: #666;
+                margin-bottom: 15px;
+                font-style: italic;
+            }
+            
+            .checkbox-group {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin: 10px 0;
+            }
+            
+            .checkbox-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+            }
+            
+            .checkbox-label input[type="checkbox"] {
+                margin: 0;
+            }
+            
+            .paper-excerpt {
+                font-size: 14px;
+                line-height: 1.6;
+                color: #666;
+                max-height: 200px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+            }
+            
+            .question-group {
+                margin-bottom: 40px;
+                padding-bottom: 30px;
+                border-bottom: 2px solid #eee;
+            }
+            
+            .question-group:last-child {
+                border-bottom: none;
+            }
+            
+            @media (max-width: 768px) {
+                .rating-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .rating-item {
+                    padding: 15px;
+                }
+            }
+        </style>
+    `;
+    
+    // 初始化评分系统
+    setTimeout(() => {
+        initRatingSystem();
+    }, 100);
 }
 
 // 保存问卷数据
@@ -617,6 +1422,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
 // 游客登录
 async function enterAsGuest() {
     try {
@@ -659,7 +1465,7 @@ async function logout() {
     }
 }
 
-// 在main.js中添加Cookie同意功能
+// Cookie同意功能
 function setupCookieConsent() {
     // 检查用户是否已经同意Cookie
     if (!localStorage.getItem('cookieConsent')) {
@@ -701,7 +1507,6 @@ function setupCookieConsent() {
         document.getElementById('cookie-reject').addEventListener('click', () => {
             localStorage.setItem('cookieConsent', 'rejected');
             cookieBanner.style.display = 'none';
-            // 这里可以添加拒绝Cookie后的逻辑
         });
         
         document.getElementById('cookie-settings').addEventListener('click', () => {
@@ -709,12 +1514,6 @@ function setupCookieConsent() {
         });
     }
 }
-
-// 在DOM加载完成后调用
-document.addEventListener('DOMContentLoaded', function() {
-    // ... 其他初始化代码 ...
-    setupCookieConsent();
-});
 
 // 论文解读
 async function startInterpretation() {
@@ -779,6 +1578,11 @@ async function startInterpretation() {
 }
 
 function formatInterpretation(text) {
+    // 确保文本以提示语结尾
+    if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
+        text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
+    }
+    
     // 将文本中的标题格式化为HTML
     let html = text
         .replace(/\n/g, '<br>')
@@ -786,7 +1590,10 @@ function formatInterpretation(text) {
             const level = hashes.length;
             return `<h${level} style="margin-top: 20px; margin-bottom: 10px; color: #007bff;">${title}</h${level}>`;
         })
-        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>');
+        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^术语解读区.*$/gm, '<div class="glossary-section"><h3 style="color: #dc3545;">$&</h3></div>');
     
     return html;
 }
@@ -914,912 +1721,109 @@ function applyTheme(theme) {
 }
 
 // 语言切换
-// 更新loadTranslations函数
 async function loadTranslations() {
-  try {
-    const response = await fetch('/static/lang/translations.json');
-    AppState.translations = await response.json();
-  } catch (error) {
-    console.error('加载翻译错误:', error);
-    // 设置默认翻译
-    AppState.translations = {
-      zh: {},
-      en: {}
-    };
-  }
+    try {
+        const response = await fetch('/static/lang/translations.json');
+        AppState.translations = await response.json();
+    } catch (error) {
+        console.error('加载翻译错误:', error);
+        // 设置默认翻译
+        AppState.translations = {
+            zh: {},
+            en: {}
+        };
+    }
 }
 
-// 更新updateLanguage函数
 function updateLanguage() {
-  const lang = AppState.language;
-  document.documentElement.lang = lang;
-  
-  // 更新界面文本
-  updateUIText(lang);
+    const lang = AppState.language;
+    document.documentElement.lang = lang;
+    
+    // 更新界面文本
+    updateUIText(lang);
 }
 
-// 新增：更新界面文本的函数
+// 更新界面文本的函数
 function updateUIText(lang) {
-  const translations = AppState.translations[lang] || AppState.translations.zh;
-  
-  // 更新标题
-  document.title = translations.appName || 'ANSAPRA';
-  
-  // 更新导航栏
-  updateNavigationText(translations);
-  
-  // 更新按钮文本
-  updateButtonsText(translations);
-  
-  // 更新表单标签
-  updateFormLabels(translations);
+    const translations = AppState.translations[lang] || AppState.translations.zh;
+    
+    // 更新标题
+    document.title = translations.appName || 'ANSAPRA';
+    
+    // 更新导航栏
+    updateNavigationText(translations);
+    
+    // 更新按钮文本
+    updateButtonsText(translations);
+    
+    // 更新表单标签
+    updateFormLabels(translations);
 }
 
 function updateNavigationText(translations) {
-  const navLinks = document.querySelectorAll('.nav-link');
-  const pages = {
-    'intro': '网站介绍',
-    'instructions': '使用说明',
-    'interpretation': '论文解读',
-    'settings': '用户设置'
-  };
-  
-  // 这里可以根据翻译对象更新导航文本
-  // 暂时保留中文，可以根据需要扩展
+    const navLinks = document.querySelectorAll('.nav-link');
+    const pages = {
+        'intro': '网站介绍',
+        'instructions': '使用说明',
+        'interpretation': '论文解读',
+        'settings': '用户设置'
+    };
+    
+    // 这里可以根据翻译对象更新导航文本
+    // 暂时保留中文，可以根据需要扩展
 }
 
 function updateButtonsText(translations) {
-  // 更新登录注册页面的按钮
-  const loginBtn = document.querySelector('#login-form button[type="submit"]');
-  if (loginBtn) loginBtn.textContent = translations.login || '登录';
-  
-  const registerBtn = document.querySelector('#register-form button[type="submit"]');
-  if (registerBtn) registerBtn.textContent = translations.register || '注册';
-  
-  // 更新解读页面的按钮
-  const startBtn = document.querySelector('.action-buttons .btn-large');
-  if (startBtn) {
-    const icon = startBtn.querySelector('i');
-    startBtn.innerHTML = '';
-    if (icon) startBtn.appendChild(icon);
-    startBtn.appendChild(document.createTextNode(' ' + (translations.startInterpretation || '开始解读')));
-  }
-  
-  const clearBtn = document.querySelector('.action-buttons .btn-secondary');
-  if (clearBtn) clearBtn.innerHTML = '<i class="fas fa-trash"></i> ' + (translations.clear || '清空');
-}
-
-// 在switchPage函数中添加语言更新
-function switchPage(pageName) {
-  AppState.currentPage = pageName;
-  localStorage.setItem('lastPage', pageName);
-  
-  // 更新导航链接状态
-  DOM.navLinks.forEach(link => {
-    link.classList.remove('active');
-    if (link.dataset.page === pageName) {
-      link.classList.add('active');
+    // 更新登录注册页面的按钮
+    const loginBtn = document.querySelector('#login-form button[type="submit"]');
+    if (loginBtn) loginBtn.textContent = translations.login || '登录';
+    
+    const registerBtn = document.querySelector('#register-form button[type="submit"]');
+    if (registerBtn) registerBtn.textContent = translations.register || '注册';
+    
+    // 更新解读页面的按钮
+    const startBtn = document.querySelector('.action-buttons .btn-large');
+    if (startBtn) {
+        const icon = startBtn.querySelector('i');
+        startBtn.innerHTML = '';
+        if (icon) startBtn.appendChild(icon);
+        startBtn.appendChild(document.createTextNode(' ' + (translations.startInterpretation || '开始解读')));
     }
-  });
-  
-  // 切换页面显示
-  DOM.pages.forEach(page => {
-    page.classList.remove('active');
-    if (page.id === `${pageName}-page`) {
-      page.classList.add('active');
-    }
-  });
-  
-  // 如果切换到设置页面，确保语言设置正确显示
-  if (pageName === 'settings') {
-    updateLanguageSettingsTab();
-  }
-  
-  // 滚动到顶部
-  window.scrollTo(0, 0);
+    
+    const clearBtn = document.querySelector('.action-buttons .btn-secondary');
+    if (clearBtn) clearBtn.innerHTML = '<i class="fas fa-trash"></i> ' + (translations.clear || '清空');
 }
 
 // 更新设置页面的语言标签
 function updateLanguageSettingsTab() {
-  const langSettings = document.getElementById('language-settings');
-  if (langSettings) {
-    const labels = langSettings.querySelectorAll('.radio-label span');
-    if (labels.length >= 2) {
-      const translations = AppState.translations[AppState.language] || AppState.translations.zh;
-      labels[0].textContent = translations.zh || '中文';
-      labels[1].textContent = translations.en || 'English';
+    const langSettings = document.getElementById('language-settings');
+    if (langSettings) {
+        const labels = langSettings.querySelectorAll('.radio-label span');
+        if (labels.length >= 2) {
+            const translations = AppState.translations[AppState.language] || AppState.translations.zh;
+            labels[0].textContent = translations.zh || '中文';
+            labels[1].textContent = translations.en || 'English';
+        }
     }
-  }
 }
 
-//添加问卷加载函数
-function loadQuestionnaireToContainer(container) {
-    // 加载问卷HTML
-    container.innerHTML = `
-        <div class="questionnaire-section">
-        <h4>知识框架调查问卷</h4>
-        <p>请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
-        
-        <div class="question-group">
-            <h5>一、基本情况</h5>
-            
-            <div class="form-group">
-                <label>1. 您所在的年级是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="grade" value="A" required>
-                        <span>A. 9年级</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="grade" value="B">
-                        <span>B. 10年级</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="grade" value="C">
-                        <span>C. 11年级</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="grade" value="D">
-                        <span>D. 12年级</span>
-                    </label>
-                </div>
+// 加载问卷数据
+function loadQuestionnaire() {
+    const container = document.getElementById('questionnaire');
+    if (container) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h4><i class="fas fa-clipboard-list"></i> 知识框架调查问卷</h4>
+                <p>请填写问卷以帮助我们更好地为您提供个性化解读</p>
+                <button type="button" class="btn btn-primary" onclick="showFullQuestionnaire()">
+                    <i class="fas fa-pen"></i> 开始填写问卷
+                </button>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                    问卷完成后即可注册
+                </p>
             </div>
-            
-            <div class="form-group">
-                <label>2. 您所处的教育体系是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="education_system" value="A" required>
-                        <span>A. 国际体系</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="education_system" value="B">
-                        <span>B. 普高体系</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
-                <p class="help-text">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
-                
-                <div class="rating-grid">
-                    <div class="rating-item">
-                        <label>物理学：</label>
-                        <div class="rating-control">
-                            <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不感兴趣</span>
-                                <span>一般</span>
-                                <span>非常感兴趣</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>生物学、医学等：</label>
-                        <div class="rating-control">
-                            <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不感兴趣</span>
-                                <span>一般</span>
-                                <span>非常感兴趣</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>化学：</label>
-                        <div class="rating-control">
-                            <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不感兴趣</span>
-                                <span>一般</span>
-                                <span>非常感兴趣</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>地理地质学：</label>
-                        <div class="rating-control">
-                            <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不感兴趣</span>
-                                <span>一般</span>
-                                <span>非常感兴趣</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>天体天文学：</label>
-                        <div class="rating-control">
-                            <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不感兴趣</span>
-                                <span>一般</span>
-                                <span>非常感兴趣</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>4. 您学习自然科学课外知识的频率是？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="learning_frequency" value="A" required>
-                        <span>A. 一周1次或更频繁</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="learning_frequency" value="B">
-                        <span>B. 一个月1-3次</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="learning_frequency" value="C">
-                        <span>C. 几个月1次</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="physics_question" value="A" required>
-                        <span>A. 变为原来的n倍</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="physics_question" value="B">
-                        <span>B. 变为原来的1/n</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="physics_question" value="C">
-                        <span>C. 保持不变</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="physics_question" value="D">
-                        <span>D. 无法确定，因为光的频率也改变了</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="chemistry_question" value="A" required>
-                        <span>A. pH值显著下降</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="chemistry_question" value="B">
-                        <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="chemistry_question" value="C">
-                        <span>C. 醋酸的电离度显著降低</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="chemistry_question" value="D">
-                        <span>D. 水的离子积常数Kw增大</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>
-                据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="biology_question" value="A" required>
-                        <span>A. 为了在夜间更有效地进行光反应。</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="biology_question" value="B">
-                        <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="biology_question" value="C">
-                        <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="biology_question" value="D">
-                        <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="astronomy_question" value="A" required>
-                        <span>A. 行星的精确质量</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="astronomy_question" value="B">
-                        <span>B. 行星轨道周期的最小质量（M sin i）</span>
-                    </label>
-                    <label class="rating-label">
-                        <input type="radio" name="astronomy_question" value="C">
-                        <span>C. 行星的半径</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="astronomy_question" value="D">
-                        <span>D. 行星大气的成分</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="geology_question" value="A" required>
-                        <span>A. 持续的海平面上升</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="geology_question" value="B">
-                        <span>B. 一次海平面下降，随后又上升</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="geology_question" value="C">
-                        <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="geology_question" value="D">
-                        <span>D. 持续的构造抬升</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-        
-        <div class="question-group">
-            <h5>二、科学感知</h5>
-            
-            <div class="form-group">
-                <label>1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
-                <p class="help-text">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
-                
-                <div class="rating-grid">
-                    <div class="rating-item">
-                        <label>A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
-                        <div class="rating-control">
-                            <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不喜欢</span>
-                                <span>一般</span>
-                                <span>非常喜欢</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>B. 文字理解，通过清晰详细的语言表述知识点：</label>
-                        <div class="rating-control">
-                            <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不喜欢</span>
-                                <span>一般</span>
-                                <span>非常喜欢</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
-                        <div class="rating-control">
-                            <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不喜欢</span>
-                                <span>一般</span>
-                                <span>非常喜欢</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
-                        <div class="rating-control">
-                            <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不喜欢</span>
-                                <span>一般</span>
-                                <span>非常喜欢</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="rating-item">
-                        <label>E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
-                        <div class="rating-control">
-                            <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                            <div class="rating-display">
-                                <span class="rating-value">3</span>
-                                <div class="rating-stars">
-                                    <span class="star" data-value="1">☆</span>
-                                    <span class="star" data-value="2">☆</span>
-                                    <span class="star active" data-value="3">☆</span>
-                                    <span class="star" data-value="4">☆</span>
-                                    <span class="star" data-value="5">☆</span>
-                                </div>
-                            </div>
-                            <div class="rating-labels">
-                                <span>不喜欢</span>
-                                <span>一般</span>
-                                <span>非常喜欢</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="knowledge_structure" value="A" required>
-                        <span>A. 一本厚重的教科书，由浅入深</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="knowledge_structure" value="B">
-                        <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="knowledge_structure" value="C">
-                        <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="knowledge_structure" value="D">
-                        <span>D. 一个全能但是无序的工具箱</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
-                <div class="rating-control single-rating">
-                    <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                    <div class="rating-display">
-                        <span class="rating-value">3分（一般）</span>
-                        <div class="rating-stars">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star active" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                    </div>
-                    <div class="rating-labels">
-                        <span>很差</span>
-                        <span>较差</span>
-                        <span>一般</span>
-                        <span>较好</span>
-                        <span>很好</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
-                <div class="rating-control single-rating">
-                    <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                    <div class="rating-display">
-                        <span class="rating-value">3分（一般）</span>
-                        <div class="rating-stars">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star active" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                    </div>
-                    <div class="rating-labels">
-                        <span>很差</span>
-                        <span>较差</span>
-                        <span>一般</span>
-                        <span>较好</span>
-                        <span>很好</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
-                <div class="rating-control single-rating">
-                    <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                    <div class="rating-display">
-                        <span class="rating-value">3分（一般）</span>
-                        <div class="rating-stars">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star active" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                    </div>
-                    <div class="rating-labels">
-                        <span>很差</span>
-                        <span>较差</span>
-                        <span>一般</span>
-                        <span>较好</span>
-                        <span>很好</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
-                <div class="rating-control single-rating">
-                    <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                    <div class="rating-display">
-                        <span class="rating-value">3分（一般）</span>
-                        <div class="rating-stars">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star active" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                    </div>
-                    <div class="rating-labels">
-                        <span>很差</span>
-                        <span>较差</span>
-                        <span>一般</span>
-                        <span>较好</span>
-                        <span>很好</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
-                <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                    <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
-                </div>
-                <label>请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
-                <div class="rating-control single-rating">
-                    <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required>
-                    <div class="rating-display">
-                        <span class="rating-value">3分（一般）</span>
-                        <div class="rating-stars">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star active" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                    </div>
-                    <div class="rating-labels">
-                        <span>很差</span>
-                        <span>较差</span>
-                        <span>一般</span>
-                        <span>较好</span>
-                        <span>很好</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="evaluation_criteria" value="A">
-                        <span>A. 选段对现象描述的学术语言使用</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="evaluation_criteria" value="B">
-                        <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="evaluation_criteria" value="C">
-                        <span>C. 选段中提及的实验数据</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="evaluation_criteria" value="D">
-                        <span>D. 选段中涉及的科学理论（现象和本质）</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="evaluation_criteria" value="E">
-                        <span>E. 单纯凭感觉评分</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="climate_question" value="A" required>
-                        <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="climate_question" value="B">
-                        <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="climate_question" value="C">
-                        <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="climate_question" value="D">
-                        <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="climate_question" value="E">
-                        <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <style>
-        .rating-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 25px;
-            margin: 20px 0;
-        }
-        
-        .rating-item {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
-            transition: all 0.3s ease;
-        }
-        
-        .rating-item:hover {
-            border-color: #007bff;
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
-        }
-        
-        .rating-item label {
-            font-weight: 500;
-            margin-bottom: 15px;
-            display: block;
-            color: #333;
-        }
-        
-        .rating-control {
-            position: relative;
-            margin-top: 10px;
-        }
-        
-        .rating-control.single-rating {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
-        }
-        
-        .rating-slider {
-            width: 100%;
-            height: 8px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0);
-            border-radius: 4px;
-            outline: none;
-            margin: 15px 0;
-        }
-        
-        .rating-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            background: #007bff;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 3px solid white;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        
-        .rating-slider::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
-            background: #007bff;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 3px solid white;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        
-        .rating-display {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        
-        .rating-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007bff;
-            min-width: 40px;
-        }
-        
-        .rating-stars {
-            display: flex;
-            gap: 8px;
-            font-size: 28px;
-            cursor: pointer;
-        }
-        
-        .rating-stars .star {
-            color: #ddd;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        
-        .rating-stars .star:hover {
-            color: #ffd700;
-            transform: scale(1.2);
-        }
-        
-        .rating-stars .star.active {
-            color: #ffd700;
-        }
-        
-        .rating-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .help-text {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 15px;
-            font-style: italic;
-        }
-        
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin: 10px 0;
-        }
-        
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        
-        .checkbox-label input[type="checkbox"] {
-            margin: 0;
-        }
-        
-        .paper-excerpt {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #666;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-        }
-        
-        .question-group {
-            margin-bottom: 40px;
-            padding-bottom: 30px;
-            border-bottom: 2px solid #eee;
-        }
-        
-        .question-group:last-child {
-            border-bottom: none;
-        }
-        
-        @media (max-width: 768px) {
-            .rating-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .rating-item {
-                padding: 15px;
-            }
-        }
-    </style>
-    
-    <script>
-    `;
+        `;
+    }
 }
 
 function initRatingSystem() {
@@ -1890,19 +1894,10 @@ function updateSliderColor(slider) {
     const percentage = (value / max) * 100;
     
     // 根据值设置不同的颜色
-    let color;
-    if (value <= 2) {
-        color = '#ff6b6b'; // 红色
-    } else if (value == 3) {
-        color = '#ffd166'; // 黄色
-    } else {
-        color = '#06d6a0'; // 绿色
-    }
-    
     slider.style.background = `linear-gradient(to right, #ff6b6b 0%, #ffd166 50%, #06d6a0 100%)`;
 }
 
-// 修改collectQuestionnaireData函数中的评分部分
+// 收集问卷数据
 function collectQuestionnaireData() {
     const data = {};
     
@@ -1996,7 +1991,7 @@ function collectQuestionnaireData() {
     return data;
 }
 
-// 修改验证问卷函数
+// 改进的验证问卷函数
 function validateQuestionnaire(questionnaire) {
     if (!questionnaire) return false;
     
@@ -2014,7 +2009,7 @@ function validateQuestionnaire(questionnaire) {
         }
     }
     
-    // 检查学科兴趣 - 现在是从滑块获取，应该有值
+    // 检查学科兴趣
     if (questionnaire.interests) {
         const interestFields = ['physics', 'biology', 'chemistry', 'geology', 'astronomy'];
         for (const field of interestFields) {
@@ -2097,7 +2092,7 @@ function validateQuestionnaire(questionnaire) {
     return true;
 }
 
-// 在handleRegister函数中添加用户画像分析
+// 改进的注册处理函数
 async function handleRegister() {
     const email = document.getElementById('register-email').value;
     const username = document.getElementById('register-username').value;
@@ -2233,10 +2228,10 @@ async function handleRegister() {
             AppState.user = data.user;
             showApp();
             
-            // 显示用户画像分析结果（可选）
+            // 显示用户画像分析结果
             showNotification('注册成功！用户画像分析已保存，将用于个性化解读。', 'success');
             
-            // 可选：显示简要的用户画像信息
+            // 显示简要的用户画像信息
             setTimeout(() => {
                 const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
                 const systemMap = { A: '国际体系', B: '普高体系' };
@@ -2260,29 +2255,7 @@ async function handleRegister() {
     }
 }
 
-// 修改formatInterpretation函数，确保末尾添加提示语
-function formatInterpretation(text) {
-    // 确保文本以提示语结尾
-    if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
-        text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
-    }
-    
-    // 将文本中的标题格式化为HTML
-    let html = text
-        .replace(/\n/g, '<br>')
-        .replace(/^(#{1,3})\s+(.+)$/gm, (match, hashes, title) => {
-            const level = hashes.length;
-            return `<h${level} style="margin-top: 20px; margin-bottom: 10px; color: #007bff;">${title}</h${level}>`;
-        })
-        .replace(/【(.+?)】/g, '<strong style="color: #28a745;">【$1】</strong>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/^术语解读区.*$/gm, '<div class="glossary-section"><h3 style="color: #dc3545;">$&</h3></div>');
-    
-    return html;
-}
-
-// 新增：滚动到对应问题的辅助函数
+// 滚动到对应问题的辅助函数
 function scrollToQuestion(questionName) {
     // 根据问题名称找到对应的元素并滚动到那里
     let element = null;
@@ -2315,7 +2288,7 @@ function scrollToQuestion(questionName) {
     }
 }
 
-// 可选：添加表单验证的实时反馈
+// 设置问卷验证
 function setupQuestionnaireValidation() {
     // 为所有必填字段添加change事件
     const requiredInputs = document.querySelectorAll(
@@ -2343,17 +2316,12 @@ function setupQuestionnaireValidation() {
     });
 }
 
-// 在DOM加载完成后调用
-document.addEventListener('DOMContentLoaded', function() {
-    // ... 其他初始化代码 ...
-    
-    // 设置问卷验证
-    setTimeout(() => {
-        setupQuestionnaireValidation();
-    }, 500); // 延迟一点确保问卷已加载
-});
-// 使用说明
+// 加载设置表单
+function loadSettingsForms() {
+    // 这里可以加载设置表单
+}
 
+// 使用说明加载
 function loadInstructions() {
     const container = document.querySelector('#instructions-page .page-content');
     if (container) {
@@ -2429,7 +2397,6 @@ function loadInstructions() {
 }
 
 // 模态框显示
-// 替换原有的showModal函数
 function showModal(type) {
     let title = '';
     let content = '';
@@ -2440,42 +2407,31 @@ function showModal(type) {
             content = `
                 <h4>最后更新日期：2026年1月1日</h4>
                 
-                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息，特别是考虑到我们的主要用户群体为高中生。</p>
+                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息。</p>
                 
                 <h5>1. 我们收集的信息</h5>
                 <ul>
-                    <li><strong>您主动提供的信息</strong>：当您注册账户、提交反馈或通过"联系我们"发送邮件时，我们可能会收集您的邮箱地址、用户名以及您自愿提供的其他信息。</li>
-                    <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间、页面停留时间及阅读偏好（如论文分类偏好）。这些信息不用于身份识别，仅用于改善服务。</li>
-                    <li><strong>问卷调查数据</strong>：在网站设计阶段，我们通过匿名问卷收集了关于高中生自然科学论文阅读偏好的汇总数据，用于功能设计。该数据已进行脱敏处理，不包含任何个人身份信息。</li>
+                    <li><strong>您主动提供的信息</strong>：当您注册账户时，我们可能会收集您的邮箱地址、用户名以及问卷数据。</li>
+                    <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间等。</li>
                 </ul>
                 
                 <h5>2. 我们如何使用信息</h5>
                 <ul>
                     <li>为您提供和优化自适应的论文阅读体验。</li>
-                    <li>通过邮箱回复您的问题或反馈。</li>
                     <li>进行匿名的、聚合性的数据分析，以持续改进网站功能。</li>
                 </ul>
                 
                 <h5>3. 信息共享与披露</h5>
-                <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。除非法律要求，否则我们不会披露您的个人身份信息。</p>
+                <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。</p>
                 
                 <h5>4. 数据安全</h5>
-                <p>我们采取合理的技术措施保护数据安全。但由于互联网传输并非绝对安全，我们无法保证信息的绝对安全。</p>
+                <p>我们采取合理的技术措施保护数据安全。</p>
                 
                 <h5>5. 您的权利</h5>
-                <p>您可以随时在账户设置中查看或更新您提供的个人信息。如需删除账户，请通过页面上的删除账户按钮操作。</p>
+                <p>您可以随时在账户设置中查看或更新您提供的个人信息。</p>
                 
                 <h5>6. 关于未成年人</h5>
                 <p>我们的服务主要面向高中生。我们鼓励未成年用户在父母或监护人的指导下使用本平台。</p>
-                
-                <h5>7. 政策变更</h5>
-                <p>我们可能适时更新本政策，更新内容将公布于此页面。</p>
-                
-                <div class="modal-footer">
-                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        如果您对本隐私政策有任何疑问，请通过"联系我们"页面与我们联系。
-                    </p>
-                </div>
             `;
             break;
             
@@ -2484,40 +2440,25 @@ function showModal(type) {
             content = `
                 <h4>生效日期：2026年1月1日</h4>
                 
-                <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。这是一个由在读高中生发起并主导的CTB（China Thinks Big）竞赛项目。</p>
-                
-                <p>我们通过问卷调查深入了解同龄人在阅读自然科学论文时的难点，并以此为基础设计了本平台。网站的开发使用了人工智能辅助编程工具，并由我们团队进行全面的测试、调整与维护，旨在打造一个真正适合高中生认知习惯的学习工具。我们计划在比赛结束后持续运营并优化此项目。</p>
-                
-                <p>请在使用前仔细阅读以下条款。</p>
+                <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。</p>
                 
                 <h5>1. 服务描述</h5>
-                <p>本平台是一个基于自适应学习技术的工具，通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
+                <p>本平台通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
                 
                 <h5>2. 使用规则</h5>
                 <ul>
                     <li>您必须遵守所有适用的法律和法规。</li>
                     <li>您不得利用本平台进行任何干扰服务正常运行或损害他人权益的行为。</li>
-                    <li>您应对通过您的账户进行的所有活动负责。</li>
                 </ul>
                 
                 <h5>3. 免责声明</h5>
                 <ul>
-                    <li>本平台提供的论文摘要、解读和推荐内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。请您务必批判性思考，并以原文为准。</li>
+                    <li>本平台提供的论文解读内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。</li>
                     <li>我们尽力确保服务稳定，但不对服务的持续性、无中断性或绝对安全性作任何担保。</li>
-                    <li><strong>关于AI生成代码的说明</strong>：本网站的核心功能代码由人工智能辅助生成，并经过我们的测试与调整。我们团队对其功能与安全性负责，并持续进行优化与维护。</li>
                 </ul>
                 
                 <h5>4. 知识产权</h5>
-                <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。平台内引用的论文摘要、元数据等，其版权归属于原论文作者或出版商，我们按合理使用原则提供以支持教育目的。</p>
-                
-                <h5>5. 终止服务</h5>
-                <p>我们保留因用户违反本条款或自行决定而暂停或终止服务的权利。</p>
-                
-                <div class="modal-footer">
-                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        如果您对服务条款有任何疑问，请通过"联系我们"页面与我们联系。
-                    </p>
-                </div>
+                <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。</p>
             `;
             break;
             
@@ -2530,43 +2471,16 @@ function showModal(type) {
                 
                 <h5>1. Cookie的用途</h5>
                 <ul>
-                    <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态、记住语言偏好等。</li>
-                    <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况，以帮助我们了解如何改进网站设计。</li>
-                    <li><strong>偏好Cookie</strong>：记住您的个性化设置，如字体大小、主题颜色等。</li>
+                    <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态等。</li>
+                    <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况。</li>
+                    <li><strong>偏好Cookie</strong>：记住您的个性化设置。</li>
                 </ul>
                 
                 <h5>2. Cookie控制</h5>
-                <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用：</p>
-                <ul>
-                    <li>禁用必要Cookie将导致您无法保持登录状态，每次访问都需要重新登录</li>
-                    <li>禁用偏好Cookie将无法保存您的个性化设置</li>
-                    <li>禁用分析Cookie不会影响网站功能，但我们会失去了解用户行为的途径</li>
-                </ul>
+                <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用。</p>
                 
                 <h5>3. 第三方Cookie</h5>
-                <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。所有Cookie仅用于本网站的功能改善和用户体验优化。</p>
-                
-                <h5>4. Cookie存储时间</h5>
-                <p>不同的Cookie有不同的存储时间：</p>
-                <ul>
-                    <li>会话Cookie：在您关闭浏览器时自动删除</li>
-                    <li>持久Cookie：根据设置保留数天至数月</li>
-                    <li>登录状态Cookie：通常保留7-30天</li>
-                </ul>
-                
-                <h5>5. 您的选择</h5>
-                <p>您可以通过以下方式管理Cookie：</p>
-                <ul>
-                    <li><strong>接受所有Cookie</strong>：获得完整的网站体验</li>
-                    <li><strong>仅接受必要Cookie</strong>：保持基本功能，但个性化设置不会被保存</li>
-                    <li><strong>拒绝所有非必要Cookie</strong>：通过浏览器设置实现</li>
-                </ul>
-                
-                <div class="modal-footer">
-                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        如果您对Cookie政策有任何疑问，请通过"联系我们"页面与我们联系。
-                    </p>
-                </div>
+                <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。</p>
             `;
             break;
             
@@ -2580,43 +2494,19 @@ function showModal(type) {
                 <h5>1. 本网站的版权</h5>
                 <ul>
                     <li>本网站的整体设计、用户界面、特定功能代码及原创文本内容受版权保护，版权归 <strong>ANSAPRA开发团队</strong> 所有，© 2026。</li>
-                    <li>未经书面许可，任何组织或个人不得复制、修改、分发或商业性使用本网站的设计和内容。</li>
                 </ul>
                 
                 <h5>2. 引用内容的版权</h5>
                 <ul>
-                    <li>网站内为辅助阅读而引用的论文标题、摘要、作者、期刊信息等元数据，其版权归原著作权人所有。</li>
-                    <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利，符合合理使用原则。</li>
-                    <li>所有引用内容均明确标注来源，仅供教育目的使用。</li>
+                    <li>网站内为辅助阅读而引用的论文信息，其版权归原著作权人所有。</li>
+                    <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利。</li>
                 </ul>
                 
-                <h5>3. 用户生成内容</h5>
-                <ul>
-                    <li>用户在本平台上传的论文文件、笔记和批注，其版权仍归用户所有。</li>
-                    <li>用户授予本平台存储和展示这些内容的权利，以便提供解读服务。</li>
-                    <li>用户可以随时删除自己上传的内容。</li>
-                </ul>
-                
-                <h5>4. 使用许可</h5>
-                <ul>
-                    <li>任何个人或教育机构可出于非商业性学习目的自由分享网站链接。</li>
-                    <li>如需对本网站的设计或内容进行复制、修改或用于其他公开用途，请事先通过 "联系我们"中的邮箱地址 联系我们，并取得我们的书面许可。</li>
-                    <li>学校和教育机构可在获得许可后，将本网站用于课堂教学目的。</li>
-                </ul>
-                
-                <h5>5. 侵权举报</h5>
+                <h5>3. 侵权举报</h5>
                 <p>如果您认为本网站的内容侵犯了您的版权，请通过以下方式联系我们：</p>
                 <ul>
                     <li>电子邮件：1182332400@qq.com 或 biokoala@outlook.com</li>
-                    <li>请提供详细的侵权证明和您的联系方式</li>
-                    <li>我们会在收到举报后10个工作日内进行处理</li>
                 </ul>
-                
-                <div class="modal-footer">
-                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        尊重知识产权，促进学术交流。
-                    </p>
-                </div>
             `;
             break;
             
@@ -2627,22 +2517,13 @@ function showModal(type) {
                 
                 <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。因此，我们非常重视您的反馈。</p>
                 
-                <div class="contact-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h5><i class="fas fa-users"></i> 团队介绍</h5>
-                    <p>我们是参加CTB（China Thinks Big）全球青年研究创新论坛的高中生团队。我们的目标是帮助同龄人更好地阅读和理解自然科学学术论文。</p>
-                    
-                    <h5><i class="fas fa-bullseye"></i> 项目背景</h5>
-                    <p>通过前期调研，我们发现高中生阅读科学学术论文的普及率较低，主要原因包括论文可读性差、缺乏个性化辅助工具等。为此，我们开发了ANSAPRA（Adaptive Natural Science Academic Paper Reading Agent）。</p>
-                </div>
-                
                 <h5><i class="fas fa-comment-dots"></i> 您可以联系我们的事项</h5>
                 <ul>
-                    <li><strong>网站功能建议或错误报告</strong>：如果您发现网站存在bug或有改进建议</li>
-                    <li><strong>隐私政策的疑问</strong>：对个人信息处理有任何疑问</li>
-                    <li><strong>合作意向</strong>：学校、教育机构或媒体希望合作</li>
-                    <li><strong>版权相关问题</strong>：涉及内容版权的疑问或举报</li>
-                    <li><strong>学术支持</strong>：希望获得更多学术资源或指导</li>
-                    <li><strong>其他任何问题</strong>：任何与本网站相关的问题</li>
+                    <li><strong>网站功能建议或错误报告</strong></li>
+                    <li><strong>隐私政策的疑问</strong></li>
+                    <li><strong>合作意向</strong></li>
+                    <li><strong>版权相关问题</strong></li>
+                    <li><strong>其他任何问题</strong></li>
                 </ul>
                 
                 <h5><i class="fas fa-envelope-open-text"></i> 联系方式</h5>
@@ -2662,21 +2543,6 @@ function showModal(type) {
                 <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
                     <h6><i class="fas fa-clock"></i> 响应时间</h6>
                     <p>我们会在<strong>10个工作日内</strong>尽力回复您的邮件。由于我们是学生团队，回复可能会在课后时间，敬请谅解。</p>
-                </div>
-                
-                <h5><i class="fas fa-lightbulb"></i> 反馈建议</h5>
-                <p>为了让您的反馈得到更快的处理，建议您在邮件中：</p>
-                <ul>
-                    <li>明确邮件主题，如"[功能建议]"、"[错误报告]"等</li>
-                    <li>提供详细的问题描述和复现步骤</li>
-                    <li>如果是功能建议，请说明您的使用场景和期望效果</li>
-                    <li>留下您的联系方式以便我们进一步沟通</li>
-                </ul>
-                
-                <div class="modal-footer">
-                    <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        感谢您对ANSAPRA的支持！您的反馈将帮助我们不断改进。
-                    </p>
                 </div>
             `;
             break;
@@ -2715,7 +2581,6 @@ function showModal(type) {
     const modalContainer = document.getElementById('modal-container');
     modalContainer.innerHTML = modalHTML;
     
-    // 添加悬停效果
     const modal = document.getElementById('info-modal');
     const closeBtn = modal.querySelector('button[onclick="closeModal()"]');
     closeBtn.addEventListener('mouseenter', () => {
@@ -2745,7 +2610,6 @@ function printModalContent() {
                         h1, h2, h3, h4, h5, h6 { color: #007bff; }
                         ul, ol { margin-left: 20px; }
                         li { margin-bottom: 5px; }
-                        .contact-methods { display: flex; gap: 20px; }
                         .modal-footer { border-top: 1px solid #ddd; margin-top: 20px; padding-top: 10px; }
                         @media print {
                             body { font-size: 12pt; }
@@ -2794,57 +2658,6 @@ function addModalScrollbarStyles() {
             
             .modal-body::-webkit-scrollbar-thumb:hover {
                 background: #a8a8a8;
-            }
-            
-            .modal-content {
-                animation: modalFadeIn 0.3s ease;
-            }
-            
-            @keyframes modalFadeIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(-20px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-            
-            .modal {
-                animation: modalBackdropFadeIn 0.3s ease;
-            }
-            
-            @keyframes modalBackdropFadeIn {
-                from {
-                    background-color: rgba(0,0,0,0);
-                }
-                to {
-                    background-color: rgba(0,0,0,0.5);
-                }
-            }
-            
-            .contact-info {
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                border-left: 4px solid #007bff;
-            }
-            
-            .contact-method {
-                transition: transform 0.3s ease;
-                padding: 15px;
-                border: 1px solid #dee2e6;
-                border-radius: 8px;
-                background: white;
-            }
-            
-            .contact-method:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            }
-            
-            .response-time {
-                background: linear-gradient(135deg, #e8f4ff 0%, #d1ecf1 100%);
-                border-left: 4px solid #17a2b8;
             }
         `;
         document.head.appendChild(style);
