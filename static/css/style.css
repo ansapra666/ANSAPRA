@@ -1420,3 +1420,80 @@ body {
     visibility: visible;
     opacity: 1;
 }
+/* 全屏问卷样式 */
+#full-questionnaire-modal .modal-content {
+    max-width: 1200px;
+    width: 95%;
+    max-height: 95vh;
+}
+
+#full-questionnaire-modal .modal-body {
+    max-height: 75vh;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.questionnaire-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.questionnaire-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.questionnaire-section h4 {
+    color: #007bff;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.question-group {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.question-group h5 {
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    #full-questionnaire-modal .modal-content {
+        width: 98%;
+        margin: 10px;
+    }
+    
+    .questionnaire-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 注册表单中的问卷摘要样式 */
+.questionnaire-summary {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f9f0 100%);
+    border: 2px solid #28a745;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.questionnaire-summary h5 {
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.questionnaire-summary button {
+    margin-top: 10px;
+}
