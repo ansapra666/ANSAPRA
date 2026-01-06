@@ -610,166 +610,134 @@ def call_deepseek_api_with_files(messages, file_ids=None, max_tokens=4000):
 
 @app.route('/api/interpret', methods=['POST'])
 def interpret():
-    start_time = time.time()
-    try:
-        file = request.files.get('file')
-        text = request.form.get('text', '')
-        
-        logger.info(f"收到解读请求，文件: {file.filename if file else '无'}, 文本长度: {len(text)}")
-        
-        if not file and not text:
-            return jsonify({"success": False, "message": "请上传文件或输入文本"})
-        
-        # 检查API密钥
-        if not DEEPSEEK_API_KEY:
-            logger.error("DeepSeek API密钥未配置")
-            return jsonify({"success": False, "message": "API配置错误，请联系管理员"})
-        
-        file_ids = []
-        
-        # 处理文件上传
-        if file:
-            filename = secure_filename(file.filename)
-            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-            
-            # 检查文件类型
-            # 修改为支持图片格式
-            if file_ext not in ['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
-                return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
 
-            # 在文件类型检查之后，添加图片处理逻辑
-            elif file_ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
-                try:
-                    # 对于图片文件，我们可以读取为文本或进行其他处理
-                    # 这里简单地将图片转换为base64编码或提取文字信息
-                    import base64
-                    
-                    # 读取图片文件内容
-                    file_content = file.read()
-                    
-                    # 如果是图片，可以转换为base64或使用OCR提取文字
-                    # 这里先简单处理，直接返回提示信息
-                    paper_content = f"[图片文件: {filename}]\n"
-                    paper_content += "图片文件已接收。注：系统主要处理文本内容，图片中的文字可能需要OCR提取。"
-                    
-                    # 如果需要OCR功能，可以在这里添加：
-                    # import pytesseract
-                    # from PIL import Image
-                    # img = Image.open(file)
-                    # paper_content = pytesseract.image_to_string(img, lang='chi_sim+eng')
-                    
-                except Exception as img_error:
-                    paper_content = f"图片文件处理失败: {str(img_error)}\n"
-                    paper_content += "文件已上传，请AI尝试直接处理。"
-                        
-            # 检查文件大小
-            file.seek(0, 2)  # 移动到文件末尾
-            file_size = file.tell()  # 获取文件大小
-            file.seek(0)  # 重置文件指针
-            
-            max_size = 16 * 1024 * 1024  # 16MB
-            if file_size > max_size:
-                return jsonify({"success": False, "message": f"文件大小不能超过{max_size//1024//1024}MB"})
-            
-            try:
-                # 保存临时文件
-                import tempfile
-                temp_dir = tempfile.gettempdir()
-                temp_path = os.path.join(temp_dir, f"upload_{uuid.uuid4().hex}.{file_ext}")
-                file.save(temp_path)
-                logger.info(f"文件保存到临时路径: {temp_path}, 大小: {file_size}字节")
-                
-                # 上传文件到DeepSeek
-                file_id = upload_file_to_deepseek(temp_path, filename)
-                file_ids.append(file_id)
-                
-                # 清理临时文件
-                try:
-                    os.remove(temp_path)
-                except:
-                    pass
-                
-            except Exception as e:
-                logger.error(f"文件处理失败: {str(e)}")
-                # 如果文件上传失败，尝试备选方案
-                if text:
-                    # 如果有文本输入，继续使用文本
-                    logger.info("文件上传失败，使用文本输入")
-                else:
-                    return jsonify({"success": False, "message": f"文件处理失败: {str(e)}"})
+    file = request.files.get('file')
+    text = request.form.get('text', '')
+
+    if not file and not text.strip():
+        return jsonify({'success': False, 'message': '请上传文件或输入文本'}), 400
+
+    user = get_user_by_email(session['user_email'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+    try:
+        paper_content = ""
         
-            # 构建消息
-            messages = [
-                {
-                    "role": "system",
-                    "content": """你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            file_ext = os.path.splitext(filename)[1].lower()
+            
+            # 只支持PDF、DOCX、TXT格式
+            if file_ext not in ['.pdf', '.docx', '.txt']:
+                return jsonify({'success': False, 'message': f'不支持的文件格式: {file_ext}，请上传PDF、DOCX或TXT文件'}), 400
+
+            if file_ext == '.txt':
+                # 直接读取文本文件
+                paper_content = file.read().decode('utf-8', errors='ignore')
+                
+            elif file_ext == '.pdf':
+                try:
+                    # 重置文件指针
+                    file.seek(0)
                     
-                    解读要求：
-                    1. 用通俗易懂的语言解释专业术语
-                    2. 分析研究方法和实验设计
-                    3. 总结主要发现和意义
-                    4. 联系高中自然科学知识
-                    5. 指出可能的局限性和未来研究方向
+                    # 读取PDF文件内容到内存
+                    pdf_bytes = file.read()
                     
-                    请使用中文回复，结构清晰，层次分明。"""
-                }
-            ]
-            
-            user_content = ""
-            if text:
-                user_content = text
-            elif file:
-                user_content = f"请解读我上传的这篇自然科学论文文件"
-            else:
-                user_content = "请解读这篇论文"
-            
-            messages.append({
-                "role": "user",
-                "content": user_content
-            })
-            
-            # 调用DeepSeek API
-            logger.info(f"调用DeepSeek API，文件ID数量: {len(file_ids)}")
-            result = call_deepseek_api_with_files(messages, file_ids if file_ids else None)
-            
-            # 提取回复内容
-            if result and 'choices' in result and len(result['choices']) > 0:
-                interpretation = result['choices'][0]['message']['content']
-                
-                # 构建原始内容预览
-                original_preview = ""
-                if text:
-                    original_preview = text[:500] + "..." if len(text) > 500 else text
-                elif file:
-                    original_preview = f"文件: {filename} (已上传至DeepSeek进行直接处理)"
-                
-                # 构建返回结果
-                response_data = {
-                    "success": True,
-                    "original_content": original_preview,
-                    "interpretation": interpretation,
-                    "recommendations": get_recommendations(interpretation),
-                    "processing_time": round(time.time() - start_time, 2)
-                }
-                
-                # 保存到用户历史
-                if 'user' in session:
-                    add_to_history(session['user'], {
-                        "original": original_preview[:200],
-                        "interpretation": interpretation[:200],
-                        "timestamp": datetime.now().isoformat(),
-                        "file": file.filename if file else None
-                    })
-                
-                logger.info(f"解读成功，处理时间: {response_data['processing_time']}秒")
-                return jsonify(response_data)
-            else:
-                logger.error("DeepSeek API返回格式错误")
-                return jsonify({"success": False, "message": "API返回格式错误"})
-                
-        except Exception as e:
-            logger.error(f"解读失败: {str(e)}", exc_info=True)
-            return jsonify({"success": False, "message": f"解读失败: {str(e)}"})
+                    # 使用BytesIO创建内存中的文件对象
+                    from io import BytesIO
+                    pdf_file = BytesIO(pdf_bytes)
+                    
+                    # 使用PyPDF2解析PDF
+                    from PyPDF2 import PdfReader
+                    pdf_reader = PdfReader(pdf_file)
+                    paper_content = ""
+                    
+                    for page_num in range(len(pdf_reader.pages)):
+                        page = pdf_reader.pages[page_num]
+                        page_text = page.extract_text()
+                        if page_text:
+                            paper_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                    
+                    if not paper_content.strip():
+                        paper_content = "PDF文件已上传，但未能提取到文本内容。这可能是因为PDF是扫描件或包含图像文字。"
+                        
+                except Exception as pdf_error:
+                    logger.error(f"PDF解析错误: {pdf_error}")
+                    paper_content = f"PDF文件处理失败: {str(pdf_error)}\n"
+                    paper_content += "文件已上传，将尝试使用原始字节进行处理。"
+                    
+                    # 如果解析失败，至少返回文件信息
+                    file.seek(0)
+                    file_size = len(file.read())
+                    paper_content += f"\n文件名: {filename}\n"
+                    paper_content += f"文件大小: {file_size} 字节\n"
+                    paper_content += "注：请确保PDF文件包含可提取的文本（非扫描件）。"
+                    
+            elif file_ext == '.docx':
+                try:
+                    # 重置文件指针
+                    file.seek(0)
+                    
+                    # 使用python-docx读取DOCX文件
+                    from io import BytesIO
+                    import docx
+                    
+                    docx_file = BytesIO(file.read())
+                    doc = docx.Document(docx_file)
+                    paper_content = ""
+                    
+                    for paragraph in doc.paragraphs:
+                        if paragraph.text.strip():
+                            paper_content += paragraph.text + "\n"
+                    
+                    if not paper_content.strip():
+                        paper_content = "DOCX文件已上传，但未能提取到文本内容。"
+                        
+                except Exception as docx_error:
+                    logger.error(f"DOCX解析错误: {docx_error}")
+                    paper_content = f"DOCX文件处理失败: {str(docx_error)}\n"
+                    paper_content += "文件已上传，请检查文件格式。"
+                    
+        else:
+            paper_content = text
+
+        if not paper_content or paper_content.strip() == "":
+            return jsonify({'success': False, 'message': '文件内容为空或无法读取'}), 400
+
+        user_settings = user.get('settings', {})
+        history = user.get('reading_history', [])
+
+        interpretation = call_deepseek_api(user, paper_content, user_settings, history)
+        
+        history_item = {
+            'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
+            'interpretation': interpretation[:1000] + '...' if len(interpretation) > 1000 else interpretation,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        add_to_history(session['user_email'], history_item)
+
+        search_query = "natural science"
+        if paper_content:
+            words = paper_content.split()[:10]
+            search_query = ' '.join(words)
+
+        recommendations = search_springer_papers(search_query, 3)
+
+        return jsonify({
+            'success': True,
+            'interpretation': interpretation,
+            'original_content': paper_content,
+            'recommendations': recommendations,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Interpretation error: {e}")
+        return jsonify({'success': False, 'message': f'处理失败: {str(e)}'}), 500
 
 def get_recommendations(interpretation):
     """获取相关论文推荐"""
