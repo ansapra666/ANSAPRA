@@ -231,14 +231,25 @@ function switchPage(pageName) {
     window.scrollTo(0, 0);
 }
 
-// 文件处理
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
     
     const fileSize = file.size / 1024 / 1024; // MB
+    
+    // 文件大小验证
     if (fileSize > 16) {
         alert('文件大小不能超过16MB');
+        DOM.fileInput.value = '';
+        return;
+    }
+    
+    // 添加文件类型验证
+    const allowedExtensions = ['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    
+    if (!allowedExtensions.includes(fileExtension)) {
+        alert('不支持的文件格式。请上传PDF、DOCX、TXT或图片文件。');
         DOM.fileInput.value = '';
         return;
     }
