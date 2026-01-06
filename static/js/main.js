@@ -1,67 +1,327 @@
-// 全局状态管理
-const AppState = {
-    user: null,
-    currentPage: 'intro',
-    isProcessing: false,
-    language: 'zh',
-    translations: {}
-};
-
-// DOM 元素
-let DOM = {};
-
-// 在DOM加载完成后添加
+// 文件上传功能
 document.addEventListener('DOMContentLoaded', function() {
-    initializeDOM();
-    checkAuthentication();
-    loadTranslations();
-    setupEventListeners();
-    
-    // 加载问卷数据
-    loadQuestionnaire();
-
-    // 加载使用说明
-    loadInstructions();
-    
-    // 加载设置表单
-    loadSettingsForms();
-    
-    // 检查是否有已保存的问卷
-    const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
-    if (savedQuestionnaire) {
-        try {
-            window.currentQuestionnaire = JSON.parse(savedQuestionnaire);
-            updateRegisterFormQuestionnaire();
-        } catch (e) {
-            console.error('解析保存的问卷数据时出错:', e);
-        }
-    }
-    
-    // 检查是否有待处理的注册信息
-    const savedRegistration = localStorage.getItem('pendingRegistration');
-    if (savedRegistration) {
-        try {
-            window.pendingRegistration = JSON.parse(savedRegistration);
-            
-            // 自动填充注册表单
-            const emailInput = document.getElementById('register-email');
-            const usernameInput = document.getElementById('register-username');
-            const passwordInput = document.getElementById('register-password');
-            const confirmPasswordInput = document.getElementById('confirm-password');
-            
-            if (emailInput && window.pendingRegistration.email) emailInput.value = window.pendingRegistration.email;
-            if (usernameInput && window.pendingRegistration.username) usernameInput.value = window.pendingRegistration.username;
-            if (passwordInput && window.pendingRegistration.password) passwordInput.value = window.pendingRegistration.password;
-            if (confirmPasswordInput && window.pendingRegistration.password) confirmPasswordInput.value = window.pendingRegistration.password;
-            
-        } catch (e) {
-            console.error('解析保存的注册信息时出错:', e);
-        }
-    }
-    
-    // 设置Cookie同意功能
-    setupCookieConsent();
+    // 初始化文件上传功能
+    initFileUpload();
+    initLanguageUI();
 });
+
+function initFileUpload() {
+    const uploadForm = document.getElementById('upload-form');
+    const fileInput = document.getElementById('file-input');
+    const uploadBtn = document.getElementById('upload-btn');
+    const dropArea = document.getElementById('drop-area');
+    const fileList = document.getElementById('file-list');
+    
+    if (!uploadForm || !fileInput) return;
+    
+    // 拖拽上传功能
+    if (dropArea) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('highlight');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('highlight');
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        }
+    }
+    
+    // 文件选择事件
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFiles(this.files);
+        }
+    });
+    
+    // 处理文件
+    async function handleFiles(files) {
+        for (let file of files) {
+            await uploadFile(file);
+        }
+    }
+    
+    // 上传单个文件
+    async function uploadFile(file) {
+        // 检查文件格式
+        const allowedTypes = ['application/pdf', 
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'text/plain'];
+        const allowedExtensions = ['.pdf', '.docx', '.txt'];
+        
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedExtensions.includes(fileExt)) {
+            showMessage(`不支持的文件格式：${fileExt}，请上传 PDF、DOCX 或 TXT 格式的文件`, 'error');
+            return;
+        }
+        
+        // 检查文件大小 (16MB)
+        if (file.size > 16 * 1024 * 1024) {
+            showMessage('文件大小不能超过 16MB', 'error');
+            return;
+        }
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 显示上传状态
+        const fileItem = createFileItem(file);
+        if (fileList) {
+            fileList.appendChild(fileItem);
+        }
+        
+        try {
+            // 发送上传请求
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                updateFileItem(fileItem, 'success', result.message);
+                showMessage(result.message, 'success');
+                
+                // 保存文件信息
+                localStorage.setItem('currentFile', JSON.stringify(result.data));
+                
+            } else {
+                updateFileItem(fileItem, 'error', result.message || '上传失败');
+                showMessage(result.message || '上传失败', 'error');
+            }
+            
+        } catch (error) {
+            console.error('上传错误:', error);
+            updateFileItem(fileItem, 'error', '上传失败，请检查网络连接');
+            showMessage('上传失败，请检查网络连接', 'error');
+        }
+    }
+    
+    // 创建文件项
+    function createFileItem(file) {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `
+            <div class="file-info">
+                <div class="file-name">${file.name}</div>
+                <div class="file-size">${formatFileSize(file.size)}</div>
+            </div>
+            <div class="file-status">
+                <div class="status uploading">上传中...</div>
+                <div class="progress-bar">
+                    <div class="progress"></div>
+                </div>
+            </div>
+        `;
+        return item;
+    }
+    
+    // 更新文件项状态
+    function updateFileItem(item, status, message) {
+        const statusEl = item.querySelector('.status');
+        const progressBar = item.querySelector('.progress-bar');
+        
+        item.classList.remove('uploading', 'success', 'error');
+        item.classList.add(status);
+        
+        statusEl.textContent = message;
+        statusEl.className = `status ${status}`;
+        
+        if (progressBar) {
+            progressBar.style.display = 'none';
+        }
+    }
+    
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+function initLanguageUI() {
+    // 如果语言管理器已初始化，更新UI
+    if (window.languageManager) {
+        // 为所有需要翻译的元素添加data-i18n属性
+        document.querySelectorAll('[data-translate]').forEach(el => {
+            const key = el.getAttribute('data-translate');
+            el.setAttribute('data-i18n', key);
+        });
+        
+        // 更新一次页面
+        window.languageManager.updatePage();
+    }
+}
+
+// 显示消息
+function showMessage(message, type = 'info') {
+    // 创建消息元素
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${type}`;
+    messageEl.innerHTML = `
+        <span class="message-text">${message}</span>
+        <button class="message-close">&times;</button>
+    `;
+    
+    // 添加到消息容器
+    let container = document.querySelector('.message-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'message-container';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(messageEl);
+    
+    // 添加关闭按钮事件
+    const closeBtn = messageEl.querySelector('.message-close');
+    closeBtn.addEventListener('click', () => {
+        messageEl.remove();
+    });
+    
+    // 自动消失
+    setTimeout(() => {
+        if (messageEl.parentNode) {
+            messageEl.remove();
+        }
+    }, 5000);
+}
+
+// 开始论文解读
+async function startInterpretation() {
+    const fileData = JSON.parse(localStorage.getItem('currentFile') || 'null');
+    
+    if (!fileData) {
+        showMessage('请先上传论文文件', 'warning');
+        return;
+    }
+    
+    const interpretBtn = document.getElementById('interpret-btn');
+    const interpretResult = document.getElementById('interpretation-result');
+    
+    if (interpretBtn) {
+        interpretBtn.disabled = true;
+        interpretBtn.textContent = '正在解读...';
+    }
+    
+    try {
+        const response = await fetch('/api/process-paper', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                file_id: fileData.file_id,
+                filename: fileData.filename
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (interpretResult) {
+                displayInterpretation(result.data, interpretResult);
+            }
+            showMessage('论文解读完成', 'success');
+        } else {
+            showMessage(`解读失败: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('解读错误:', error);
+        showMessage('解读失败，请重试', 'error');
+    } finally {
+        if (interpretBtn) {
+            interpretBtn.disabled = false;
+            interpretBtn.textContent = '开始解读';
+        }
+    }
+}
+
+// 显示解读结果
+function displayInterpretation(data, container) {
+    if (!data || !container) return;
+    
+    let html = `
+        <div class="interpretation-report">
+            <div class="report-header">
+                <h3>论文解读报告</h3>
+                <div class="report-meta">
+                    <span class="meta-item">生成时间: ${new Date(data.generated_at || new Date()).toLocaleString()}</span>
+                    <span class="meta-item">难度: ${data.difficulty_level || '未指定'}</span>
+                    <span class="meta-item">预计阅读: ${data.estimated_reading_time || '未知'}</span>
+                </div>
+            </div>
+            
+            <div class="report-summary">
+                <h4>概要</h4>
+                <p>${data.summary || '暂无概要'}</p>
+            </div>
+    `;
+    
+    if (data.sections && data.sections.length > 0) {
+        html += `<div class="report-sections">`;
+        data.sections.forEach((section, index) => {
+            html += `
+                <div class="report-section">
+                    <h4>${section.title || `章节 ${index + 1}`}</h4>
+                    <p>${section.content || '暂无内容'}</p>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+    
+    if (data.keywords && data.keywords.length > 0) {
+        html += `
+            <div class="report-keywords">
+                <h4>关键词</h4>
+                <div class="keyword-list">
+                    ${data.keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    
+    container.innerHTML = html;
+}
+
+// 将函数暴露给全局
+window.startInterpretation = startInterpretation;
+window.showMessage = showMessage;
 
 function initializeDOM() {
     DOM = {
