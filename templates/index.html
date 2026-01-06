@@ -219,9 +219,45 @@
                             </div>
                             
                             <!-- 相关推荐 -->
+                            <!-- 修改为 -->
                             <div class="recommendations-section">
-                                <h4><i class="fas fa-book"></i> 相关论文推荐</h4>
-                                <div class="recommendations-list" id="recommendations-list"></div>
+                                <h4><i class="fas fa-search"></i> 搜索相关论文</h4>
+                                
+                                <div class="search-platforms">
+                                    <!-- Nature 搜索框 -->
+                                    <div class="search-platform">
+                                        <h5><i class="fas fa-globe" style="color: #0071bc;"></i> Nature 搜索</h5>
+                                        <div class="search-input-group">
+                                            <input 
+                                                type="text" 
+                                                class="search-input" 
+                                                id="nature-search-input" 
+                                                placeholder="输入关键词（如：quantum computing, climate change）"
+                                            >
+                                            <button class="btn btn-primary search-btn" onclick="searchNature()">
+                                                <i class="fas fa-search"></i> 搜索
+                                            </button>
+                                        </div>
+                                        <p class="search-hint">将在新标签页中打开 Nature 官网搜索结果</p>
+                                    </div>
+                                    
+                                    <!-- Science 搜索框 -->
+                                    <div class="search-platform">
+                                        <h5><i class="fas fa-flask" style="color: #dc3545;"></i> Science 搜索</h5>
+                                        <div class="search-input-group">
+                                            <input 
+                                                type="text" 
+                                                class="search-input" 
+                                                id="science-search-input" 
+                                                placeholder="输入关键词（如：biology, physics）"
+                                            >
+                                            <button class="btn btn-danger search-btn" onclick="searchScience()">
+                                                <i class="fas fa-search"></i> 搜索
+                                            </button>
+                                        </div>
+                                        <p class="search-hint">将在新标签页中打开 Science 官网搜索结果</p>
+                                    </div>
+                                </div>
                             </div>
                             
                             <!-- 思维导图 -->
