@@ -145,12 +145,15 @@ def get_history(email):
 
 def call_deepseek_api(user_data, paper_content, user_settings, history):
     """调用DeepSeek API，包含完整的用户画像分析"""
+    # 确保使用了全局定义的API配置
+    global DEEPSEEK_API_KEY, DEEPSEEK_API_URL
+    
     if not DEEPSEEK_API_KEY:
-        raise ValueError("DeepSeek API Key not configured")
-
+        raise ValueError("DeepSeek API Key not configured. Please set DEEPSEEK_API_KEY environment variable.")
+    
     # 构建用户画像分析
     user_profile = analyze_user_profile(user_data)
-
+    
     # 构建提示词
     system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置、知识框架问卷结果和用户画像，生成适合高中生的论文解读。"""
     
@@ -189,23 +192,41 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
 请在解读的末尾添加："解读内容由DeepSeek AI生成，仅供参考"
 
 请开始解读："""
-
+    
+    # 构建消息 - 这是您要求的消息模板
+    messages = [
+        {
+            "role": "system",
+            "content": """你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。
+            
+            解读要求：
+            1. 用通俗易懂的语言解释专业术语
+            2. 分析研究方法和实验设计
+            3. 总结主要发现和意义
+            4. 联系高中自然科学知识
+            5. 指出可能的局限性和未来研究方向
+            
+            请使用中文回复，结构清晰，层次分明。"""
+        },
+        {
+            "role": "user",
+            "content": user_prompt
+        }
+    ]
+    
     headers = {
         'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
         'Content-Type': 'application/json'
     }
-
+    
     payload = {
         'model': 'deepseek-chat',
-        'messages': [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_prompt}
-        ],
+        'messages': messages,  # 使用上面构建的消息
         'temperature': 0.7,
         'max_tokens': 8000,
         'stream': False
     }
-
+    
     try:
         response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
         response.raise_for_status()
@@ -219,7 +240,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
-
+        
 def analyze_user_profile(user_data):
     """根据问卷数据分析用户画像"""
     questionnaire = user_data.get('questionnaire', {})
@@ -964,3 +985,33 @@ def serve_translations():
     
     return send_from_directory(os.path.dirname(translations_path), 
                                os.path.basename(translations_path))
+    
+    #添加更健壮的PDF处理函数
+    def extract_text_from_pdf(file):
+    """提取PDF文件中的文本"""
+    try:
+        from PyPDF2 import PdfReader
+        
+        # 确保文件指针在开头
+        file.seek(0)
+        
+        # 创建内存中的PDF读取器
+        pdf_reader = PdfReader(file)
+        text_content = ""
+        
+        for i, page in enumerate(pdf_reader.pages):
+            try:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content += f"第{i+1}页:\n{page_text}\n\n"
+                else:
+                    text_content += f"第{i+1}页: [无文本内容]\n\n"
+            except Exception as page_error:
+                logger.warning(f"第{i+1}页提取失败: {page_error}")
+                text_content += f"第{i+1}页: [提取失败]\n\n"
+        
+        return text_content
+        
+    except Exception as e:
+        logger.error(f"PDF提取失败: {e}")
+        raise Exception(f"PDF文件解析失败: {str(e)}")
