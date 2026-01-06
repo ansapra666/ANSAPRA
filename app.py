@@ -130,62 +130,40 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     if not DEEPSEEK_API_KEY:
         raise ValueError("DeepSeek API Key not configured")
     
-    # 构建用户画像分析
+    # 限制paper_content长度，防止API超时
+    max_content_length = 15000  # 限制为1.5万字
+    if len(paper_content) > max_content_length:
+        paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
+    
+    # 简化用户画像，减少token数量
     user_profile = analyze_user_profile(user_data)
     
-    # 构建提示词
-    system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置、知识框架问卷结果和用户画像，生成适合高中生的论文解读。"""
+    # 构建简化的提示词
+    system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置，生成适合高中生的论文解读。"""
     
-    user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。请根据以下信息生成解读：
+    user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。
 
-用户画像分析：
-{json.dumps(user_profile, ensure_ascii=False, indent=2)}
-
-用户个性化设置：
-{json.dumps(user_settings, ensure_ascii=False, indent=2)}
-
-用户知识框架问卷详细结果：
-{json.dumps(user_data.get('questionnaire', {}), ensure_ascii=False, indent=2)}
-
-过往阅读记录（最近5条）：
-{json.dumps(history[:5], ensure_ascii=False, indent=2)}
-
-需要解读的论文内容：
-{paper_content}
+论文内容：
+{paper_content[:10000]}  # 进一步限制输入长度
 
 解读要求：
-1. 根据用户画像中的知识储备水平，调整解读的深度和广度
-2. 根据用户的学习方式偏好，采用对应的解读方式
-3. 根据用户的知识框架形式，组织解读内容的逻辑结构
-4. 根据用户的各项能力评分，在解读中适当引导和提升薄弱能力
-5. 根据用户的科学辨伪能力，在解读中强调批判性思维的重要性
-6. 句子简短、清晰，避免冗长
-7. 逻辑清晰地分出小标题，有条理地分开各部分
-8. 遵循论文本身的分段逻辑
-9. 只进行论文内容的解读，不生成其他内容
-10. 注重用户知识框架的薄弱点，发挥用户的长处
-11. 在解读的最后附上"术语解读区"
-12. 所有内容使用中文
-13. 不要对文本长度进行限制
+1. 用通俗易懂的语言解释专业术语
+2. 分析研究方法和实验设计
+3. 总结主要发现和意义
+4. 联系高中自然科学知识
+5. 指出可能的局限性和未来研究方向
+6. 在解读的最后附上"术语解读区"
+7. 所有内容使用中文
 
 请在解读的末尾添加："解读内容由DeepSeek AI生成，仅供参考"
 
 请开始解读："""
     
-    # 构建消息 - 这是您要求的消息模板
+    # 构建消息
     messages = [
         {
             "role": "system",
-            "content": """你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。
-            
-            解读要求：
-            1. 用通俗易懂的语言解释专业术语
-            2. 分析研究方法和实验设计
-            3. 总结主要发现和意义
-            4. 联系高中自然科学知识
-            5. 指出可能的局限性和未来研究方向
-            
-            请使用中文回复，结构清晰，层次分明。"""
+            "content": system_prompt
         },
         {
             "role": "user",
@@ -202,12 +180,14 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         'model': 'deepseek-chat',
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 8000,
-        'stream': False
+        'max_tokens': 4000,  # 减少输出token数量
+        'stream': False,
+        'timeout': 60  # 添加超时设置
     }
     
     try:
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
+        # 设置更短的超时时间
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=90)
         response.raise_for_status()
         result = response.json()
         
@@ -216,6 +196,9 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         else:
             raise ValueError("No response from DeepSeek API")
             
+    except requests.exceptions.Timeout:
+        logger.error("DeepSeek API请求超时")
+        raise Exception("AI处理超时，请稍后重试或缩短文本长度")
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
@@ -549,6 +532,13 @@ def update_settings():
     else:
         return jsonify({'success': False, 'message': '更新失败'}), 400
 
+import asyncio
+import aiohttp
+import concurrent.futures
+from functools import partial
+import time
+
+# 在 interpret 函数中添加超时保护
 @app.route('/api/interpret', methods=['POST'])
 def interpret():
     if 'user_email' not in session:
@@ -596,11 +586,18 @@ def interpret():
                     pdf_reader = PdfReader(pdf_file)
                     paper_content = ""
                     
-                    for page_num in range(len(pdf_reader.pages)):
+                    # 限制页面数量，防止过长的PDF
+                    max_pages = 20  # 最多处理20页
+                    total_pages = min(len(pdf_reader.pages), max_pages)
+                    
+                    for page_num in range(total_pages):
                         page = pdf_reader.pages[page_num]
                         page_text = page.extract_text()
                         if page_text:
                             paper_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                    
+                    if total_pages < len(pdf_reader.pages):
+                        paper_content += f"\n[注：PDF共{len(pdf_reader.pages)}页，仅处理前{max_pages}页]\n"
                     
                     if not paper_content.strip():
                         paper_content = "PDF文件已上传，但未能提取到文本内容。这可能是因为PDF是扫描件或包含图像文字。"
@@ -608,7 +605,6 @@ def interpret():
                 except Exception as pdf_error:
                     logger.error(f"PDF解析错误: {pdf_error}")
                     paper_content = f"PDF文件处理失败: {str(pdf_error)}\n"
-                    paper_content += "文件已上传，将尝试使用原始字节进行处理。"
                     
                     # 如果解析失败，至少返回文件信息
                     file.seek(0)
@@ -645,14 +641,25 @@ def interpret():
         else:
             paper_content = text
 
+        # 限制文本长度，防止过长的请求
+        max_text_length = 20000  # 限制为2万字
+        if len(paper_content) > max_text_length:
+            paper_content = paper_content[:max_text_length] + "\n\n[注：文本过长，已截断部分内容]"
+
         if not paper_content or paper_content.strip() == "":
             return jsonify({'success': False, 'message': '文件内容为空或无法读取'}), 400
 
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
 
-        # 调用DeepSeek API
-        interpretation = call_deepseek_api(user, paper_content, user_settings, history)
+        # 调用DeepSeek API，添加超时处理
+        try:
+            start_time = time.time()
+            interpretation = call_deepseek_api(user, paper_content, user_settings, history)
+            logger.info(f"DeepSeek API调用完成，耗时: {time.time() - start_time:.2f}秒")
+        except Exception as api_error:
+            logger.error(f"DeepSeek API调用失败: {api_error}")
+            return jsonify({'success': False, 'message': f'AI处理失败: {str(api_error)}'}), 500
         
         history_item = {
             'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
@@ -662,12 +669,26 @@ def interpret():
         
         add_to_history(session['user_email'], history_item)
 
-        search_query = "natural science"
-        if paper_content:
-            words = paper_content.split()[:10]
-            search_query = ' '.join(words)
-
-        recommendations = search_springer_papers(search_query, 3)
+        # 异步搜索Springer论文，不阻塞主线程
+        recommendations = []
+        try:
+            search_query = "natural science"
+            if paper_content:
+                words = paper_content.split()[:5]  # 减少关键词数量
+                search_query = ' '.join(words)
+            
+            # 使用线程池执行搜索，设置超时
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(search_springer_papers, search_query, 3)
+                try:
+                    recommendations = future.result(timeout=10)  # 10秒超时
+                except concurrent.futures.TimeoutError:
+                    logger.warning("Springer API搜索超时")
+                    recommendations = []
+                    
+        except Exception as search_error:
+            logger.error(f"搜索论文失败: {search_error}")
+            recommendations = []
 
         return jsonify({
             'success': True,
