@@ -1,56 +1,36 @@
-# app.py 顶部
 import os
 import json
-import base64
 import tempfile
-import logging
-import time
-import uuid
 from datetime import datetime
-
-# Flask相关
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_cors import CORS
-
-# 工具库
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import uuid
+import logging
 
-# 初始化应用
-app = Flask(__name__)
-
-# 配置（确保在创建app之后）
-def configure_app():
-    app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
-    app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-    app.config['TIMEOUT'] = 180  # 增加超时时间到180秒
-    
-    # API配置
-    app.config['DEEPSEEK_API_KEY'] = os.environ.get('DEEPSEEK_API_KEY')
-    app.config['SPRINGER_API_KEY'] = os.environ.get('SPRINGER_API_KEY', '')
-    
-    # API端点
-    app.config['DEEPSEEK_CHAT_URL'] = "https://api.deepseek.com/v1/chat/completions"
-    app.config['DEEPSEEK_FILES_URL'] = "https://api.deepseek.com/v1/files"
-    
-    # 用户数据文件路径
-    app.config['USERS_FILE'] = 'data/users.json'
-
-configure_app()
-CORS(app)
-
-# 创建logger
+# 配置日志
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# 方便使用的变量
-DEEPSEEK_API_KEY = app.config['DEEPSEEK_API_KEY']
-DEEPSEEK_CHAT_URL = app.config['DEEPSEEK_CHAT_URL']
-DEEPSEEK_FILES_URL = app.config['DEEPSEEK_FILES_URL']
-USERS_FILE = app.config['USERS_FILE']
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
-# ... 其他函数定义 ...
+CORS(app)
+
+# API配置 - 确保这些变量已定义
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"  # 确保这行存在
+SPRINGER_API_KEY = os.environ.get('SPRINGER_API_KEY')
+SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
+
+# 用户数据文件路径
+USERS_FILE = 'data/users.json'
 
 def load_users():
     """加载用户数据"""
@@ -74,7 +54,6 @@ def get_user_by_email(email):
 def create_user(email, username, password, questionnaire=None):
     """创建新用户"""
     users = load_users()
-    
     if email in users:
         return False, "邮箱已存在"
     
@@ -127,9 +106,11 @@ def add_to_history(email, history_item):
     if email in users:
         if 'reading_history' not in users[email]:
             users[email]['reading_history'] = []
+        
         history_item['id'] = str(uuid.uuid4())
         history_item['timestamp'] = datetime.now().isoformat()
         users[email]['reading_history'].insert(0, history_item)
+        
         # 保持最多50条历史记录
         users[email]['reading_history'] = users[email]['reading_history'][:50]
         save_users(users)
@@ -145,11 +126,9 @@ def get_history(email):
 
 def call_deepseek_api(user_data, paper_content, user_settings, history):
     """调用DeepSeek API，包含完整的用户画像分析"""
-    # 确保使用了全局定义的API配置
-    global DEEPSEEK_API_KEY, DEEPSEEK_API_URL
-    
+    # 检查API密钥是否配置
     if not DEEPSEEK_API_KEY:
-        raise ValueError("DeepSeek API Key not configured. Please set DEEPSEEK_API_KEY environment variable.")
+        raise ValueError("DeepSeek API Key not configured")
     
     # 构建用户画像分析
     user_profile = analyze_user_profile(user_data)
@@ -221,7 +200,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     
     payload = {
         'model': 'deepseek-chat',
-        'messages': messages,  # 使用上面构建的消息
+        'messages': messages,
         'temperature': 0.7,
         'max_tokens': 8000,
         'stream': False
@@ -240,7 +219,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
-        
+
 def analyze_user_profile(user_data):
     """根据问卷数据分析用户画像"""
     questionnaire = user_data.get('questionnaire', {})
@@ -414,8 +393,8 @@ def search_springer_papers(query, count=5):
         response = requests.get(SPRINGER_API_URL, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
-        
         papers = []
+        
         if 'records' in data:
             for record in data['records'][:count]:
                 paper = {
@@ -429,9 +408,40 @@ def search_springer_papers(query, count=5):
                 papers.append(paper)
         
         return papers
+        
     except requests.exceptions.RequestException as e:
         logger.error(f"Springer API error: {e}")
         return []
+
+# 添加PDF处理的辅助函数
+def extract_text_from_pdf(file):
+    """提取PDF文件中的文本"""
+    try:
+        from PyPDF2 import PdfReader
+        
+        # 确保文件指针在开头
+        file.seek(0)
+        
+        # 创建内存中的PDF读取器
+        pdf_reader = PdfReader(file)
+        text_content = ""
+        
+        for i, page in enumerate(pdf_reader.pages):
+            try:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content += f"第{i+1}页:\n{page_text}\n\n"
+                else:
+                    text_content += f"第{i+1}页: [无文本内容]\n\n"
+            except Exception as page_error:
+                logger.warning(f"第{i+1}页提取失败: {page_error}")
+                text_content += f"第{i+1}页: [提取失败]\n\n"
+        
+        return text_content
+        
+    except Exception as e:
+        logger.error(f"PDF提取失败: {e}")
+        raise Exception(f"PDF文件解析失败: {str(e)}")
 
 # 路由定义
 @app.route('/')
@@ -452,10 +462,10 @@ def register():
     username = data.get('username')
     password = data.get('password')
     questionnaire = data.get('questionnaire', {})
-
+    
     if not all([email, username, password]):
         return jsonify({'success': False, 'message': '请填写所有必填项'}), 400
-
+    
     success, result = create_user(email, username, password, questionnaire)
     
     if success:
@@ -538,96 +548,6 @@ def update_settings():
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'message': '更新失败'}), 400
-
-# 修改原有的interpret函数，支持文件上传到DeepSeek
-import base64
-
-def upload_file_to_deepseek(file_path, filename, purpose="assistants"):
-    """上传文件到DeepSeek API并返回文件ID"""
-    if not DEEPSEEK_API_KEY:
-        raise Exception("DeepSeek API密钥未配置")
-    
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-    }
-    
-    try:
-        with open(file_path, 'rb') as file:
-            files = {
-                'purpose': (None, purpose),
-                'file': (filename, file, 'application/octet-stream')
-            }
-            
-            logger.info(f"开始上传文件到DeepSeek: {filename}")
-            response = requests.post(
-                DEEPSEEK_FILES_URL, 
-                headers=headers, 
-                files=files,
-                timeout=60
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                file_id = result.get('id')
-                logger.info(f"文件上传成功，文件ID: {file_id}")
-                return file_id
-            else:
-                logger.error(f"DeepSeek文件上传失败: {response.status_code} - {response.text}")
-                raise Exception(f"文件上传失败: {response.status_code}")
-                
-    except requests.exceptions.Timeout:
-        logger.error("文件上传超时")
-        raise Exception("文件上传超时，请稍后重试")
-    except Exception as e:
-        logger.error(f"文件上传异常: {str(e)}")
-        raise Exception(f"文件上传失败: {str(e)}")
-
-def call_deepseek_api_with_files(messages, file_ids=None, max_tokens=4000):
-    """调用DeepSeek API，支持文件"""
-    if not DEEPSEEK_API_KEY:
-        raise Exception("DeepSeek API密钥未配置")
-    
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    # 如果有文件ID，添加到消息中
-    if file_ids and len(file_ids) > 0:
-        for message in messages:
-            if message['role'] == 'user':
-                message['file_ids'] = file_ids
-                break
-    
-    data = {
-        "model": "deepseek-chat",
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7,
-        "stream": False
-    }
-    
-    try:
-        logger.info(f"调用DeepSeek API，消息数量: {len(messages)}")
-        response = requests.post(
-            DEEPSEEK_CHAT_URL, 
-            headers=headers, 
-            json=data, 
-            timeout=60
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            logger.error(f"DeepSeek API调用失败: {response.status_code} - {response.text}")
-            raise Exception(f"API调用失败: {response.status_code}")
-            
-    except requests.exceptions.Timeout:
-        logger.error("DeepSeek API调用超时")
-        raise Exception("API调用超时，请稍后重试")
-    except Exception as e:
-        logger.error(f"DeepSeek API调用异常: {str(e)}")
-        raise Exception(f"API调用失败: {str(e)}")
 
 @app.route('/api/interpret', methods=['POST'])
 def interpret():
@@ -731,6 +651,7 @@ def interpret():
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
 
+        # 调用DeepSeek API
         interpretation = call_deepseek_api(user, paper_content, user_settings, history)
         
         history_item = {
@@ -760,28 +681,13 @@ def interpret():
         logger.error(f"Interpretation error: {e}")
         return jsonify({'success': False, 'message': f'处理失败: {str(e)}'}), 500
 
-def get_recommendations(interpretation):
-    """获取相关论文推荐"""
-    # 这里可以调用Springer API或其他学术数据库API
-    # 简化版本，返回静态数据
-    return [
-        {
-            "title": "Climate Change Impacts on Marine Ecosystems: A Comprehensive Review",
-            "authors": "Smith, J., Johnson, A., Williams, R.",
-            "publication": "Nature Climate Change",
-            "year": "2023",
-            "abstract": "This review synthesizes current knowledge on the multifaceted impacts of climate change on marine ecosystems...",
-            "url": "https://www.nature.com/articles/s41558-023-01614-7"
-        },
-        {
-            "title": "Adaptive Responses of Coral Reefs to Ocean Acidification",
-            "authors": "Chen, L., Wang, Y., Tanaka, K.",
-            "publication": "Science",
-            "year": "2022",
-            "abstract": "Investigating the physiological and genetic adaptations of coral species to changing ocean chemistry...",
-            "url": "https://www.science.org/doi/10.1126/science.abo0393"
-        }
-    ]
+@app.route('/api/history', methods=['GET'])
+def get_reading_history():
+    if 'user_email' not in session or session.get('is_guest'):
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    history = get_history(session['user_email'])
+    return jsonify({'success': True, 'history': history})
 
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
@@ -812,17 +718,12 @@ def check_auth():
                     'is_guest': session.get('is_guest', False)
                 }
             })
-    
     return jsonify({'success': False}), 401
 
 # 健康检查端点
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=True)
 
 @app.route('/api/user/update-questionnaire', methods=['POST'])
 def update_questionnaire():
@@ -831,8 +732,8 @@ def update_questionnaire():
     
     data = request.json
     questionnaire = data.get('questionnaire', {})
-    
     users = load_users()
+    
     if session['user_email'] in users:
         users[session['user_email']]['questionnaire'] = questionnaire
         save_users(users)
@@ -859,159 +760,21 @@ def get_user_profile():
         'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
     })
 
-from flask import request, jsonify
-import os
-from werkzeug.utils import secure_filename
-
-# 配置文件上传
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'pdf', 'docx'}
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/api/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
-        # 确保上传目录存在
-        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        
-        file.save(file_path)
-        
-        # 这里可以添加文件处理逻辑
-        # process_file(file_path)
-        
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'message': 'File uploaded successfully'
-        }), 200
-    
-    return jsonify({'error': 'File type not allowed'}), 400
-    
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, send_from_directory
-import os
-import json
-
-# 语言文件路由 - 修复版本
-@app.route('/api/language/translations')
-def get_translations():
-    """获取翻译文件"""
-    try:
-        # 根据请求参数确定语言
-        lang = request.args.get('lang', 'en')
-        file_path = os.path.join(app.root_path, 'static', 'lang', f'translations_{lang}.json')
-        
-        # 如果指定语言的翻译文件不存在，使用默认的英语文件
-        if not os.path.exists(file_path):
-            file_path = os.path.join(app.root_path, 'static', 'lang', 'translations_en.json')
-        
-        # 检查文件是否存在
-        if not os.path.exists(file_path):
-            return jsonify({'error': 'Translations file not found'}), 404
-        
-        # 读取并返回JSON文件
-        with open(file_path, 'r', encoding='utf-8') as f:
-            translations = json.load(f)
-        
-        return jsonify(translations)
-    
-    except Exception as e:
-        app.logger.error(f"Error loading translations: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-# 或者使用单个翻译文件的方式
 @app.route('/static/lang/translations.json')
-def serve_translations():
-    """提供翻译文件"""
+def get_translations():
+    # 确保语言文件存在
+    import os
     translations_path = os.path.join(app.static_folder, 'lang', 'translations.json')
     
-    # 检查文件是否存在
-    if not os.path.exists(translations_path):
-        # 创建默认的翻译文件
-        default_translations = {
-            'en': {
-                'ANSAPRA': 'ANSAPRA',
-                'Adaptive Natural Science Academic Paper Reading Agent for High School Students': 'Adaptive Natural Science Academic Paper Reading Agent for High School Students',
-                'Website Introduction': 'Website Introduction',
-                'User Guide': 'User Guide',
-                'Paper Interpretation': 'Paper Interpretation',
-                'User Settings': 'User Settings',
-                'Login': 'Login',
-                'Register': 'Register',
-                'Email Address': 'Email Address',
-                'Password': 'Password',
-                'Upload Paper': 'Upload Paper',
-                'Start Interpretation': 'Start Interpretation',
-                # 添加更多翻译...
-            },
-            'zh': {
-                'ANSAPRA': 'ANSAPRA',
-                'Adaptive Natural Science Academic Paper Reading Agent for High School Students': '面向高中生的自适应自然科学学术论文阅读助手',
-                'Website Introduction': '网站介绍',
-                'User Guide': '用户指南',
-                'Paper Interpretation': '论文解读',
-                'User Settings': '用户设置',
-                'Login': '登录',
-                'Register': '注册',
-                'Email Address': '邮箱地址',
-                'Password': '密码',
-                'Upload Paper': '上传论文',
-                'Start Interpretation': '开始解读',
-                # 添加更多翻译...
-            }
-        }
-        
-        # 创建目录
-        os.makedirs(os.path.dirname(translations_path), exist_ok=True)
-        
-        # 写入默认翻译文件
-        with open(translations_path, 'w', encoding='utf-8') as f:
-            json.dump(default_translations, f, ensure_ascii=False, indent=2)
-    
-    return send_from_directory(os.path.dirname(translations_path), 
-                               os.path.basename(translations_path))
-    
-#添加更健壮的PDF处理函数
-def extract_text_from_pdf(file):
-"""提取PDF文件中的文本"""
-try:
-    from PyPDF2 import PdfReader
-        
-    # 确保文件指针在开头
-    file.seek(0)
-        
-    # 创建内存中的PDF读取器
-    pdf_reader = PdfReader(file)
-    text_content = ""
-        
-    for i, page in enumerate(pdf_reader.pages):
-        try:
-            page_text = page.extract_text()
-            if page_text:
-                text_content += f"第{i+1}页:\n{page_text}\n\n"
-            else:
-                text_content += f"第{i+1}页: [无文本内容]\n\n"
-        except Exception as page_error:
-            logger.warning(f"第{i+1}页提取失败: {page_error}")
-            text_content += f"第{i+1}页: [提取失败]\n\n"
-        
-    return text_content
-        
-except Exception as e:
-    logger.error(f"PDF提取失败: {e}")
-    raise Exception(f"PDF文件解析失败: {str(e)}")
+    if os.path.exists(translations_path):
+        return send_file(translations_path)
+    else:
+        # 返回默认翻译
+        return jsonify({
+            "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
+            "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
+        })
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=True)
