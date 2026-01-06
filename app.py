@@ -1,34 +1,56 @@
+# app.py 顶部
+import os
+import json
+import base64
+import tempfile
 import logging
 import time
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime
+
+# Flask相关
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
+
+# 工具库
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import uuid
 
-# 配置日志
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
+# 初始化应用
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-app.config['TIMEOUT'] = 120  # 增加超时时间到120秒
+
+# 配置（确保在创建app之后）
+def configure_app():
+    app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB限制
+    app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+    app.config['TIMEOUT'] = 180  # 增加超时时间到180秒
+    
+    # API配置
+    app.config['DEEPSEEK_API_KEY'] = os.environ.get('DEEPSEEK_API_KEY')
+    app.config['SPRINGER_API_KEY'] = os.environ.get('SPRINGER_API_KEY', '')
+    
+    # API端点
+    app.config['DEEPSEEK_CHAT_URL'] = "https://api.deepseek.com/v1/chat/completions"
+    app.config['DEEPSEEK_FILES_URL'] = "https://api.deepseek.com/v1/files"
+    
+    # 用户数据文件路径
+    app.config['USERS_FILE'] = 'data/users.json'
+
+configure_app()
 CORS(app)
 
-# API配置
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
-SPRINGER_API_KEY = os.environ.get('SPRINGER_API_KEY', '')
+# 创建logger
+logger = logging.getLogger(__name__)
 
-# DeepSeek API端点
-DEEPSEEK_CHAT_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_FILES_URL = "https://api.deepseek.com/v1/files"  # 文件上传端点
+# 方便使用的变量
+DEEPSEEK_API_KEY = app.config['DEEPSEEK_API_KEY']
+DEEPSEEK_CHAT_URL = app.config['DEEPSEEK_CHAT_URL']
+DEEPSEEK_FILES_URL = app.config['DEEPSEEK_FILES_URL']
+USERS_FILE = app.config['USERS_FILE']
 
-# 用户数据文件路径
-USERS_FILE = 'data/users.json'
+# ... 其他函数定义 ...
 
 def load_users():
     """加载用户数据"""
