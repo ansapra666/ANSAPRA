@@ -845,171 +845,54 @@ def get_user_profile():
         'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
     })
 
-# 在 app.py 中添加文件上传处理
-
+from flask import request, jsonify
 import os
 from werkzeug.utils import secure_filename
-from datetime import datetime
-import uuid
 
 # 配置文件上传
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
+ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# 确保上传目录存在
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 def allowed_file(filename):
-    """检查文件扩展名是否允许"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """处理文件上传"""
-    try:
-        # 检查是否有文件部分
-        if 'file' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'No file part',
-                'message': '没有上传文件'
-            }), 400
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        file = request.files['file']
+        # 确保上传目录存在
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
-        # 检查是否选择了文件
-        if file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'No selected file',
-                'message': '请选择要上传的文件'
-            }), 400
-        
-        # 检查文件格式
-        if not allowed_file(file.filename):
-            return jsonify({
-                'success': False,
-                'error': 'Invalid file format',
-                'message': '只支持 PDF、DOCX、TXT 格式的文件'
-            }), 400
-        
-        # 生成安全文件名
-        original_filename = secure_filename(file.filename)
-        file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
-        unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        
-        # 保存文件
         file.save(file_path)
         
-        # 获取文件大小
-        file_size = os.path.getsize(file_path)
-        
-        # 记录文件信息
-        file_info = {
-            'id': str(uuid.uuid4()),
-            'original_name': original_filename,
-            'saved_name': unique_filename,
-            'path': file_path,
-            'size': file_size,
-            'extension': file_ext,
-            'upload_time': datetime.now().isoformat(),
-            'status': 'uploaded'
-        }
-        
-        # 将文件信息存入session（临时方案，实际应存数据库）
-        if 'uploaded_files' not in session:
-            session['uploaded_files'] = []
-        
-        session['uploaded_files'].append(file_info)
-        session.modified = True
+        # 这里可以添加文件处理逻辑
+        # process_file(file_path)
         
         return jsonify({
             'success': True,
-            'message': '文件上传成功',
-            'data': {
-                'file_id': file_info['id'],
-                'filename': original_filename,
-                'size': file_size,
-                'extension': file_ext,
-                'upload_time': file_info['upload_time']
-            }
+            'filename': filename,
+            'message': 'File uploaded successfully'
         }), 200
-        
-    except Exception as e:
-        app.logger.error(f"File upload error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': '文件上传失败，请重试'
-        }), 500
+    
+    return jsonify({'error': 'File type not allowed'}), 400
+    
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, send_from_directory
+import os
+import json
 
-@app.route('/api/process-paper', methods=['POST'])
-def process_paper():
-    """处理论文解读请求"""
-    try:
-        data = request.json
-        file_id = data.get('file_id')
-        content = data.get('content', '')
-        
-        if not file_id:
-            return jsonify({
-                'success': False,
-                'error': 'No file ID provided',
-                'message': '未提供文件ID'
-            }), 400
-        
-        # 这里模拟AI处理过程
-        # 实际应用中应该调用AI模型
-        
-        # 模拟处理延迟
-        import time
-        time.sleep(2)
-        
-        # 生成通用的解读报告
-        interpretation = {
-            'summary': '这是一篇学术论文的解读报告。根据上传的文件内容，系统已成功分析论文的主要结构和关键信息。',
-            'sections': [
-                {
-                    'title': '论文概述',
-                    'content': '本文是一篇学术研究论文，探讨了相关领域的重要问题。论文结构完整，包含了摘要、引言、方法、结果、讨论和参考文献等标准部分。'
-                },
-                {
-                    'title': '研究方法',
-                    'content': '研究采用了标准的研究方法，包括实验设计、数据收集和分析等步骤。方法部分描述详细，具有可重复性。'
-                },
-                {
-                    'title': '主要发现',
-                    'content': '论文提出了若干重要发现，这些发现对相关领域的研究具有一定的贡献和启示。'
-                },
-                {
-                    'title': '结论与展望',
-                    'content': '研究得出结论，并对未来研究方向提出了建议。论文的论证逻辑清晰，结论合理。'
-                }
-            ],
-            'keywords': ['学术论文', '研究分析', '科学方法'],
-            'difficulty_level': '中等',
-            'estimated_reading_time': '15分钟',
-            'generated_at': datetime.now().isoformat()
-        }
-        
-        return jsonify({
-            'success': True,
-            'message': '论文解读完成',
-            'data': interpretation
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Paper processing error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': '论文处理失败'
-        }), 500
 # 语言文件路由 - 修复版本
 @app.route('/api/language/translations')
 def get_translations():
