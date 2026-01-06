@@ -1,28 +1,33 @@
-# gunicorn_config.py
+# gunicorn.conf.py
 import multiprocessing
 
-# gunicorn_config.py
+# 服务器设置
 bind = "0.0.0.0:10000"
 workers = 2
 worker_class = "sync"
-timeout = None
+
+# 超时设置 - 这是关键！
+timeout = 180  # 3分钟
 keepalive = 5
-worker_connections = 1000
+graceful_timeout = 30
+
+# Worker管理
 max_requests = 1000
 max_requests_jitter = 50
+preload_app = True
 
-# 日志设置
+# 日志
 accesslog = "-"
 errorlog = "-"
 loglevel = "info"
+capture_output = True
 
-# 进程名称
-proc_name = "ansapra"
+# 连接设置
+backlog = 2048
+worker_connections = 1000
 
-# 防止worker被杀死前的时间
-graceful_timeout = 10000
+def when_ready(server):
+    server.log.info(f"服务器启动完成，超时设置为 {timeout} 秒")
 
-# 最大请求数，防止内存泄漏
-max_requests = 1000
-max_requests_jitter = 50
-
+def worker_exit(server, worker):
+    server.log.info(f"Worker {worker.pid} 退出")
