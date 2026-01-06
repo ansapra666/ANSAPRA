@@ -3,13 +3,13 @@ import multiprocessing
 
 # 服务器设置
 bind = "0.0.0.0:10000"
-workers = 2
+workers = 1
 worker_class = "sync"
 
 # 超时设置 - 这是关键！
 timeout = 600  # 3分钟
 keepalive = 5
-graceful_timeout = 30
+graceful_timeout = 60
 
 # Worker管理
 max_requests = 1000
