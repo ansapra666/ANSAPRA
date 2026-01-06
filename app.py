@@ -636,7 +636,32 @@ def interpret():
             # 修改为支持图片格式
             if file_ext not in ['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
                 return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
-            
+
+            # 在文件类型检查之后，添加图片处理逻辑
+            elif file_ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
+                try:
+                    # 对于图片文件，我们可以读取为文本或进行其他处理
+                    # 这里简单地将图片转换为base64编码或提取文字信息
+                    import base64
+                    
+                    # 读取图片文件内容
+                    file_content = file.read()
+                    
+                    # 如果是图片，可以转换为base64或使用OCR提取文字
+                    # 这里先简单处理，直接返回提示信息
+                    paper_content = f"[图片文件: {filename}]\n"
+                    paper_content += "图片文件已接收。注：系统主要处理文本内容，图片中的文字可能需要OCR提取。"
+                    
+                    # 如果需要OCR功能，可以在这里添加：
+                    # import pytesseract
+                    # from PIL import Image
+                    # img = Image.open(file)
+                    # paper_content = pytesseract.image_to_string(img, lang='chi_sim+eng')
+                    
+                except Exception as img_error:
+                    paper_content = f"图片文件处理失败: {str(img_error)}\n"
+                    paper_content += "文件已上传，请AI尝试直接处理。"
+                        
             # 检查文件大小
             file.seek(0, 2)  # 移动到文件末尾
             file_size = file.tell()  # 获取文件大小
@@ -673,78 +698,78 @@ def interpret():
                 else:
                     return jsonify({"success": False, "message": f"文件处理失败: {str(e)}"})
         
-        # 构建消息
-        messages = [
-            {
-                "role": "system",
-                "content": """你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。
-                
-                解读要求：
-                1. 用通俗易懂的语言解释专业术语
-                2. 分析研究方法和实验设计
-                3. 总结主要发现和意义
-                4. 联系高中自然科学知识
-                5. 指出可能的局限性和未来研究方向
-                
-                请使用中文回复，结构清晰，层次分明。"""
-            }
-        ]
-        
-        user_content = ""
-        if text:
-            user_content = text
-        elif file:
-            user_content = f"请解读我上传的这篇自然科学论文文件"
-        else:
-            user_content = "请解读这篇论文"
-        
-        messages.append({
-            "role": "user",
-            "content": user_content
-        })
-        
-        # 调用DeepSeek API
-        logger.info(f"调用DeepSeek API，文件ID数量: {len(file_ids)}")
-        result = call_deepseek_api_with_files(messages, file_ids if file_ids else None)
-        
-        # 提取回复内容
-        if result and 'choices' in result and len(result['choices']) > 0:
-            interpretation = result['choices'][0]['message']['content']
+            # 构建消息
+            messages = [
+                {
+                    "role": "system",
+                    "content": """你是一个自然科学论文解读助手，专门帮助高中生理解复杂的学术论文。
+                    
+                    解读要求：
+                    1. 用通俗易懂的语言解释专业术语
+                    2. 分析研究方法和实验设计
+                    3. 总结主要发现和意义
+                    4. 联系高中自然科学知识
+                    5. 指出可能的局限性和未来研究方向
+                    
+                    请使用中文回复，结构清晰，层次分明。"""
+                }
+            ]
             
-            # 构建原始内容预览
-            original_preview = ""
+            user_content = ""
             if text:
-                original_preview = text[:500] + "..." if len(text) > 500 else text
+                user_content = text
             elif file:
-                original_preview = f"文件: {filename} (已上传至DeepSeek进行直接处理)"
+                user_content = f"请解读我上传的这篇自然科学论文文件"
+            else:
+                user_content = "请解读这篇论文"
             
-            # 构建返回结果
-            response_data = {
-                "success": True,
-                "original_content": original_preview,
-                "interpretation": interpretation,
-                "recommendations": get_recommendations(interpretation),
-                "processing_time": round(time.time() - start_time, 2)
-            }
+            messages.append({
+                "role": "user",
+                "content": user_content
+            })
             
-            # 保存到用户历史
-            if 'user' in session:
-                add_to_history(session['user'], {
-                    "original": original_preview[:200],
-                    "interpretation": interpretation[:200],
-                    "timestamp": datetime.now().isoformat(),
-                    "file": file.filename if file else None
-                })
+            # 调用DeepSeek API
+            logger.info(f"调用DeepSeek API，文件ID数量: {len(file_ids)}")
+            result = call_deepseek_api_with_files(messages, file_ids if file_ids else None)
             
-            logger.info(f"解读成功，处理时间: {response_data['processing_time']}秒")
-            return jsonify(response_data)
-        else:
-            logger.error("DeepSeek API返回格式错误")
-            return jsonify({"success": False, "message": "API返回格式错误"})
-            
-    except Exception as e:
-        logger.error(f"解读失败: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "message": f"解读失败: {str(e)}"})
+            # 提取回复内容
+            if result and 'choices' in result and len(result['choices']) > 0:
+                interpretation = result['choices'][0]['message']['content']
+                
+                # 构建原始内容预览
+                original_preview = ""
+                if text:
+                    original_preview = text[:500] + "..." if len(text) > 500 else text
+                elif file:
+                    original_preview = f"文件: {filename} (已上传至DeepSeek进行直接处理)"
+                
+                # 构建返回结果
+                response_data = {
+                    "success": True,
+                    "original_content": original_preview,
+                    "interpretation": interpretation,
+                    "recommendations": get_recommendations(interpretation),
+                    "processing_time": round(time.time() - start_time, 2)
+                }
+                
+                # 保存到用户历史
+                if 'user' in session:
+                    add_to_history(session['user'], {
+                        "original": original_preview[:200],
+                        "interpretation": interpretation[:200],
+                        "timestamp": datetime.now().isoformat(),
+                        "file": file.filename if file else None
+                    })
+                
+                logger.info(f"解读成功，处理时间: {response_data['processing_time']}秒")
+                return jsonify(response_data)
+            else:
+                logger.error("DeepSeek API返回格式错误")
+                return jsonify({"success": False, "message": "API返回格式错误"})
+                
+        except Exception as e:
+            logger.error(f"解读失败: {str(e)}", exc_info=True)
+            return jsonify({"success": False, "message": f"解读失败: {str(e)}"})
 
 def get_recommendations(interpretation):
     """获取相关论文推荐"""
