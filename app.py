@@ -9,9 +9,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import uuid
 import logging
-import concurrent.futures
 import time
-import base64
+import io
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -127,14 +126,58 @@ def get_history(email):
         return users[email].get('reading_history', [])
     return []
 
+def extract_text_from_pdf_with_pdfplumber(file_bytes):
+    """使用pdfplumber从PDF中提取文本（更强大的解析）"""
+    try:
+        import pdfplumber
+        
+        # 创建内存中的文件对象
+        pdf_file = io.BytesIO(file_bytes)
+        
+        text_content = ""
+        
+        with pdfplumber.open(pdf_file) as pdf:
+            total_pages = len(pdf.pages)
+            max_pages = min(total_pages, 20)
+            
+            for page_num in range(max_pages):
+                try:
+                    page = pdf.pages[page_num]
+                    page_text = page.extract_text()
+                    
+                    if page_text and page_text.strip():
+                        text_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                    else:
+                        # 尝试提取表格
+                        tables = page.extract_tables()
+                        if tables:
+                            for table_num, table in enumerate(tables):
+                                text_content += f"第{page_num+1}页表格{table_num+1}:\n"
+                                for row in table:
+                                    text_content += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
+                                text_content += "\n"
+                except Exception as page_error:
+                    logger.warning(f"第{page_num+1}页解析失败: {page_error}")
+        
+        if total_pages > max_pages:
+            text_content += f"\n[注：PDF共有{total_pages}页，仅提取前{max_pages}页内容]\n"
+        
+        if not text_content.strip():
+            return "PDF文件已成功读取，但未提取到文本内容。这可能是因为PDF是扫描件（图像）。"
+        
+        return text_content
+        
+    except Exception as e:
+        logger.error(f"pdfplumber解析失败: {e}")
+        return f"PDF解析失败: {str(e)}"
+
 def call_deepseek_api(user_data, paper_content, user_settings, history):
-    """调用DeepSeek API，包含完整的用户画像分析"""
-    # 检查API密钥是否配置
+    """调用DeepSeek API"""
     if not DEEPSEEK_API_KEY:
         raise ValueError("DeepSeek API Key not configured")
     
     # 限制paper_content长度，防止API超时
-    max_content_length = 10000  # 限制为1万字
+    max_content_length = 5000  # 减少到5000字
     if len(paper_content) > max_content_length:
         paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
     
@@ -144,7 +187,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。
 
 论文内容：
-{paper_content[:8000]}  # 进一步限制输入长度
+{paper_content[:3000]}  # 进一步限制输入长度
 
 解读要求：
 1. 用通俗易懂的语言解释专业术语
@@ -180,13 +223,13 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         'model': 'deepseek-chat',
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 3000,  # 减少输出token数量
+        'max_tokens': 2000,  # 减少输出token数量
         'stream': False
     }
     
     try:
-        # 设置更长的超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=10000)
+        # 设置超时时间
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         result = response.json()
         
@@ -372,7 +415,7 @@ def search_springer_papers(query, count=5):
     }
     
     try:
-        response = requests.get(SPRINGER_API_URL, params=params, timeout=150)
+        response = requests.get(SPRINGER_API_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         papers = []
@@ -518,51 +561,107 @@ def interpret():
 
     try:
         paper_content = ""
+        file_info = {}
         
-        if file:
-            # 获取文件名
-            filename = secure_filename(file.filename) if file.filename else "uploaded_file"
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            file_ext = os.path.splitext(filename)[1].lower()
             
-            # 重置文件指针到开始位置
+            # 重置文件指针
             file.seek(0)
+            file_bytes = file.read()
+            file_info = {
+                'filename': filename,
+                'size': len(file_bytes),
+                'extension': file_ext
+            }
             
-            # 尝试读取文件内容
-            try:
-                # 读取原始字节
-                file_bytes = file.read()
+            if file_ext == '.pdf':
+                # 使用正确的PDF解析方法
+                paper_content = extract_text_from_pdf(file_bytes)
+                logger.info(f"PDF文件解析完成，大小: {len(file_bytes)} 字节")
                 
-                # 尝试用不同编码解码文本
-                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1', 'iso-8859-1']
-                
+            elif file_ext == '.docx':
+                try:
+                    # 使用python-docx读取DOCX文件
+                    from io import BytesIO
+                    import docx
+                    
+                    docx_file = BytesIO(file_bytes)
+                    doc = docx.Document(docx_file)
+                    
+                    for paragraph in doc.paragraphs:
+                        if paragraph.text.strip():
+                            paper_content += paragraph.text + "\n"
+                    
+                    if not paper_content.strip():
+                        paper_content = "DOCX文件已上传，但未能提取到文本内容。"
+                        
+                except Exception as docx_error:
+                    logger.error(f"DOCX解析错误: {docx_error}")
+                    paper_content = f"DOCX文件处理失败: {str(docx_error)}"
+                    
+            elif file_ext == '.txt':
+                # 尝试多种编码读取文本文件
+                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
                 for encoding in encodings:
                     try:
                         paper_content = file_bytes.decode(encoding)
-                        logger.info(f"成功使用 {encoding} 编码解码文件")
+                        logger.info(f"文本文件使用 {encoding} 编码成功解码")
                         break
                     except UnicodeDecodeError:
                         continue
                 
-                # 如果所有编码都失败，将文件作为二进制发送给AI
                 if not paper_content:
-                    # 将二进制内容编码为base64
-                    base64_content = base64.b64encode(file_bytes).decode('ascii')
-                    paper_content = f"这是一个二进制文件，无法解码为文本。文件名: {filename}，文件大小: {len(file_bytes)} 字节，Base64编码内容的前1000字符: {base64_content[:1000]}..."
-                    logger.info(f"无法解码文件，使用base64编码发送二进制数据")
-            except Exception as read_error:
-                logger.error(f"文件读取错误: {read_error}")
-                paper_content = f"文件读取失败: {str(read_error)}。文件名: {filename}"
+                    paper_content = "无法解码文本文件，请确保文件编码为UTF-8或GBK"
+                    
+            else:
+                # 对于其他格式，尝试作为文本读取
+                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
+                for encoding in encodings:
+                    try:
+                        paper_content = file_bytes.decode(encoding, errors='ignore')
+                        if len(paper_content) > 100:  # 有足够内容才认为成功
+                            logger.info(f"文件使用 {encoding} 编码解码成功")
+                            break
+                    except:
+                        continue
+                
+                if not paper_content or len(paper_content) < 100:
+                    paper_content = f"不支持的文件格式: {file_ext}。请上传PDF、DOCX或TXT文件。文件名: {filename}"
+        
         else:
             paper_content = text
 
+        # 记录文件信息
+        if file_info:
+            logger.info(f"文件信息: {file_info}")
+
+        # 如果paper_content是错误信息，直接返回
+        if "失败" in paper_content or "无法" in paper_content or "不支持" in paper_content:
+            logger.warning(f"文件处理失败: {paper_content[:100]}")
+            return jsonify({
+                'success': False, 
+                'message': paper_content,
+                'file_info': file_info
+            }), 400
+
         # 限制文本长度，防止过长的请求
-        max_text_length = 15000  # 增加到15000字
+        max_text_length = 5000  # 减少到5000字
         if len(paper_content) > max_text_length:
             paper_content = paper_content[:max_text_length] + "\n\n[注：文本过长，已截断部分内容]"
+
+        if not paper_content or paper_content.strip() == "":
+            return jsonify({
+                'success': False, 
+                'message': '文件内容为空或无法读取',
+                'file_info': file_info
+            }), 400
 
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
 
-        # 调用DeepSeek API，添加超时处理
+        # 调用DeepSeek API
         try:
             start_time = time.time()
             interpretation = call_deepseek_api(user, paper_content, user_settings, history)
@@ -574,20 +673,22 @@ def interpret():
         history_item = {
             'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
             'interpretation': interpretation[:1000] + '...' if len(interpretation) > 1000 else interpretation,
+            'file_info': file_info,
             'timestamp': datetime.now().isoformat()
         }
         
         add_to_history(session['user_email'], history_item)
 
-        # 简化推荐搜索，使用简单的方法
+        # 简化推荐搜索
         recommendations = []
         try:
             search_query = "natural science"
-            if paper_content and len(paper_content) > 50:
-                words = paper_content.split()[:3]  # 减少关键词数量
-                search_query = ' '.join(words)
+            if paper_content:
+                # 提取前几个非空行作为关键词
+                lines = [line.strip() for line in paper_content.split('\n') if line.strip()]
+                if lines:
+                    search_query = ' '.join(lines[:3])
             
-            # 直接调用搜索，设置超时
             recommendations = search_springer_papers(search_query, 2)
                     
         except Exception as search_error:
@@ -599,6 +700,7 @@ def interpret():
             'interpretation': interpretation,
             'original_content': paper_content[:1000] + '...' if len(paper_content) > 1000 else paper_content,
             'recommendations': recommendations,
+            'file_info': file_info,
             'timestamp': datetime.now().isoformat()
         })
 
@@ -700,47 +802,43 @@ def get_translations():
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
 
-# 调试端点，查看上传的文件信息
-@app.route('/api/debug-upload', methods=['POST'])
-def debug_upload():
-    """调试用上传接口，显示文件详细信息"""
+# 调试端点：测试PDF解析
+@app.route('/api/debug/pdf', methods=['POST'])
+def debug_pdf():
+    """调试PDF解析"""
     file = request.files.get('file')
     
     if not file:
         return jsonify({'error': '没有文件'}), 400
     
-    # 获取文件信息
-    file.seek(0, 2)  # 移动到文件末尾
-    file_size = file.tell()
-    file.seek(0)  # 回到文件开头
-    
-    # 读取部分内容
-    content_preview = file.read(200)
-    file.seek(0)
-    
-    # 尝试解码
-    encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1', 'iso-8859-1']
-    decoded_content = None
-    
-    for encoding in encodings:
-        try:
-            decoded_content = content_preview.decode(encoding)
-            break
-        except UnicodeDecodeError:
-            continue
-    
-    return jsonify({
-        'filename': file.filename,
-        'size': file_size,
-        'content_type': file.content_type,
-        'content_preview_hex': content_preview.hex()[:100],
-        'content_preview_ascii': content_preview.decode('ascii', errors='ignore')[:100],
-        'decoded_content': decoded_content,
-        'success': True
-    })
+    try:
+        # 读取文件
+        file.seek(0)
+        file_bytes = file.read()
+        
+        # 检查文件头
+        file_header = file_bytes[:20]
+        
+        # 尝试解析PDF
+        paper_content = extract_text_from_pdf(file_bytes)
+        
+        return jsonify({
+            'filename': file.filename,
+            'size': len(file_bytes),
+            'header_hex': file_header.hex(),
+            'header_ascii': file_header.decode('ascii', errors='ignore'),
+            'is_pdf': file_header[:4] == b'%PDF',
+            'extracted_text_length': len(paper_content),
+            'extracted_text_preview': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
+            'success': True
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-# 在 app.py 底部修改
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    # 修改启动配置，增加超时时间
     from gunicorn.app.base import BaseApplication
     
     class FlaskApplication(BaseApplication):
@@ -759,9 +857,9 @@ if __name__ == '__main__':
             return self.application
     
     options = {
-        'bind': '0.0.0.0:10000',
-        'workers': 2,
-        'timeout': 180,
+        'bind': f'0.0.0.0:{port}',
+        'workers': 1,  # 减少worker数量，避免资源竞争
+        'timeout': 120,  # 增加超时时间到120秒
         'keepalive': 5,
         'loglevel': 'info'
     }
