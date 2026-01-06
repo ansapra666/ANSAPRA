@@ -126,50 +126,156 @@ def get_history(email):
         return users[email].get('reading_history', [])
     return []
 
-def extract_text_from_pdf_with_pdfplumber(file_bytes):
-    """使用pdfplumber从PDF中提取文本（更强大的解析）"""
+def extract_text_from_pdf_advanced(file_bytes):
+    """
+    高级PDF解析：尝试多种方法提取文本
+    返回：(success, text_or_error_message)
+    """
     try:
-        import pdfplumber
-        
-        # 创建内存中的文件对象
-        pdf_file = io.BytesIO(file_bytes)
-        
-        text_content = ""
-        
-        with pdfplumber.open(pdf_file) as pdf:
-            total_pages = len(pdf.pages)
-            max_pages = min(total_pages, 20)
+        # 方法1：先尝试PyPDF2
+        try:
+            from PyPDF2 import PdfReader
+            
+            pdf_file = io.BytesIO(file_bytes)
+            pdf_reader = PdfReader(pdf_file)
+            
+            # 检查PDF是否加密
+            if pdf_reader.is_encrypted:
+                try:
+                    # 尝试用空密码解密
+                    pdf_reader.decrypt('')
+                except:
+                    return False, "PDF文件已加密，无法读取内容。请上传未加密的PDF文件。"
+            
+            text_content = ""
+            total_pages = len(pdf_reader.pages)
+            max_pages = min(total_pages, 10)
             
             for page_num in range(max_pages):
                 try:
-                    page = pdf.pages[page_num]
+                    page = pdf_reader.pages[page_num]
                     page_text = page.extract_text()
                     
                     if page_text and page_text.strip():
-                        text_content += f"第{page_num+1}页:\n{page_text}\n\n"
-                    else:
-                        # 尝试提取表格
-                        tables = page.extract_tables()
-                        if tables:
-                            for table_num, table in enumerate(tables):
-                                text_content += f"第{page_num+1}页表格{table_num+1}:\n"
-                                for row in table:
-                                    text_content += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
-                                text_content += "\n"
+                        # 检查提取的文本是否包含可读字符（非乱码）
+                        readable_chars = sum(1 for c in page_text if c.isprintable() or c.isspace())
+                        if readable_chars / len(page_text) > 0.7:  # 70%以上是可读字符
+                            text_content += f"第{page_num+1}页:\n{page_text}\n\n"
                 except Exception as page_error:
-                    logger.warning(f"第{page_num+1}页解析失败: {page_error}")
+                    continue
+            
+            if text_content.strip():
+                logger.info(f"PyPDF2成功提取文本，长度: {len(text_content)}")
+                return True, text_content
+        except Exception as e:
+            logger.warning(f"PyPDF2解析失败: {e}")
         
-        if total_pages > max_pages:
-            text_content += f"\n[注：PDF共有{total_pages}页，仅提取前{max_pages}页内容]\n"
+        # 方法2：尝试pdfplumber（如果安装）
+        try:
+            import pdfplumber
+            
+            pdf_file = io.BytesIO(file_bytes)
+            text_content = ""
+            
+            with pdfplumber.open(pdf_file) as pdf:
+                total_pages = len(pdf.pages)
+                max_pages = min(total_pages, 10)
+                
+                for page_num in range(max_pages):
+                    try:
+                        page = pdf.pages[page_num]
+                        page_text = page.extract_text()
+                        
+                        if page_text and page_text.strip():
+                            text_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                    except:
+                        continue
+            
+            if text_content.strip():
+                logger.info(f"pdfplumber成功提取文本，长度: {len(text_content)}")
+                return True, text_content
+        except ImportError:
+            logger.warning("pdfplumber未安装")
+        except Exception as e:
+            logger.warning(f"pdfplumber解析失败: {e}")
         
-        if not text_content.strip():
-            return "PDF文件已成功读取，但未提取到文本内容。这可能是因为PDF是扫描件（图像）。"
+        # 方法3：尝试pdfminer.six（更强大的解析器）
+        try:
+            from pdfminer.high_level import extract_text as pdfminer_extract_text
+            from pdfminer.pdfparser import PDFSyntaxError
+            
+            pdf_file = io.BytesIO(file_bytes)
+            
+            try:
+                text_content = pdfminer_extract_text(pdf_file)
+            except PDFSyntaxError:
+                # 可能不是标准PDF，尝试其他方法
+                text_content = ""
+            
+            if text_content and text_content.strip():
+                logger.info(f"pdfminer成功提取文本，长度: {len(text_content)}")
+                return True, text_content
+        except ImportError:
+            logger.warning("pdfminer未安装")
+        except Exception as e:
+            logger.warning(f"pdfminer解析失败: {e}")
         
-        return text_content
+        # 所有方法都失败，可能是扫描件
+        return False, """
+PDF文件解析失败，可能是以下原因：
+
+1. **PDF是扫描件/图片**：文件由图片组成，需要OCR识别才能提取文字
+2. **PDF使用特殊字体/编码**：使用了不常见的字体或编码方式
+3. **PDF已损坏或加密**：文件可能已损坏或被加密
+
+建议：
+1. 上传可复制文字的PDF文件（非扫描件）
+2. 或者直接复制PDF中的文字粘贴到文本框中
+3. 或者将扫描件转换为可编辑的PDF（使用Adobe Acrobat等工具）
+
+如果您确定PDF包含可复制文字但仍失败，请通过调试接口检查文件：/api/debug/pdf
+"""
         
     except Exception as e:
-        logger.error(f"pdfplumber解析失败: {e}")
-        return f"PDF解析失败: {str(e)}"
+        logger.error(f"PDF解析过程中发生未知错误: {e}")
+        return False, f"PDF解析失败: {str(e)}"
+
+def is_pdf_scanned(file_bytes):
+    """简单判断PDF是否为扫描件"""
+    try:
+        # 检查文件头是否是PDF
+        if len(file_bytes) < 5 or file_bytes[:5] != b'%PDF-':
+            return True, "不是有效的PDF文件"
+        
+        # 尝试提取文本
+        from PyPDF2 import PdfReader
+        
+        pdf_file = io.BytesIO(file_bytes)
+        pdf_reader = PdfReader(pdf_file)
+        
+        if len(pdf_reader.pages) == 0:
+            return True, "PDF没有页面"
+        
+        # 检查第一页是否有文本
+        try:
+            first_page = pdf_reader.pages[0]
+            text = first_page.extract_text()
+            
+            if not text or not text.strip():
+                return True, "PDF第一页没有提取到文字，可能是扫描件"
+            
+            # 检查提取的文本质量
+            readable_chars = sum(1 for c in text if c.isprintable() or c.isspace())
+            if readable_chars / len(text) < 0.3:  # 可读字符少于30%
+                return True, "提取的文字大多是乱码，可能是扫描件或特殊编码"
+            
+            return False, "可能是文本型PDF"
+            
+        except:
+            return True, "无法提取PDF文字"
+            
+    except Exception as e:
+        return True, f"PDF检查失败: {str(e)}"
 
 def call_deepseek_api(user_data, paper_content, user_settings, history):
     """调用DeepSeek API"""
@@ -562,6 +668,8 @@ def interpret():
     try:
         paper_content = ""
         file_info = {}
+        is_scanned_pdf = False
+        pdf_warning = ""
         
         if file and file.filename:
             filename = secure_filename(file.filename)
@@ -577,10 +685,42 @@ def interpret():
             }
             
             if file_ext == '.pdf':
-                # 使用正确的PDF解析方法
-                paper_content = extract_text_from_pdf(file_bytes)
-                logger.info(f"PDF文件解析完成，大小: {len(file_bytes)} 字节")
+                # 先检查PDF是否是扫描件
+                is_scanned, scan_message = is_pdf_scanned(file_bytes)
                 
+                if is_scanned:
+                    is_scanned_pdf = True
+                    pdf_warning = f"检测到可能是扫描件: {scan_message}"
+                    logger.warning(f"扫描件警告: {pdf_warning}")
+                
+                # 使用高级PDF解析
+                success, result = extract_text_from_pdf_advanced(file_bytes)
+                
+                if success:
+                    paper_content = result
+                    logger.info(f"PDF解析成功，提取文本长度: {len(paper_content)}")
+                else:
+                    # 解析失败
+                    logger.error(f"PDF解析失败: {result}")
+                    
+                    if is_scanned_pdf:
+                        # 如果是扫描件，提供更详细的建议
+                        paper_content = f"""
+{pdf_warning}
+
+扫描件PDF无法直接提取文字，因为它们是图片格式。
+
+解决方法：
+1. **使用OCR软件**：如Adobe Acrobat Pro、ABBYY FineReader等将扫描PDF转换为可编辑PDF
+2. **在线OCR工具**：使用在线服务转换
+3. **直接输入文本**：复制PDF中的文字（如果可以选中）粘贴到文本框中
+4. **重新上传**：上传可复制文字的PDF版本
+
+如果您有可编辑的PDF版本，请重新上传。
+"""
+                    else:
+                        paper_content = result
+                    
             elif file_ext == '.docx':
                 try:
                     # 使用python-docx读取DOCX文件
@@ -603,7 +743,7 @@ def interpret():
                     
             elif file_ext == '.txt':
                 # 尝试多种编码读取文本文件
-                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
+                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1', 'iso-8859-1']
                 for encoding in encodings:
                     try:
                         paper_content = file_bytes.decode(encoding)
@@ -637,13 +777,24 @@ def interpret():
         if file_info:
             logger.info(f"文件信息: {file_info}")
 
-        # 如果paper_content是错误信息，直接返回
-        if "失败" in paper_content or "无法" in paper_content or "不支持" in paper_content:
+        # 检查是否是需要直接返回的错误信息
+        if "PDF解析失败" in paper_content or "不支持的文件格式" in paper_content or "无法解码" in paper_content:
             logger.warning(f"文件处理失败: {paper_content[:100]}")
             return jsonify({
                 'success': False, 
                 'message': paper_content,
-                'file_info': file_info
+                'file_info': file_info,
+                'is_scanned': is_scanned_pdf
+            }), 400
+
+        # 如果是扫描件提示信息，直接返回给用户
+        if "扫描件PDF无法直接提取文字" in paper_content or "检测到可能是扫描件" in paper_content:
+            return jsonify({
+                'success': False,
+                'message': paper_content,
+                'file_info': file_info,
+                'is_scanned': True,
+                'suggestion': '请上传可编辑的PDF或使用OCR工具转换扫描件'
             }), 400
 
         # 限制文本长度，防止过长的请求
@@ -655,7 +806,8 @@ def interpret():
             return jsonify({
                 'success': False, 
                 'message': '文件内容为空或无法读取',
-                'file_info': file_info
+                'file_info': file_info,
+                'is_scanned': is_scanned_pdf
             }), 400
 
         user_settings = user.get('settings', {})
@@ -674,6 +826,7 @@ def interpret():
             'paper_content': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
             'interpretation': interpretation[:1000] + '...' if len(interpretation) > 1000 else interpretation,
             'file_info': file_info,
+            'is_scanned': is_scanned_pdf,
             'timestamp': datetime.now().isoformat()
         }
         
@@ -683,7 +836,7 @@ def interpret():
         recommendations = []
         try:
             search_query = "natural science"
-            if paper_content:
+            if paper_content and len(paper_content) > 50:
                 # 提取前几个非空行作为关键词
                 lines = [line.strip() for line in paper_content.split('\n') if line.strip()]
                 if lines:
@@ -701,6 +854,8 @@ def interpret():
             'original_content': paper_content[:1000] + '...' if len(paper_content) > 1000 else paper_content,
             'recommendations': recommendations,
             'file_info': file_info,
+            'is_scanned': is_scanned_pdf,
+            'pdf_warning': pdf_warning if is_scanned_pdf else None,
             'timestamp': datetime.now().isoformat()
         })
 
@@ -802,10 +957,10 @@ def get_translations():
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
 
-# 调试端点：测试PDF解析
+# 调试端点：详细分析PDF
 @app.route('/api/debug/pdf', methods=['POST'])
 def debug_pdf():
-    """调试PDF解析"""
+    """详细分析PDF文件"""
     file = request.files.get('file')
     
     if not file:
@@ -817,20 +972,91 @@ def debug_pdf():
         file_bytes = file.read()
         
         # 检查文件头
-        file_header = file_bytes[:20]
+        file_header = file_bytes[:100]
         
-        # 尝试解析PDF
-        paper_content = extract_text_from_pdf(file_bytes)
+        # 检查是否是PDF
+        is_pdf = file_header[:5] == b'%PDF-'
+        
+        # 检查PDF版本
+        pdf_version = "未知"
+        if is_pdf:
+            # 提取版本号，如 %PDF-1.4
+            version_start = file_bytes.find(b'%PDF-')
+            if version_start != -1:
+                version_end = file_bytes.find(b'\n', version_start)
+                if version_end != -1:
+                    pdf_version = file_bytes[version_start:version_end].decode('ascii', errors='ignore')
+        
+        # 检查文件大小和结构
+        file_size = len(file_bytes)
+        
+        # 尝试解析PDF基本信息
+        pdf_info = {
+            'is_pdf': is_pdf,
+            'pdf_version': pdf_version,
+            'file_size': file_size,
+            'header_hex': file_header.hex(),
+            'header_preview': file_header.decode('ascii', errors='ignore')[:200],
+        }
+        
+        if is_pdf:
+            # 使用PyPDF2获取更多信息
+            try:
+                from PyPDF2 import PdfReader
+                
+                pdf_file = io.BytesIO(file_bytes)
+                pdf_reader = PdfReader(pdf_file)
+                
+                pdf_info.update({
+                    'page_count': len(pdf_reader.pages),
+                    'is_encrypted': pdf_reader.is_encrypted,
+                    'metadata': pdf_reader.metadata,
+                })
+                
+                # 检查是否是扫描件
+                is_scanned, scan_reason = is_pdf_scanned(file_bytes)
+                pdf_info['is_scanned'] = is_scanned
+                pdf_info['scan_reason'] = scan_reason
+                
+                # 尝试提取第一页文字
+                if len(pdf_reader.pages) > 0:
+                    try:
+                        first_page = pdf_reader.pages[0]
+                        extracted_text = first_page.extract_text()
+                        pdf_info['extracted_text'] = extracted_text[:500] + '...' if len(extracted_text) > 500 else extracted_text
+                        pdf_info['extracted_text_length'] = len(extracted_text)
+                        
+                        # 分析提取的文本质量
+                        if extracted_text:
+                            printable_chars = sum(1 for c in extracted_text if c.isprintable())
+                            space_chars = sum(1 for c in extracted_text if c.isspace())
+                            total_chars = len(extracted_text)
+                            
+                            pdf_info['text_quality'] = {
+                                'printable_ratio': printable_chars / total_chars if total_chars > 0 else 0,
+                                'space_ratio': space_chars / total_chars if total_chars > 0 else 0,
+                                'readable_chars': printable_chars,
+                                'total_chars': total_chars
+                            }
+                    except Exception as e:
+                        pdf_info['extraction_error'] = str(e)
+                
+                # 尝试高级解析
+                success, advanced_text = extract_text_from_pdf_advanced(file_bytes)
+                pdf_info['advanced_extraction_success'] = success
+                if success:
+                    pdf_info['advanced_text_length'] = len(advanced_text)
+                    pdf_info['advanced_text_preview'] = advanced_text[:500] + '...' if len(advanced_text) > 500 else advanced_text
+                else:
+                    pdf_info['advanced_extraction_error'] = advanced_text
+                    
+            except Exception as e:
+                pdf_info['pdf_analysis_error'] = str(e)
         
         return jsonify({
             'filename': file.filename,
-            'size': len(file_bytes),
-            'header_hex': file_header.hex(),
-            'header_ascii': file_header.decode('ascii', errors='ignore'),
-            'is_pdf': file_header[:4] == b'%PDF',
-            'extracted_text_length': len(paper_content),
-            'extracted_text_preview': paper_content[:500] + '...' if len(paper_content) > 500 else paper_content,
-            'success': True
+            'success': True,
+            'analysis': pdf_info
         })
         
     except Exception as e:
@@ -838,30 +1064,4 @@ def debug_pdf():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    # 修改启动配置，增加超时时间
-    from gunicorn.app.base import BaseApplication
-    
-    class FlaskApplication(BaseApplication):
-        def __init__(self, app, options=None):
-            self.options = options or {}
-            self.application = app
-            super().__init__()
-        
-        def load_config(self):
-            config = {key: value for key, value in self.options.items()
-                     if key in self.cfg.settings and value is not None}
-            for key, value in config.items():
-                self.cfg.set(key.lower(), value)
-        
-        def load(self):
-            return self.application
-    
-    options = {
-        'bind': f'0.0.0.0:{port}',
-        'workers': 1,  # 减少worker数量，避免资源竞争
-        'timeout': 120,  # 增加超时时间到120秒
-        'keepalive': 5,
-        'loglevel': 'info'
-    }
-    
-    FlaskApplication(app, options).run()
+    app.run(host='0.0.0.0', port=port, debug=True)
