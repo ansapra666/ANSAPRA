@@ -835,3 +835,50 @@ def get_translations():
             "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
+# 在 app.py 末尾添加
+if __name__ == '__main__':
+    # 确保数据目录存在
+    os.makedirs('data', exist_ok=True)
+    os.makedirs('uploads', exist_ok=True)
+    os.makedirs('static/lang', exist_ok=True)
+    
+    # 检查DeepSeek API密钥
+    if not DEEPSEEK_API_KEY:
+        logger.warning("警告: DEEPSEEK_API_KEY 未设置，文件上传功能将不可用")
+        logger.warning("请在环境变量中设置 DEEPSEEK_API_KEY")
+    
+    # 启动应用 - 对于Render，使用环境变量中的端口
+    port = int(os.environ.get('PORT', 10000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
+    if debug:
+        # 开发模式
+        app.run(host='0.0.0.0', port=port, debug=True)
+    else:
+        # 生产模式 - 使用 gunicorn
+        # 这个分支通常不会被执行，因为Render会使用gunicorn
+        from gunicorn.app.base import BaseApplication
+        
+        class FlaskApplication(BaseApplication):
+            def __init__(self, app, options=None):
+                self.options = options or {}
+                self.application = app
+                super().__init__()
+            
+            def load_config(self):
+                for key, value in self.options.items():
+                    self.cfg.set(key.lower(), value)
+            
+            def load(self):
+                return self.application
+        
+        options = {
+            'bind': f'0.0.0.0:{port}',
+            'workers': 2,
+            'timeout': 180,
+            'keepalive': 5,
+            'accesslog': '-',
+            'errorlog': '-',
+        }
+        
+        FlaskApplication(app, options).run()
