@@ -20,7 +20,7 @@ loglevel = "info"
 proc_name = "ansapra"
 
 # 防止worker被杀死前的时间
-graceful_timeout = None
+graceful_timeout = 10000
 
 # 最大请求数，防止内存泄漏
 max_requests = 1000
