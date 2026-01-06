@@ -986,32 +986,32 @@ def serve_translations():
     return send_from_directory(os.path.dirname(translations_path), 
                                os.path.basename(translations_path))
     
-    #添加更健壮的PDF处理函数
-    def extract_text_from_pdf(file):
-    """提取PDF文件中的文本"""
-    try:
-        from PyPDF2 import PdfReader
+#添加更健壮的PDF处理函数
+def extract_text_from_pdf(file):
+"""提取PDF文件中的文本"""
+try:
+    from PyPDF2 import PdfReader
         
-        # 确保文件指针在开头
-        file.seek(0)
+    # 确保文件指针在开头
+    file.seek(0)
         
-        # 创建内存中的PDF读取器
-        pdf_reader = PdfReader(file)
-        text_content = ""
+    # 创建内存中的PDF读取器
+    pdf_reader = PdfReader(file)
+    text_content = ""
         
-        for i, page in enumerate(pdf_reader.pages):
-            try:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content += f"第{i+1}页:\n{page_text}\n\n"
-                else:
-                    text_content += f"第{i+1}页: [无文本内容]\n\n"
-            except Exception as page_error:
-                logger.warning(f"第{i+1}页提取失败: {page_error}")
-                text_content += f"第{i+1}页: [提取失败]\n\n"
+    for i, page in enumerate(pdf_reader.pages):
+        try:
+            page_text = page.extract_text()
+            if page_text:
+                text_content += f"第{i+1}页:\n{page_text}\n\n"
+            else:
+                text_content += f"第{i+1}页: [无文本内容]\n\n"
+        except Exception as page_error:
+            logger.warning(f"第{i+1}页提取失败: {page_error}")
+            text_content += f"第{i+1}页: [提取失败]\n\n"
         
-        return text_content
+    return text_content
         
-    except Exception as e:
-        logger.error(f"PDF提取失败: {e}")
-        raise Exception(f"PDF文件解析失败: {str(e)}")
+except Exception as e:
+    logger.error(f"PDF提取失败: {e}")
+    raise Exception(f"PDF文件解析失败: {str(e)}")
