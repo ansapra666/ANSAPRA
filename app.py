@@ -291,7 +291,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。
 
 论文内容：
-{paper_content[:3000]}  # 进一步限制输入长度
+{paper_content[:5000]}  # 进一步限制输入长度
 
 解读要求：
 1. 用通俗易懂的语言解释专业术语
@@ -301,6 +301,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
 5. 指出可能的局限性和未来研究方向
 6. 在解读的最后附上"术语解读区"
 7. 所有内容使用中文
+8. 请提供论文的几个关键词的英文
 
 请在解读的末尾添加："解读内容由DeepSeek AI生成，仅供参考"
 
@@ -327,13 +328,13 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         'model': 'deepseek-chat',
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 2000,  # 减少输出token数量
+        'max_tokens': 3000,  # 减少输出token数量
         'stream': False
     }
     
     try:
         # 设置超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=60)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=600)
         response.raise_for_status()
         result = response.json()
         
@@ -815,7 +816,6 @@ def interpret():
             'success': True,
             'interpretation': interpretation,
             'original_content': paper_content[:1000] + '...' if len(paper_content) > 1000 else paper_content,
-            'recommendations': recommendations,
             'file_info': file_info,
             'is_scanned': is_scanned_pdf,
             'pdf_warning': pdf_warning if is_scanned_pdf else None,
