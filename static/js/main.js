@@ -2807,3 +2807,59 @@ const keywords = extractKeywordsForSearch(data.original_content);
 if (keywords) {
     autoFillSearchKeywords(keywords);
 }
+
+// 在设置页面添加搜索历史查看功能
+function addSearchHistoryToSettings() {
+    const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    
+    if (history.length > 0) {
+        const accountSettings = document.getElementById('account-settings');
+        if (accountSettings) {
+            const historyHTML = `
+                <div class="search-history-section" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h5><i class="fas fa-history"></i> 最近搜索记录</h5>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #ddd;">
+                                    <th style="padding: 8px; text-align: left;">平台</th>
+                                    <th style="padding: 8px; text-align: left;">关键词</th>
+                                    <th style="padding: 8px; text-align: left;">时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${history.slice(0, 10).map(item => `
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 8px;">${item.platform}</td>
+                                        <td style="padding: 8px;">${item.keyword}</td>
+                                        <td style="padding: 8px; font-size: 12px; color: #666;">
+                                            ${new Date(item.timestamp).toLocaleDateString()}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-small btn-secondary" onclick="clearSearchHistory()" style="margin-top: 10px;">
+                        <i class="fas fa-trash"></i> 清空搜索记录
+                    </button>
+                </div>
+            `;
+            
+            accountSettings.insertAdjacentHTML('beforeend', historyHTML);
+        }
+    }
+}
+
+function clearSearchHistory() {
+    if (confirm('确定要清空所有搜索记录吗？')) {
+        localStorage.removeItem('searchHistory');
+        showNotification('搜索记录已清空', 'success');
+        // 重新加载页面或刷新设置部分
+        location.reload();
+    }
+}
+
+// 在加载用户设置时调用
+// 在 loadUserSettings 函数末尾添加
+addSearchHistoryToSettings();
