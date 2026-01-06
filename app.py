@@ -188,7 +188,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     
     try:
         # 设置更短的超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=600)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=None)
         response.raise_for_status()
         result = response.json()
         
