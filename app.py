@@ -844,6 +844,51 @@ def get_user_profile():
         'questionnaire': user.get('questionnaire', {}),
         'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
     })
+
+from flask import request, jsonify
+import os
+from werkzeug.utils import secure_filename
+
+# 配置文件上传
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'docx'}
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # 确保上传目录存在
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        file.save(file_path)
+        
+        # 这里可以添加文件处理逻辑
+        # process_file(file_path)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'message': 'File uploaded successfully'
+        }), 200
+    
+    return jsonify({'error': 'File type not allowed'}), 400
+    
 @app.route('/static/lang/translations.json')
 def get_translations():
     # 确保语言文件存在
