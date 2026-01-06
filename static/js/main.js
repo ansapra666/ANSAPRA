@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
     loadTranslations();
     setupEventListeners();
+    setupSearchKeybindings();
     
     // 加载问卷数据
     loadQuestionnaire();
@@ -2672,4 +2673,99 @@ if (!document.querySelector('#notification-styles')) {
         }
     `;
     document.head.appendChild(style);
+}
+// Nature 搜索函数
+function searchNature() {
+    const input = document.getElementById('nature-search-input');
+    const keyword = input.value.trim();
+    
+    if (!keyword) {
+        showNotification('请输入搜索关键词', 'error');
+        input.focus();
+        return;
+    }
+    
+    // 编码关键词
+    const encodedKeyword = encodeURIComponent(keyword);
+    // Nature 搜索URL - 只搜索研究论文
+    const natureUrl = `https://www.nature.com/search?q=${encodedKeyword}&article_type=research`;
+    
+    // 在新标签页中打开
+    window.open(natureUrl, '_blank');
+    
+    // 记录搜索历史
+    logSearchHistory('Nature', keyword);
+    
+    // 可选：清空输入框
+    // input.value = '';
+}
+
+// Science 搜索函数
+function searchScience() {
+    const input = document.getElementById('science-search-input');
+    const keyword = input.value.trim();
+    
+    if (!keyword) {
+        showNotification('请输入搜索关键词', 'error');
+        input.focus();
+        return;
+    }
+    
+    // 编码关键词
+    const encodedKeyword = encodeURIComponent(keyword);
+    // Science 搜索URL
+    const scienceUrl = `https://www.science.org/action/doSearch?AllField=${encodedKeyword}`;
+    
+    // 在新标签页中打开
+    window.open(scienceUrl, '_blank');
+    
+    // 记录搜索历史
+    logSearchHistory('Science', keyword);
+    
+    // 可选：清空输入框
+    // input.value = '';
+}
+
+// 记录搜索历史（可选）
+function logSearchHistory(platform, keyword) {
+    if (!AppState.user) return;
+    
+    const searchHistory = {
+        platform: platform,
+        keyword: keyword,
+        timestamp: new Date().toISOString(),
+        user: AppState.user.email
+    };
+    
+    // 保存到 localStorage
+    let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    history.unshift(searchHistory);
+    // 只保留最近的50条记录
+    history = history.slice(0, 50);
+    localStorage.setItem('searchHistory', JSON.stringify(history));
+    
+    showNotification(`${platform} 搜索已打开`, 'success');
+}
+
+// 添加入口键支持
+function setupSearchKeybindings() {
+    // Nature 搜索框回车键支持
+    const natureInput = document.getElementById('nature-search-input');
+    if (natureInput) {
+        natureInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchNature();
+            }
+        });
+    }
+    
+    // Science 搜索框回车键支持
+    const scienceInput = document.getElementById('science-search-input');
+    if (scienceInput) {
+        scienceInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchScience();
+            }
+        });
+    }
 }
