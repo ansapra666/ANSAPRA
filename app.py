@@ -9,6 +9,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import uuid
 import logging
+import concurrent.futures
+import time
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -23,9 +25,9 @@ app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
 CORS(app)
 
-# API配置 - 确保这些变量已定义
+# API配置
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"  # 确保这行存在
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 SPRINGER_API_KEY = os.environ.get('SPRINGER_API_KEY')
 SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
 
@@ -131,7 +133,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         raise ValueError("DeepSeek API Key not configured")
     
     # 限制paper_content长度，防止API超时
-    max_content_length = 15000  # 限制为1.5万字
+    max_content_length = 10000  # 限制为1万字
     if len(paper_content) > max_content_length:
         paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
     
@@ -144,7 +146,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     user_prompt = f"""用户是一位高中生，需要解读一篇自然科学学术论文。
 
 论文内容：
-{paper_content[:10000]}  # 进一步限制输入长度
+{paper_content[:8000]}  # 进一步限制输入长度
 
 解读要求：
 1. 用通俗易懂的语言解释专业术语
@@ -180,14 +182,13 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
         'model': 'deepseek-chat',
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 4000,  # 减少输出token数量
-        'stream': False,
-        'timeout': 60  # 添加超时设置
+        'max_tokens': 3000,  # 减少输出token数量
+        'stream': False
     }
     
     try:
         # 设置更短的超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=90)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         result = response.json()
         
@@ -373,7 +374,7 @@ def search_springer_papers(query, count=5):
     }
     
     try:
-        response = requests.get(SPRINGER_API_URL, params=params, timeout=30)
+        response = requests.get(SPRINGER_API_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         papers = []
@@ -395,36 +396,6 @@ def search_springer_papers(query, count=5):
     except requests.exceptions.RequestException as e:
         logger.error(f"Springer API error: {e}")
         return []
-
-# 添加PDF处理的辅助函数
-def extract_text_from_pdf(file):
-    """提取PDF文件中的文本"""
-    try:
-        from PyPDF2 import PdfReader
-        
-        # 确保文件指针在开头
-        file.seek(0)
-        
-        # 创建内存中的PDF读取器
-        pdf_reader = PdfReader(file)
-        text_content = ""
-        
-        for i, page in enumerate(pdf_reader.pages):
-            try:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content += f"第{i+1}页:\n{page_text}\n\n"
-                else:
-                    text_content += f"第{i+1}页: [无文本内容]\n\n"
-            except Exception as page_error:
-                logger.warning(f"第{i+1}页提取失败: {page_error}")
-                text_content += f"第{i+1}页: [提取失败]\n\n"
-        
-        return text_content
-        
-    except Exception as e:
-        logger.error(f"PDF提取失败: {e}")
-        raise Exception(f"PDF文件解析失败: {str(e)}")
 
 # 路由定义
 @app.route('/')
@@ -532,13 +503,6 @@ def update_settings():
     else:
         return jsonify({'success': False, 'message': '更新失败'}), 400
 
-import asyncio
-import aiohttp
-import concurrent.futures
-from functools import partial
-import time
-
-# 在 interpret 函数中添加超时保护
 @app.route('/api/interpret', methods=['POST'])
 def interpret():
     if 'user_email' not in session:
@@ -587,7 +551,7 @@ def interpret():
                     paper_content = ""
                     
                     # 限制页面数量，防止过长的PDF
-                    max_pages = 20  # 最多处理20页
+                    max_pages = 10  # 最多处理10页
                     total_pages = min(len(pdf_reader.pages), max_pages)
                     
                     for page_num in range(total_pages):
@@ -642,7 +606,7 @@ def interpret():
             paper_content = text
 
         # 限制文本长度，防止过长的请求
-        max_text_length = 20000  # 限制为2万字
+        max_text_length = 8000  # 限制为8000字
         if len(paper_content) > max_text_length:
             paper_content = paper_content[:max_text_length] + "\n\n[注：文本过长，已截断部分内容]"
 
@@ -669,22 +633,16 @@ def interpret():
         
         add_to_history(session['user_email'], history_item)
 
-        # 异步搜索Springer论文，不阻塞主线程
+        # 简化推荐搜索，使用简单的方法
         recommendations = []
         try:
             search_query = "natural science"
             if paper_content:
-                words = paper_content.split()[:5]  # 减少关键词数量
+                words = paper_content.split()[:3]  # 减少关键词数量
                 search_query = ' '.join(words)
             
-            # 使用线程池执行搜索，设置超时
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(search_springer_papers, search_query, 3)
-                try:
-                    recommendations = future.result(timeout=10)  # 10秒超时
-                except concurrent.futures.TimeoutError:
-                    logger.warning("Springer API搜索超时")
-                    recommendations = []
+            # 直接调用搜索，设置超时
+            recommendations = search_springer_papers(search_query, 2)
                     
         except Exception as search_error:
             logger.error(f"搜索论文失败: {search_error}")
@@ -778,7 +736,7 @@ def get_user_profile():
             'username': user['username']
         },
         'questionnaire': user.get('questionnaire', {}),
-        'profile_analysis': analyze_user_profile(user)  # 返回用户画像分析
+        'profile_analysis': analyze_user_profile(user)
     })
 
 @app.route('/static/lang/translations.json')
