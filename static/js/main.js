@@ -1554,31 +1554,6 @@ function formatInterpretation(text) {
     return html;
 }
 
-function displayRecommendations(recommendations) {
-    const container = DOM.recommendationsList;
-    container.innerHTML = '';
-    
-    if (recommendations.length === 0) {
-        container.innerHTML = '<p class="no-recommendations">暂无相关论文推荐</p>';
-        return;
-    }
-    
-    recommendations.forEach(paper => {
-        const item = document.createElement('div');
-        item.className = 'recommendation-item';
-        
-        item.innerHTML = `
-            <h5>${paper.title || '无标题'}</h5>
-            <p><strong>作者:</strong> ${paper.authors || '未知'}</p>
-            <p><strong>期刊:</strong> ${paper.publication || '未知'} (${paper.year || '未知年份'})</p>
-            ${paper.abstract ? `<p><strong>摘要:</strong> ${paper.abstract}</p>` : ''}
-            ${paper.url ? `<a href="${paper.url}" target="_blank" class="btn btn-small" style="margin-top: 10px;">查看原文</a>` : ''}
-        `;
-        
-        container.appendChild(item);
-    });
-}
-
 // 清空输入
 function clearInput() {
     DOM.fileInput.value = '';
