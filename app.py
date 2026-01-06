@@ -889,64 +889,85 @@ def upload_file():
     
     return jsonify({'error': 'File type not allowed'}), 400
     
-@app.route('/static/lang/translations.json')
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, send_from_directory
+import os
+import json
+
+# 语言文件路由 - 修复版本
+@app.route('/api/language/translations')
 def get_translations():
-    # 确保语言文件存在
-    import os
-    from flask import send_file
-    translations_path = os.path.join(app.root_path, 'static', 'lang', 'translations.json')
-    if os.path.exists(translations_path):
-        return send_file(translations_path)
-    else:
-        # 返回默认翻译
-        return jsonify({
-            "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
-            "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
-        })
-# 在 app.py 末尾添加
-if __name__ == '__main__':
-    # 确保数据目录存在
-    os.makedirs('data', exist_ok=True)
-    os.makedirs('uploads', exist_ok=True)
-    os.makedirs('static/lang', exist_ok=True)
-    
-    # 检查DeepSeek API密钥
-    if not DEEPSEEK_API_KEY:
-        logger.warning("警告: DEEPSEEK_API_KEY 未设置，文件上传功能将不可用")
-        logger.warning("请在环境变量中设置 DEEPSEEK_API_KEY")
-    
-    # 启动应用 - 对于Render，使用环境变量中的端口
-    port = int(os.environ.get('PORT', 10000))
-    debug = os.environ.get('FLASK_ENV') != 'production'
-    
-    if debug:
-        # 开发模式
-        app.run(host='0.0.0.0', port=port, debug=True)
-    else:
-        # 生产模式 - 使用 gunicorn
-        # 这个分支通常不会被执行，因为Render会使用gunicorn
-        from gunicorn.app.base import BaseApplication
+    """获取翻译文件"""
+    try:
+        # 根据请求参数确定语言
+        lang = request.args.get('lang', 'en')
+        file_path = os.path.join(app.root_path, 'static', 'lang', f'translations_{lang}.json')
         
-        class FlaskApplication(BaseApplication):
-            def __init__(self, app, options=None):
-                self.options = options or {}
-                self.application = app
-                super().__init__()
-            
-            def load_config(self):
-                for key, value in self.options.items():
-                    self.cfg.set(key.lower(), value)
-            
-            def load(self):
-                return self.application
+        # 如果指定语言的翻译文件不存在，使用默认的英语文件
+        if not os.path.exists(file_path):
+            file_path = os.path.join(app.root_path, 'static', 'lang', 'translations_en.json')
         
-        options = {
-            'bind': f'0.0.0.0:{port}',
-            'workers': 2,
-            'timeout': 180,
-            'keepalive': 5,
-            'accesslog': '-',
-            'errorlog': '-',
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Translations file not found'}), 404
+        
+        # 读取并返回JSON文件
+        with open(file_path, 'r', encoding='utf-8') as f:
+            translations = json.load(f)
+        
+        return jsonify(translations)
+    
+    except Exception as e:
+        app.logger.error(f"Error loading translations: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# 或者使用单个翻译文件的方式
+@app.route('/static/lang/translations.json')
+def serve_translations():
+    """提供翻译文件"""
+    translations_path = os.path.join(app.static_folder, 'lang', 'translations.json')
+    
+    # 检查文件是否存在
+    if not os.path.exists(translations_path):
+        # 创建默认的翻译文件
+        default_translations = {
+            'en': {
+                'ANSAPRA': 'ANSAPRA',
+                'Adaptive Natural Science Academic Paper Reading Agent for High School Students': 'Adaptive Natural Science Academic Paper Reading Agent for High School Students',
+                'Website Introduction': 'Website Introduction',
+                'User Guide': 'User Guide',
+                'Paper Interpretation': 'Paper Interpretation',
+                'User Settings': 'User Settings',
+                'Login': 'Login',
+                'Register': 'Register',
+                'Email Address': 'Email Address',
+                'Password': 'Password',
+                'Upload Paper': 'Upload Paper',
+                'Start Interpretation': 'Start Interpretation',
+                # 添加更多翻译...
+            },
+            'zh': {
+                'ANSAPRA': 'ANSAPRA',
+                'Adaptive Natural Science Academic Paper Reading Agent for High School Students': '面向高中生的自适应自然科学学术论文阅读助手',
+                'Website Introduction': '网站介绍',
+                'User Guide': '用户指南',
+                'Paper Interpretation': '论文解读',
+                'User Settings': '用户设置',
+                'Login': '登录',
+                'Register': '注册',
+                'Email Address': '邮箱地址',
+                'Password': '密码',
+                'Upload Paper': '上传论文',
+                'Start Interpretation': '开始解读',
+                # 添加更多翻译...
+            }
         }
         
-        FlaskApplication(app, options).run()
+        # 创建目录
+        os.makedirs(os.path.dirname(translations_path), exist_ok=True)
+        
+        # 写入默认翻译文件
+        with open(translations_path, 'w', encoding='utf-8') as f:
+            json.dump(default_translations, f, ensure_ascii=False, indent=2)
+    
+    return send_from_directory(os.path.dirname(translations_path), 
+                               os.path.basename(translations_path))
