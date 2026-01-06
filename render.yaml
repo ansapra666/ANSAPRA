@@ -1,26 +1,17 @@
-# render.yaml
 services:
   - type: web
     name: ansapra
     env: python
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-      mkdir -p data uploads static/lang
-    startCommand: gunicorn -c gunicorn_config.py app:app
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --timeout 120 --workers 2 --threads 4 app:app
     envVars:
-      - key: DEEPSEEK_API_KEY
-        sync: false
+      - key: PORT
+        value: 10000
       - key: SECRET_KEY
         generateValue: true
-      - key: FLASK_ENV
-        value: production
-      - key: PYTHON_VERSION
-        value: 3.12.0
-    healthCheckPath: /api/check-auth
-    healthCheckTimeout: 30
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: SPRINGER_API_KEY
+        sync: false
     autoDeploy: true
-    disk:
-      name: data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
