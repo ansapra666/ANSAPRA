@@ -7,7 +7,7 @@ workers = 2
 worker_class = "sync"
 
 # 超时设置 - 这是关键！
-timeout = 180  # 3分钟
+timeout = 600  # 3分钟
 keepalive = 5
 graceful_timeout = 30
 
