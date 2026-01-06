@@ -186,7 +186,7 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     
     try:
         # 设置更长的超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=10000)
         response.raise_for_status()
         result = response.json()
         
@@ -372,7 +372,7 @@ def search_springer_papers(query, count=5):
     }
     
     try:
-        response = requests.get(SPRINGER_API_URL, params=params, timeout=15)
+        response = requests.get(SPRINGER_API_URL, params=params, timeout=150)
         response.raise_for_status()
         data = response.json()
         papers = []
