@@ -28,8 +28,6 @@ CORS(app)
 # API配置
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-SPRINGER_API_KEY = os.environ.get('SPRINGER_API_KEY')
-SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
 
 # 用户数据文件路径
 USERS_FILE = 'data/users.json'
@@ -508,41 +506,6 @@ def analyze_knowledge_reserve(questionnaire):
     
     return knowledge_reserve
 
-def search_springer_papers(query, count=5):
-    """搜索Springer论文"""
-    if not SPRINGER_API_KEY:
-        return []
-    
-    params = {
-        'q': query,
-        'api_key': SPRINGER_API_KEY,
-        'p': count,
-        's': 1
-    }
-    
-    try:
-        response = requests.get(SPRINGER_API_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        papers = []
-        
-        if 'records' in data:
-            for record in data['records'][:count]:
-                paper = {
-                    'title': record.get('title', ''),
-                    'authors': ', '.join([creator.get('creator', '') for creator in record.get('creators', [])]),
-                    'publication': record.get('publicationName', ''),
-                    'year': record.get('publicationDate', '')[:4] if record.get('publicationDate') else '',
-                    'url': record.get('url', [{}])[0].get('value', '') if record.get('url') else '',
-                    'abstract': record.get('abstract', '')[:200] + '...' if record.get('abstract') else ''
-                }
-                papers.append(paper)
-        
-        return papers
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Springer API error: {e}")
-        return []
 
 # 路由定义
 @app.route('/')
