@@ -524,16 +524,8 @@ def interpret():
         if file and file.filename:
             filename = secure_filename(file.filename)
             file_ext = os.path.splitext(filename)[1].lower()
-            
-            # 只支持PDF、DOCX、TXT格式
-            if file_ext not in ['.pdf', '.docx', '.txt']:
-                return jsonify({'success': False, 'message': f'不支持的文件格式: {file_ext}，请上传PDF、DOCX或TXT文件'}), 400
-
-            if file_ext == '.txt':
-                # 直接读取文本文件
-                paper_content = file.read().decode('utf-8', errors='ignore')
                 
-            elif file_ext == '.pdf':
+            if file_ext == '.pdf':
                 try:
                     # 重置文件指针
                     file.seek(0)
