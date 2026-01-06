@@ -239,17 +239,18 @@ function handleFileSelect(e) {
     
     // 文件大小验证
     if (fileSize > 16) {
-        alert('文件大小不能超过16MB');
+        showNotification('文件大小不能超过16MB', 'error');
         DOM.fileInput.value = '';
         return;
     }
     
-    // 添加文件类型验证
-    const allowedExtensions = ['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
-    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    // 获取文件扩展名
+    const fileName = file.name.toLowerCase();
+    const allowedExtensions = ['.pdf', '.docx', '.txt'];
+    const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
     
-    if (!allowedExtensions.includes(fileExtension)) {
-        alert('不支持的文件格式。请上传PDF、DOCX、TXT或图片文件。');
+    if (!hasValidExtension) {
+        showNotification('不支持的文件格式。请上传PDF、DOCX或TXT文件。', 'error');
         DOM.fileInput.value = '';
         return;
     }
