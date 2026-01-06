@@ -1,1 +1,2 @@
-web: gunicorn app:app
+# Procfile
+web: gunicorn -c gunicorn_config.py app:app
