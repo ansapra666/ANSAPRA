@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 
 # Flask相关
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_cors import CORS
 
 # 工具库
@@ -848,7 +848,8 @@ def get_user_profile():
 def get_translations():
     # 确保语言文件存在
     import os
-    translations_path = os.path.join(app.static_folder, 'lang', 'translations.json')
+    from flask import send_file
+    translations_path = os.path.join(app.root_path, 'static', 'lang', 'translations.json')
     if os.path.exists(translations_path):
         return send_file(translations_path)
     else:
