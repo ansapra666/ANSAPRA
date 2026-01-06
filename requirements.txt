@@ -9,4 +9,4 @@ PyPDF2==3.0.1
 python-docx==0.8.11
 setuptools==80.0.0 
 pytesseract==0.3.10
-Pillow==10.1.0
+Pillow==10.3.0 
