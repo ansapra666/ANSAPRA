@@ -11,6 +11,7 @@ import uuid
 import logging
 import concurrent.futures
 import time
+import base64
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -137,9 +138,6 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     if len(paper_content) > max_content_length:
         paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
     
-    # 简化用户画像，减少token数量
-    user_profile = analyze_user_profile(user_data)
-    
     # 构建简化的提示词
     system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化设置，生成适合高中生的论文解读。"""
     
@@ -187,8 +185,8 @@ def call_deepseek_api(user_data, paper_content, user_settings, history):
     }
     
     try:
-        # 设置更短的超时时间
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=None)
+        # 设置更长的超时时间
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=180)
         response.raise_for_status()
         result = response.json()
         
@@ -521,89 +519,45 @@ def interpret():
     try:
         paper_content = ""
         
-        if file and file.filename:
-            filename = secure_filename(file.filename)
-            file_ext = os.path.splitext(filename)[1].lower()
+        if file:
+            # 获取文件名
+            filename = secure_filename(file.filename) if file.filename else "uploaded_file"
+            
+            # 重置文件指针到开始位置
+            file.seek(0)
+            
+            # 尝试读取文件内容
+            try:
+                # 读取原始字节
+                file_bytes = file.read()
                 
-            if file_ext == '.pdf':
-                try:
-                    # 重置文件指针
-                    file.seek(0)
-                    
-                    # 读取PDF文件内容到内存
-                    pdf_bytes = file.read()
-                    
-                    # 使用BytesIO创建内存中的文件对象
-                    from io import BytesIO
-                    pdf_file = BytesIO(pdf_bytes)
-                    
-                    # 使用PyPDF2解析PDF
-                    from PyPDF2 import PdfReader
-                    pdf_reader = PdfReader(pdf_file)
-                    paper_content = ""
-                    
-                    # 限制页面数量，防止过长的PDF
-                    max_pages = 10  # 最多处理10页
-                    total_pages = min(len(pdf_reader.pages), max_pages)
-                    
-                    for page_num in range(total_pages):
-                        page = pdf_reader.pages[page_num]
-                        page_text = page.extract_text()
-                        if page_text:
-                            paper_content += f"第{page_num+1}页:\n{page_text}\n\n"
-                    
-                    if total_pages < len(pdf_reader.pages):
-                        paper_content += f"\n[注：PDF共{len(pdf_reader.pages)}页，仅处理前{max_pages}页]\n"
-                    
-                    if not paper_content.strip():
-                        paper_content = "PDF文件已上传，但未能提取到文本内容。这可能是因为PDF是扫描件或包含图像文字。"
-                        
-                except Exception as pdf_error:
-                    logger.error(f"PDF解析错误: {pdf_error}")
-                    paper_content = f"PDF文件处理失败: {str(pdf_error)}\n"
-                    
-                    # 如果解析失败，至少返回文件信息
-                    file.seek(0)
-                    file_size = len(file.read())
-                    paper_content += f"\n文件名: {filename}\n"
-                    paper_content += f"文件大小: {file_size} 字节\n"
-                    paper_content += "注：请确保PDF文件包含可提取的文本（非扫描件）。"
-                    
-            elif file_ext == '.docx':
-                try:
-                    # 重置文件指针
-                    file.seek(0)
-                    
-                    # 使用python-docx读取DOCX文件
-                    from io import BytesIO
-                    import docx
-                    
-                    docx_file = BytesIO(file.read())
-                    doc = docx.Document(docx_file)
-                    paper_content = ""
-                    
-                    for paragraph in doc.paragraphs:
-                        if paragraph.text.strip():
-                            paper_content += paragraph.text + "\n"
-                    
-                    if not paper_content.strip():
-                        paper_content = "DOCX文件已上传，但未能提取到文本内容。"
-                        
-                except Exception as docx_error:
-                    logger.error(f"DOCX解析错误: {docx_error}")
-                    paper_content = f"DOCX文件处理失败: {str(docx_error)}\n"
-                    paper_content += "文件已上传，请检查文件格式。"
-                    
+                # 尝试用不同编码解码文本
+                encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1', 'iso-8859-1']
+                
+                for encoding in encodings:
+                    try:
+                        paper_content = file_bytes.decode(encoding)
+                        logger.info(f"成功使用 {encoding} 编码解码文件")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                # 如果所有编码都失败，将文件作为二进制发送给AI
+                if not paper_content:
+                    # 将二进制内容编码为base64
+                    base64_content = base64.b64encode(file_bytes).decode('ascii')
+                    paper_content = f"这是一个二进制文件，无法解码为文本。文件名: {filename}，文件大小: {len(file_bytes)} 字节，Base64编码内容的前1000字符: {base64_content[:1000]}..."
+                    logger.info(f"无法解码文件，使用base64编码发送二进制数据")
+            except Exception as read_error:
+                logger.error(f"文件读取错误: {read_error}")
+                paper_content = f"文件读取失败: {str(read_error)}。文件名: {filename}"
         else:
             paper_content = text
 
         # 限制文本长度，防止过长的请求
-        max_text_length = 8000  # 限制为8000字
+        max_text_length = 15000  # 增加到15000字
         if len(paper_content) > max_text_length:
             paper_content = paper_content[:max_text_length] + "\n\n[注：文本过长，已截断部分内容]"
-
-        if not paper_content or paper_content.strip() == "":
-            return jsonify({'success': False, 'message': '文件内容为空或无法读取'}), 400
 
         user_settings = user.get('settings', {})
         history = user.get('reading_history', [])
@@ -629,7 +583,7 @@ def interpret():
         recommendations = []
         try:
             search_query = "natural science"
-            if paper_content:
+            if paper_content and len(paper_content) > 50:
                 words = paper_content.split()[:3]  # 减少关键词数量
                 search_query = ' '.join(words)
             
@@ -643,7 +597,7 @@ def interpret():
         return jsonify({
             'success': True,
             'interpretation': interpretation,
-            'original_content': paper_content,
+            'original_content': paper_content[:1000] + '...' if len(paper_content) > 1000 else paper_content,
             'recommendations': recommendations,
             'timestamp': datetime.now().isoformat()
         })
@@ -745,6 +699,45 @@ def get_translations():
             "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
+
+# 调试端点，查看上传的文件信息
+@app.route('/api/debug-upload', methods=['POST'])
+def debug_upload():
+    """调试用上传接口，显示文件详细信息"""
+    file = request.files.get('file')
+    
+    if not file:
+        return jsonify({'error': '没有文件'}), 400
+    
+    # 获取文件信息
+    file.seek(0, 2)  # 移动到文件末尾
+    file_size = file.tell()
+    file.seek(0)  # 回到文件开头
+    
+    # 读取部分内容
+    content_preview = file.read(200)
+    file.seek(0)
+    
+    # 尝试解码
+    encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1', 'iso-8859-1']
+    decoded_content = None
+    
+    for encoding in encodings:
+        try:
+            decoded_content = content_preview.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    
+    return jsonify({
+        'filename': file.filename,
+        'size': file_size,
+        'content_type': file.content_type,
+        'content_preview_hex': content_preview.hex()[:100],
+        'content_preview_ascii': content_preview.decode('ascii', errors='ignore')[:100],
+        'decoded_content': decoded_content,
+        'success': True
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
