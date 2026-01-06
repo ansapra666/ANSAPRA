@@ -12,6 +12,4 @@ services:
         generateValue: true
       - key: DEEPSEEK_API_KEY
         sync: false
-      - key: SPRINGER_API_KEY
-        sync: false
     autoDeploy: true
