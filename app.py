@@ -633,9 +633,9 @@ def interpret():
             file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
             
             # 检查文件类型
-            allowed_extensions = ['pdf', 'docx', 'txt']
-            if file_ext not in allowed_extensions:
-                return jsonify({"success": False, "message": f"只支持{', '.join(allowed_extensions)}格式"})
+            # 修改为支持图片格式
+            if file_ext not in ['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
+                return jsonify({'success': False, 'message': '不支持的文件格式'}), 400
             
             # 检查文件大小
             file.seek(0, 2)  # 移动到文件末尾
