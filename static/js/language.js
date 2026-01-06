@@ -1,73 +1,258 @@
-// 语言切换模块
-const LanguageManager = {
-    currentLang: 'zh',
-    translations: {},
-    
-    // 初始化
-    async init() {
-        await this.loadTranslations();
-        this.loadSavedLanguage();
-        this.applyLanguage();
-        this.setupEventListeners();
-    },
-    
-    // 加载语言资源
-    async function loadTranslations(lang) {
-        try {
-            const response = await fetch(`/static/lang/translations.json`);
-            if (!response.ok) throw new Error('Failed to load translations');
-            
-            const translations = await response.json();
-            currentLang = lang;
-            
-            // 保存语言偏好
-            localStorage.setItem('preferredLanguage', lang);
-            
-            function updatePageText(translations) {
-        // 查找所有需要翻译的元素
-        const translatableElements = document.querySelectorAll('[data-translate]');
+// 语言切换功能 - 完整修复版
+class LanguageManager {
+    constructor() {
+        this.currentLang = 'en';
+        this.translations = {};
+        this.isLoading = false;
         
-        translatableElements.forEach(element => {
-            const key = element.getAttribute('data-translate');
-            if (translations[key]) {
-                element.textContent = translations[key];
+        // 绑定事件
+        this.init();
+    }
+    
+    async init() {
+        console.log('LanguageManager initialized');
+        
+        // 从存储中获取语言设置
+        this.currentLang = localStorage.getItem('preferredLanguage') || 
+                          (navigator.language.startsWith('zh') ? 'zh' : 'en');
+        
+        // 加载翻译
+        await this.loadTranslations(this.currentLang);
+        
+        // 设置语言切换按钮事件
+        this.setupLanguageButtons();
+        
+        // 监听语言变化事件
+        document.addEventListener('languageChanged', (e) => {
+            console.log('Language changed to:', e.detail.language);
+        });
+    }
+    
+    async loadTranslations(lang) {
+        if (this.isLoading) return;
+        
+        this.isLoading = true;
+        console.log(`Loading translations for: ${lang}`);
+        
+        try {
+            // 尝试从API获取翻译
+            const response = await fetch(`/api/language/translations?lang=${lang}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            // 处理占位符
-            if (element.hasAttribute('data-placeholder-key')) {
-                const placeholderKey = element.getAttribute('data-placeholder-key');
-                if (translations[placeholderKey]) {
-                    element.placeholder = translations[placeholderKey];
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // 保存翻译数据
+            this.translations = data;
+            this.currentLang = lang;
+            
+            // 保存到本地存储
+            localStorage.setItem('preferredLanguage', lang);
+            
+            // 更新页面
+            this.updatePage();
+            
+            // 更新HTML lang属性
+            document.documentElement.lang = lang;
+            
+            // 触发自定义事件
+            document.dispatchEvent(new CustomEvent('languageChanged', {
+                detail: { language: lang }
+            }));
+            
+            console.log(`Translations loaded for: ${lang}`);
+            return true;
+            
+        } catch (error) {
+            console.error('Failed to load translations:', error);
+            
+            // 尝试备用方案：直接加载JSON文件
+            try {
+                const backupResponse = await fetch(`/static/lang/translations.json`);
+                const backupData = await backupResponse.json();
+                
+                if (backupData[lang]) {
+                    this.translations = backupData[lang];
+                    this.currentLang = lang;
+                    localStorage.setItem('preferredLanguage', lang);
+                    this.updatePage();
+                    document.documentElement.lang = lang;
+                    console.log('Used backup translations');
+                    return true;
                 }
+            } catch (backupError) {
+                console.error('Backup translation also failed:', backupError);
+            }
+            
+            // 使用默认的内联翻译
+            this.useInlineTranslations(lang);
+            return false;
+            
+        } finally {
+            this.isLoading = false;
+        }
+    }
+    
+    useInlineTranslations(lang) {
+        // 内联翻译作为最后的手段
+        const inlineTranslations = {
+            'en': {
+                'Website Introduction': 'Website Introduction',
+                'User Guide': 'User Guide',
+                'Paper Interpretation': 'Paper Interpretation',
+                'User Settings': 'User Settings',
+                'Login': 'Login',
+                'Register': 'Register',
+                'Email Address': 'Email Address',
+                'Password': 'Password',
+                'Upload Paper': 'Upload Paper',
+                'Start Interpretation': 'Start Interpretation'
+            },
+            'zh': {
+                'Website Introduction': '网站介绍',
+                'User Guide': '用户指南',
+                'Paper Interpretation': '论文解读',
+                'User Settings': '用户设置',
+                'Login': '登录',
+                'Register': '注册',
+                'Email Address': '邮箱地址',
+                'Password': '密码',
+                'Upload Paper': '上传论文',
+                'Start Interpretation': '开始解读'
+            }
+        };
+        
+        this.translations = inlineTranslations[lang] || inlineTranslations['en'];
+        this.currentLang = lang;
+        localStorage.setItem('preferredLanguage', lang);
+        this.updatePage();
+        document.documentElement.lang = lang;
+    }
+    
+    updatePage() {
+        // 更新所有带有 data-i18n 属性的元素
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            if (this.translations[key]) {
+                element.textContent = this.translations[key];
+            }
+        });
+        
+        // 更新所有带有 data-i18n-placeholder 属性的输入框
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-i18n-placeholder');
+            if (this.translations[key]) {
+                element.placeholder = this.translations[key];
+            }
+        });
+        
+        // 更新所有带有 data-i18n-title 属性的元素
+        document.querySelectorAll('[data-i18n-title]').forEach(element => {
+            const key = element.getAttribute('data-i18n-title');
+            if (this.translations[key]) {
+                element.title = this.translations[key];
+            }
+        });
+        
+        // 更新所有带有 data-i18n-value 属性的按钮
+        document.querySelectorAll('[data-i18n-value]').forEach(element => {
+            const key = element.getAttribute('data-i18n-value');
+            if (this.translations[key] && element.tagName === 'INPUT') {
+                element.value = this.translations[key];
             }
         });
         
         // 更新页面标题
-        const pageTitle = document.querySelector('title[data-translate]');
-        if (pageTitle) {
-            const titleKey = pageTitle.getAttribute('data-translate');
-            if (translations[titleKey]) {
-                document.title = translations[titleKey];
+        const titleElement = document.querySelector('title[data-i18n]');
+        if (titleElement) {
+            const key = titleElement.getAttribute('data-i18n');
+            if (this.translations[key]) {
+                document.title = this.translations[key];
             }
         }
+        
+        // 更新语言切换按钮状态
+        this.updateLanguageButtons();
     }
     
-    // 更新语言切换按钮状态
-    function updateLanguageButtons() {
+    setupLanguageButtons() {
+        // 找到所有语言切换按钮
         const enBtn = document.getElementById('lang-en');
         const zhBtn = document.getElementById('lang-zh');
         
-        if (enBtn) enBtn.classList.toggle('active', currentLang === 'en');
-        if (zhBtn) zhBtn.classList.toggle('active', currentLang === 'zh');
-    }
-            
-            return true;
-        } catch (error) {
-            console.error('Error loading translations:', error);
-            return false;
+        if (enBtn) {
+            enBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.loadTranslations('en');
+            });
         }
+        
+        if (zhBtn) {
+            zhBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.loadTranslations('zh');
+            });
+        }
+        
+        // 为类名设置事件
+        document.querySelectorAll('.lang-switch-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const lang = btn.getAttribute('data-lang') || 'en';
+                this.loadTranslations(lang);
+            });
+        });
     }
+    
+    updateLanguageButtons() {
+        // 更新所有语言切换按钮的激活状态
+        document.querySelectorAll('.lang-btn, .lang-switch-btn').forEach(btn => {
+            const lang = btn.getAttribute('data-lang') || 
+                        (btn.id.includes('en') ? 'en' : 
+                         btn.id.includes('zh') ? 'zh' : 'en');
+            
+            if (lang === this.currentLang) {
+                btn.classList.add('active');
+                btn.classList.remove('inactive');
+            } else {
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+            }
+        });
+    }
+    
+    getTranslation(key, defaultValue = '') {
+        return this.translations[key] || defaultValue || key;
+    }
+    
+    getCurrentLanguage() {
+        return this.currentLang;
+    }
+}
 
+// 初始化语言管理器
+let languageManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    languageManager = new LanguageManager();
+    
+    // 将语言管理器暴露给全局作用域
+    window.languageManager = languageManager;
+});
+
+// 导出函数供其他模块使用
+window.translate = function(key, defaultValue = '') {
+    if (window.languageManager) {
+        return window.languageManager.getTranslation(key, defaultValue);
+    }
+    return defaultValue || key;
+};
     
     // 加载保存的语言设置
     loadSavedLanguage() {
