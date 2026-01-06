@@ -5,13 +5,13 @@ import multiprocessing
 # 绑定端口
 bind = "0.0.0.0:" + os.environ.get("PORT", "10000")
 
-# Worker数量（根据CPU核心数调整）
-workers = multiprocessing.cpu_count() * 2 + 1
+# Worker数量（根据Render的限制调整）
+workers = 2  # Render免费版建议2个worker
 
 # Worker类
 worker_class = "sync"
 
-# 超时时间（秒），增加以处理大文件
+# 超时时间（秒）
 timeout = 180
 
 # 保持连接
@@ -24,6 +24,9 @@ loglevel = "info"
 
 # 进程名称
 proc_name = "ansapra"
+
+# 预热应用
+preload_app = True
 
 # 最大请求数，防止内存泄漏
 max_requests = 1000
