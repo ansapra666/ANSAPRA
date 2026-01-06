@@ -11,16 +11,63 @@ const LanguageManager = {
         this.setupEventListeners();
     },
     
-    // 加载翻译文件
-    async loadTranslations() {
+    // 加载语言资源
+    async function loadTranslations(lang) {
         try {
-            const response = await fetch('/static/lang/translations.json');
-            this.translations = await response.json();
-        } catch (error) {
-            console.error('Failed to load translations:', error);
-            this.translations = { zh: {}, en: {} };
+            const response = await fetch(`/static/lang/translations.json`);
+            if (!response.ok) throw new Error('Failed to load translations');
+            
+            const translations = await response.json();
+            currentLang = lang;
+            
+            // 保存语言偏好
+            localStorage.setItem('preferredLanguage', lang);
+            
+            function updatePageText(translations) {
+        // 查找所有需要翻译的元素
+        const translatableElements = document.querySelectorAll('[data-translate]');
+        
+        translatableElements.forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (translations[key]) {
+                element.textContent = translations[key];
+            }
+            
+            // 处理占位符
+            if (element.hasAttribute('data-placeholder-key')) {
+                const placeholderKey = element.getAttribute('data-placeholder-key');
+                if (translations[placeholderKey]) {
+                    element.placeholder = translations[placeholderKey];
+                }
+            }
+        });
+        
+        // 更新页面标题
+        const pageTitle = document.querySelector('title[data-translate]');
+        if (pageTitle) {
+            const titleKey = pageTitle.getAttribute('data-translate');
+            if (translations[titleKey]) {
+                document.title = translations[titleKey];
+            }
         }
-    },
+    }
+    
+    // 更新语言切换按钮状态
+    function updateLanguageButtons() {
+        const enBtn = document.getElementById('lang-en');
+        const zhBtn = document.getElementById('lang-zh');
+        
+        if (enBtn) enBtn.classList.toggle('active', currentLang === 'en');
+        if (zhBtn) zhBtn.classList.toggle('active', currentLang === 'zh');
+    }
+            
+            return true;
+        } catch (error) {
+            console.error('Error loading translations:', error);
+            return false;
+        }
+    }
+
     
     // 加载保存的语言设置
     loadSavedLanguage() {
@@ -389,6 +436,15 @@ const LanguageManager = {
 };
 
 // 初始化语言管理器
-document.addEventListener('DOMContentLoaded', () => {
-    LanguageManager.init();
+document.addEventListener('DOMContentLoaded', async () => {
+    // 从 localStorage 或浏览器设置获取首选语言
+    const savedLang = localStorage.getItem('preferredLanguage');
+    const browserLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+    const initialLang = savedLang || browserLang;
+    
+    await loadTranslations(initialLang);
+    
+    // 设置语言切换按钮事件
+    document.getElementById('lang-en')?.addEventListener('click', () => loadTranslations('en'));
+    document.getElementById('lang-zh')?.addEventListener('click', () => loadTranslations('zh'));
 });
