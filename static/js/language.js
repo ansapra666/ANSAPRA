@@ -74,11 +74,16 @@ const LanguageManager = {
         this.updateLanguageButtons();
     },
     
-    // 获取翻译
-    getTranslation(key, defaultValue = '') {
-        const langTranslations = this.translations[this.currentLang] || {};
-        return langTranslations[key] || defaultValue || key;
-    },
+    getTranslation(key) {
+        return translations?.[key] || key;
+    }
+    
+    // 导出函数供其他模块使用
+    window.translationService = {
+        loadTranslations,
+        getTranslation,
+        currentLang: () => currentLang
+    };
     
     // 更新所有界面元素
     updateAllElements() {
