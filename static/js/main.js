@@ -2769,3 +2769,41 @@ function setupSearchKeybindings() {
         });
     }
 }
+// 智能提取关键词用于搜索建议
+function extractKeywordsForSearch(paperContent) {
+    if (!paperContent || paperContent.length < 50) {
+        return null;
+    }
+    
+    // 简单的关键词提取逻辑
+    const lines = paperContent.split('\n').slice(0, 5);
+    const firstFewLines = lines.join(' ');
+    
+    // 提取可能的专业术语
+    const terms = firstFewLines.match(/[A-Z][a-z]+(?:\s[A-Z][a-z]+)*/g) || [];
+    
+    // 返回前3个可能的术语
+    return terms.slice(0, 3).join(', ');
+}
+
+// 在解读完成后自动填充搜索框
+function autoFillSearchKeywords(keywords) {
+    if (keywords) {
+        const natureInput = document.getElementById('nature-search-input');
+        const scienceInput = document.getElementById('science-search-input');
+        
+        if (natureInput && !natureInput.value) {
+            natureInput.value = keywords;
+        }
+        if (scienceInput && !scienceInput.value) {
+            scienceInput.value = keywords;
+        }
+    }
+}
+
+// 在 startInterpretation 函数的结果处理部分添加：
+// 在显示结果后添加
+const keywords = extractKeywordsForSearch(data.original_content);
+if (keywords) {
+    autoFillSearchKeywords(keywords);
+}
