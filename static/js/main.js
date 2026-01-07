@@ -4,7 +4,9 @@ const AppState = {
     currentPage: 'intro',
     isProcessing: false,
     language: 'zh',
-    translations: {}
+    translations: {},
+    chatHistory: [], // 新增：聊天历史
+    currentPDFUrl: null // 新增：当前PDF的URL
 };
 
 // DOM 元素
@@ -26,6 +28,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 加载设置表单
     loadSettingsForms();
+
+    // 加载聊天历史（如果用户已登录）
+    if (AppState.user && !AppState.user.is_guest) {
+        loadChatHistory();
+    }
     
     // 检查是否有已保存的问卷
     const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
@@ -201,6 +208,111 @@ function setupEventListeners() {
     setTimeout(() => {
         setupQuestionnaireValidation();
     }, 500);
+}
+
+// 加载聊天历史
+async function loadChatHistory() {
+    if (!AppState.user || AppState.user.is_guest) return;
+    
+    try {
+        const response = await fetch('/api/chat/history');
+        const data = await response.json();
+        
+        if (data.success) {
+            AppState.chatHistory = data.chat_history || [];
+        }
+    } catch (error) {
+        console.error('加载聊天历史错误:', error);
+    }
+}
+
+// 发送AI聊天消息
+async function sendChatMessage() {
+    const chatInput = document.getElementById('chat-input');
+    const chatContainer = document.getElementById('chat-container');
+    
+    if (!chatInput || !chatContainer) return;
+    
+    const question = chatInput.value.trim();
+    if (!question) return;
+    
+    // 显示用户消息
+    const userMessage = document.createElement('div');
+    userMessage.className = 'chat-message user-message';
+    userMessage.innerHTML = `
+        <div class="message-content">
+            <strong>您：</strong> ${question}
+        </div>
+    `;
+    chatContainer.appendChild(userMessage);
+    
+    // 显示加载指示器
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'chat-message ai-message loading';
+    loadingMessage.innerHTML = `
+        <div class="message-content">
+            <strong>AI：</strong> <i class="fas fa-spinner fa-spin"></i> 思考中...
+        </div>
+    `;
+    chatContainer.appendChild(loadingMessage);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // 清空输入框
+    chatInput.value = '';
+    
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                question: question,
+                chat_history: AppState.chatHistory
+            })
+        });
+        
+        const data = await response.json();
+        
+        // 移除加载指示器
+        loadingMessage.remove();
+        
+        if (data.success) {
+            // 显示AI回复
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'chat-message ai-message';
+            aiMessage.innerHTML = `
+                <div class="message-content">
+                    <strong>AI：</strong> ${data.answer}
+                </div>
+            `;
+            chatContainer.appendChild(aiMessage);
+            
+            // 添加到聊天历史
+            if (data.chat_item) {
+                AppState.chatHistory.push(data.chat_item);
+            }
+        } else {
+            showNotification(data.message || 'AI回复失败', 'error');
+        }
+        
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+    } catch (error) {
+        console.error('发送聊天消息错误:', error);
+        loadingMessage.remove();
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 清空聊天历史
+function clearChatHistory() {
+    const chatContainer = document.getElementById('chat-container');
+    if (chatContainer) {
+        chatContainer.innerHTML = '';
+    }
+    AppState.chatHistory = [];
+    showNotification('聊天记录已清空', 'success');
 }
 
 function switchPage(pageName) {
