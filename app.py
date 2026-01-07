@@ -300,6 +300,103 @@ def call_deepseek_api(user_data, paper_content, user_settings, history, question
     else:
         system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化需求生成论文解读。"""
     
+    # 获取阅读习惯设置
+    reading_settings = user_settings.get('reading', {}) if user_settings else {}
+    
+    # 构建用户阅读习惯描述
+    reading_habits_context = ""
+    if reading_settings:
+        if language == 'en':
+            reading_habits_context = f"""
+Reading Habits Settings:
+1. Preparation Level: {reading_settings.get('preparation', 'B')}
+   - A: Almost no preparation
+   - B: Some preparation
+   - C: In-depth preparation
+   - Effect: Higher preparation level → remove basic term explanations, only explain difficult terms
+
+2. Reading Purpose: {reading_settings.get('purpose', 'B')}
+   - A: Goal-oriented (task completion) → focus on core concepts and key points
+   - B: Knowledge explorer (interest-driven) → connect with related knowledge and practical examples
+   - C: Deep learner (in-depth understanding) → focus on cutting-edge technology and detailed analysis
+   - D: Scientific literacy builder → focus on scientific literacy and perception development
+
+3. Reading Time Preference: {reading_settings.get('time', 'B')}
+   - A: Within 10 minutes → shorter, concise interpretation
+   - B: 10-30 minutes → moderate length and detail
+   - C: 30+ minutes → longer, more detailed interpretation
+
+4. Interpretation Style: {reading_settings.get('style', 'C')}
+   - A: Vivid and figurative, using everyday language and analogies
+   - B: Quantitative interpretation, emphasizing data and formulas
+   - C: Professional interpretation, formal and rigorous language
+   - D: Authentic style, preserving original academic expression
+   - E: Step-by-step derivation, teaching through questions and interaction
+
+5. Interpretation Depth: {reading_settings.get('depth', 'B')}
+   - A: Concise summary (~1000 words for overview)
+   - B: Balanced detailed (~2000 words for overview)
+   - C: Detailed in-depth (~3000 words for overview)
+
+6. Post-reading Test Types: {reading_settings.get('test_type', ['A'])}
+   - A: Fill-in-the-blank questions for definitions
+   - B: Multiple-choice questions for error-prone concepts
+   - C: Formula and logic memorization questions
+
+7. Preferred Chart Types: {reading_settings.get('chart_types', ['A'])}
+   - A: Mind maps (tree structure)
+   - B: Flowcharts and logic diagrams
+   - C: Tables
+   - D: Statistical charts (line charts, bar charts, etc.)
+
+Please adjust your interpretation according to these settings.
+"""
+        else:
+            reading_habits_context = f"""
+阅读习惯设置：
+1. 准备程度：{reading_settings.get('preparation', 'B')}
+   - A：几乎不做准备
+   - B：做一些准备
+   - C：做较为深入的准备
+   - 效果：准备程度越高 → 去除基础术语解释，只解释高难度术语
+
+2. 阅读原因：{reading_settings.get('purpose', 'B')}
+   - A：目标驱动者（完成任务）→ 专注于文章概念和核心知识点
+   - B：知识探索者（兴趣驱动）→ 多联系学科内部相关知识和实际应用举例
+   - C：深度学习者（深入理解）→ 侧重于最前沿最尖端的技术部分，解读透彻详细
+   - D：科学了解者（提升素养）→ 注重科学素养和科学感知能力的培养
+
+3. 阅读时长偏好：{reading_settings.get('time', 'B')}
+   - A：10分钟内 → 解读简短、精炼
+   - B：10-30分钟内 → 长度适中、细节适当
+   - C：30分钟及以上 → 解读详细、内容全面
+
+4. 解读风格偏好：{reading_settings.get('style', 'C')}
+   - A：生动形象，语言偏口语化，联系生活中简单例子和类比
+   - B：量化解读，通过数据和公式解读论文
+   - C：专业解读，使用正式语言和专业严谨的表达
+   - D：原汁原味，保留原文的表达风格和表述方式
+   - E：逐步推导，通过问题引入，像课堂教学一样引导
+
+5. 解读深度偏好：{reading_settings.get('depth', 'B')}
+   - A：简洁概括 → 论文概述部分约1000字
+   - B：平衡详细 → 论文概述部分约2000字
+   - C：详细深入 → 论文概述部分约3000字
+
+6. 读后自测类型：{reading_settings.get('test_type', ['A'])}
+   - A：相关定义填空题
+   - B：易错易混选择题
+   - C：公式逻辑默写题
+
+7. 图表形式偏好：{reading_settings.get('chart_types', ['A'])}
+   - A：思维导图（树状）
+   - B：流程图与逻辑图
+   - C：表格
+   - D：统计图（折线图、柱状图等）
+
+请根据以上设置调整您的解读。
+"""
+    
     # 构建用户画像和历史记录描述
     user_context = ""
     if user_data and questionnaire:
@@ -346,10 +443,13 @@ b) The specific personalized interpretation settings, past reading data, persona
 c) To help improve the user's knowledge framework, focus on the weak points of the user's knowledge framework during interpretation, leverage the user's strengths in natural sciences, and focus on cultivating the user's interest in natural sciences.
 d) The user's past reading history, especially the subjects and keywords of papers, can help illustrate the user's reading interests and preferences.
 e) When interpreting, sentences should not be lengthy; they should be short and clear.
-f) Divide the interpretation content into logical sections with clear subtitles. The final output should be divided into: Paper Core Overview (Research Background and Purpose, Research Methods and Theory, Research Findings and Significance), Terminology Interpretation Section (do not be brief, explain high-difficulty terms in detail), Self-Assessment Questions, and Post-Reading Thinking Questions.
+f) Divide the interpretation content into logical sections with clear subtitles. The final output should be divided into: Paper Core Overview (Research Background and Purpose, Research Methods and Theory, Research Findings and Significance), Terminology Interpretation Section (adjust term explanation based on preparation level), Self-Assessment Questions (use specified test types), and Post-Reading Thinking Questions.
 g) Only interpret the paper content; no additional content needs to be generated.
 h) The generated interpretation must be in English.
 i) The interpretation must end with the reference: "Interpretation content generated by DeepSeek AI, for reference only."
+
+User Reading Habits:
+{reading_habits_context}
 
 User Context:
 {user_context}
@@ -368,10 +468,13 @@ b) 其具体个性化解读方式设置数据、过往阅读数据、个人自�
 c) 为了帮助完善用户的知识框架，可以在解读时注重用户知识框架的薄弱点，并发挥用户在自然科学方面的长处，着重引导培养用户在自然科学方面的兴趣。
 d) 用户的过往阅读历史，尤其是论文的科目和关键词，可以帮助说明用户的阅读兴趣和阅读类型偏好。
 e) 解读时，句子不能冗长，要求简短、清晰。
-f) 尽可能逻辑清晰地分出小标题，有条理地分开解读内容的各部分。最终输出的内容要分为论文核心概述（研究背景与目的、研究方法与理论、研究发现与意义）、术语解读部分（不要简短，多解释一些高难度术语）、自测小问题、读后思考问题。
+f) 尽可能逻辑清晰地分出小标题，有条理地分开解读内容的各部分。最终输出的内容要分为论文核心概述（研究背景与目的、研究方法与理论、研究发现与意义）、术语解读部分（根据准备程度调整术语解释难度）、自测小问题（使用指定的测试类型）、读后思考问题。
 g) 只进行论文内容的解读，不需要额外生成其他内容。
 h) 生成的解读内容需要是中文。
 i) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅供参考。
+
+用户阅读习惯：
+{reading_habits_context}
 
 用户画像：
 {user_context}
@@ -400,11 +503,20 @@ i) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅
         'Content-Type': 'application/json'
     }
     
+    # 根据解读深度设置最大token数
+    depth_settings = {
+        'A': 1500,  # 简洁概括
+        'B': 2500,  # 平衡详细
+        'C': 3500   # 详细深入
+    }
+    
+    max_tokens = depth_settings.get(reading_settings.get('depth', 'B'), 2500)
+    
     payload = {
         'model': 'deepseek-chat',
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 2500,  # 增加输出token数量
+        'max_tokens': max_tokens,
         'stream': False
     }
     
