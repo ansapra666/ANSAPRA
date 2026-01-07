@@ -2,9 +2,9 @@ services:
   - type: web
     name: ansapra
     env: python
-    region: singapore
+    region: singapore  # 或选择离你更近的区域，如 oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app -c gunicorn_config.py --timeout 300
     envVars:
       - key: PORT
         value: 10000
@@ -12,4 +12,16 @@ services:
         generateValue: true
       - key: DEEPSEEK_API_KEY
         sync: false
+    # 关键配置
+    timeout: 300  # 最大 300 秒（5分钟）
+    plan: starter  # 需要升级到付费计划
     autoDeploy: true
+    
+    # 健康检查配置
+    healthCheckPath: /health
+    initialDelaySec: 30
+    
+    # 资源限制（Starter 计划）
+    resources:
+      memory: 512Mi
+      cpu: 0.25
