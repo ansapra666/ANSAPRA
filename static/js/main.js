@@ -2975,3 +2975,111 @@ function clearSearchHistory() {
 // 在加载用户设置时调用
 // 在 loadUserSettings 函数末尾添加
 addSearchHistoryToSettings();
+
+// 设置选项卡切换
+function initSettingsTabs() {
+    const tabs = document.querySelectorAll('.settings-tab');
+    const panels = document.querySelectorAll('.settings-panel');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.dataset.tab;
+            
+            // 移除所有活动状态
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            
+            // 添加当前活动状态
+            tab.classList.add('active');
+            const panel = document.getElementById(`${tabId}-settings`);
+            if (panel) {
+                panel.classList.add('active');
+            }
+        });
+    });
+}
+
+// 在DOM加载完成后初始化设置选项卡
+document.addEventListener('DOMContentLoaded', function() {
+    // 其他初始化代码...
+    
+    // 初始化设置选项卡
+    setTimeout(() => {
+        initSettingsTabs();
+    }, 500);
+});
+
+// 生成思维导图
+function generateMindMap(interpretationContent, chartPreferences) {
+    const container = document.getElementById('mindmap-container');
+    if (!container) return;
+    
+    // 清空容器
+    container.innerHTML = '';
+    
+    // 根据用户偏好选择图表类型
+    const chartTypes = chartPreferences || ['A']; // 默认思维导图
+    
+    // 解析解读内容，提取主要部分
+    const sections = parseInterpretationSections(interpretationContent);
+    
+    // 生成图表
+    chartTypes.forEach(chartType => {
+        const chartContainer = document.createElement('div');
+        chartContainer.className = 'chart-container';
+        
+        switch(chartType) {
+            case 'A': // 思维导图（树状）
+                chartContainer.innerHTML = generateMindMapHTML(sections);
+                chartContainer.style.border = '2px solid #007bff';
+                break;
+            case 'B': // 流程图与逻辑图
+                chartContainer.innerHTML = generateFlowchartHTML(sections);
+                chartContainer.style.border = '2px solid #28a745';
+                break;
+            case 'C': // 表格
+                chartContainer.innerHTML = generateTableHTML(sections);
+                chartContainer.style.border = '2px solid #ffc107';
+                break;
+            case 'D': // 统计图
+                chartContainer.innerHTML = generateChartHTML(sections);
+                chartContainer.style.border = '2px solid #dc3545';
+                break;
+        }
+        
+        container.appendChild(chartContainer);
+    });
+}
+
+// 解析解读内容的主要部分
+function parseInterpretationSections(content) {
+    // 这里实现内容解析逻辑
+    // 返回包含主要章节的结构化数据
+    return {
+        overview: '论文核心概述',
+        methods: '研究方法',
+        findings: '研究发现',
+        significance: '研究意义',
+        glossary: '术语解释',
+        questions: '自测问题'
+    };
+}
+
+// 生成思维导图HTML
+function generateMindMapHTML(sections) {
+    return `
+        <div class="mindmap">
+            <div class="mindmap-center">
+                <div class="center-node">论文解读</div>
+                <div class="mindmap-branches">
+                    ${Object.entries(sections).map(([key, value]) => `
+                        <div class="branch">
+                            <div class="branch-line"></div>
+                            <div class="branch-node">${value}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
