@@ -907,16 +907,54 @@ function applyFormSettings(settings) {
     }
 }
 
+// 保存设置
 async function saveSettings() {
     if (!AppState.user || AppState.user.is_guest) {
-        showNotification('游客模式无法保存设置', 'warning');
+        showNotification('游客模式无法保存设置', 'error');
         return;
     }
     
-    // 收集设置数据
-    const settings = collectSettings();
-    
     try {
+        // 收集阅读习惯设置
+        const readingSettings = {
+            preparation: document.querySelector('input[name="preparation"]:checked')?.value || 'B',
+            purpose: document.querySelector('input[name="purpose"]:checked')?.value || 'B',
+            time: document.querySelector('input[name="time"]:checked')?.value || 'B',
+            style: document.querySelector('input[name="style"]:checked')?.value || 'C',
+            depth: document.querySelector('input[name="depth"]:checked')?.value || 'B'
+        };
+        
+        // 收集读后自测类型（多选）
+        const testTypeCheckboxes = document.querySelectorAll('input[name="test_type"]:checked');
+        readingSettings.test_type = Array.from(testTypeCheckboxes).map(cb => cb.value);
+        if (readingSettings.test_type.length === 0) {
+            readingSettings.test_type = ['A']; // 默认值
+        }
+        
+        // 收集图表形式偏好（多选）
+        const chartTypeCheckboxes = document.querySelectorAll('input[name="chart_types"]:checked');
+        readingSettings.chart_types = Array.from(chartTypeCheckboxes).map(cb => cb.value);
+        if (readingSettings.chart_types.length === 0) {
+            readingSettings.chart_types = ['A']; // 默认值
+        }
+        
+        // 收集视觉设置
+        const visualSettings = {
+            theme: document.querySelector('input[name="theme"]:checked')?.value || 'B',
+            font_size: document.querySelector('input[name="font_size"]')?.value || '16',
+            font_family: document.querySelector('select[name="font_family"]')?.value || 'Microsoft YaHei',
+            custom_background: document.querySelector('input[name="custom_background"]')?.value || null
+        };
+        
+        // 收集语言设置
+        const language = document.querySelector('input[name="language"]:checked')?.value || 'zh';
+        
+        const settings = {
+            reading: readingSettings,
+            visual: visualSettings,
+            language: language
+        };
+        
         const response = await fetch('/api/user/settings', {
             method: 'POST',
             headers: {
@@ -928,16 +966,56 @@ async function saveSettings() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('设置保存成功！', 'success');
+            showNotification('设置保存成功', 'success');
             
-            // 应用设置
+            // 应用新设置
             applySettings(settings);
+            
+            // 显示设置应用效果说明
+            showSettingsAppliedNotice(settings.reading);
         } else {
             showNotification(data.message || '保存失败', 'error');
         }
     } catch (error) {
-        console.error('保存设置失败:', error);
+        console.error('保存设置错误:', error);
         showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 显示设置应用效果说明
+function showSettingsAppliedNotice(readingSettings) {
+    const notices = [];
+    
+    // 根据准备程度
+    if (readingSettings.preparation === 'C') {
+        notices.push('由于您选择了"做较为深入的准备"，解读中将只解释高难度术语');
+    } else if (readingSettings.preparation === 'A') {
+        notices.push('由于您选择了"几乎不做准备"，解读中将包含基础术语的解释');
+    }
+    
+    // 根据阅读原因
+    const purposeNotices = {
+        'A': '解读将专注于核心概念和关键知识点',
+        'B': '解读将多联系相关知识和实际应用举例',
+        'C': '解读将侧重于最前沿技术和详细分析',
+        'D': '解读将注重科学素养和感知能力的培养'
+    };
+    notices.push(purposeNotices[readingSettings.purpose] || '');
+    
+    // 根据阅读时长
+    const timeNotices = {
+        'A': '解读内容将简短精炼，适合10分钟内阅读',
+        'B': '解读内容长度适中，适合10-30分钟阅读',
+        'C': '解读内容详细全面，适合30分钟以上深入阅读'
+    };
+    notices.push(timeNotices[readingSettings.time] || '');
+    
+    // 过滤空通知
+    const validNotices = notices.filter(notice => notice.trim() !== '');
+    
+    if (validNotices.length > 0) {
+        const noticeText = validNotices.join('；');
+        showNotification(`设置已应用：${noticeText}`, 'info');
     }
 }
 
