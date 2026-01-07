@@ -193,30 +193,35 @@
                         </div>
                         
                         <!-- 结果展示区域 -->
-                        <div class="results-section" id="results-section" style="display: none;">
-                            <div class="results-header">
-                                <h3>解读结果</h3>
-                                <div class="result-actions">
-                                    <button class="btn btn-small" onclick="downloadResult()">
-                                        <i class="fas fa-download"></i> 下载
-                                    </button>
-                                    <button class="btn btn-small" onclick="saveToHistory()">
-                                        <i class="fas fa-save"></i> 保存
-                                    </button>
-                                </div>
+                         <!-- 双栏展示视图 -->
+                    <div id="interpretation-container" style="display: none;">
+                        <div class="two-column-layout">
+                            <!-- 左侧：原文展示 -->
+                            <div class="column original-column">
+                                <div id="original-pdf-viewer" style="display: none;"></div>
+                                <div id="original-text-content" style="display: none;"></div>
                             </div>
                             
-                            <div class="results-container">
-                                <div class="original-paper">
-                                    <h4>原文内容</h4>
-                                    <div class="paper-content" id="original-content"></div>
+                            <!-- 右侧：解读和聊天 -->
+                            <div class="column interpretation-column">
+                                <div class="interpretation-section">
+                                    <h3><i class="fas fa-comment-dots"></i> 个性化解读</h3>
+                                    <div id="interpretation-content" class="interpretation-content"></div>
                                 </div>
                                 
-                                <div class="interpretation-result">
-                                    <h4>AI解读</h4>
-                                    <div class="interpretation-content" id="interpretation-content"></div>
+                                <div class="chat-section">
+                                    <h3><i class="fas fa-robot"></i> 实时AI提问</h3>
+                                    <div id="chat-container" class="chat-container"></div>
+                                    <div class="chat-input">
+                                        <input type="text" id="chat-input" placeholder="有问题想问AI吗？输入您的问题...">
+                                        <button onclick="sendChatMessage()" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane"></i> 发送
+                                        </button>
+                                        <button onclick="clearChatHistory()" class="btn btn-secondary">
+                                            <i class="fas fa-trash"></i> 清空
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
                             
                             <!-- 相关推荐 -->
                             <!-- 修改为 -->
@@ -303,7 +308,51 @@
                             <div id="visual-settings" class="settings-panel">
                                 <!-- 视觉设置表单将通过JS动态加载 -->
                             </div>
-                            
+
+                            <!-- 新增：认知框架问卷修改 -->
+                            <div class="settings-section">
+                                <h3><i class="fas fa-clipboard-list"></i> 认知框架问卷</h3>
+                                <div class="settings-group">
+                                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h4 style="margin-top: 0; color: #007bff;">
+                                            <i class="fas fa-user-check"></i> 个性化解读基础
+                                        </h4>
+                                        <p style="margin-bottom: 15px; color: #666;">
+                                            您的认知框架问卷数据是生成个性化解读的重要依据。系统会根据您的知识储备、学习偏好和能力特点，为您提供最适合的论文解读。
+                                        </p>
+                                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                            <button onclick="showQuestionnaireModal()" 
+                                                    class="btn btn-primary"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-edit"></i> 修改认知框架问卷
+                                            </button>
+                                            <button onclick="viewQuestionnaireAnalysis()" 
+                                                    class="btn btn-secondary"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-chart-bar"></i> 查看用户画像
+                                            </button>
+                                            <button onclick="downloadQuestionnaireData()" 
+                                                    class="btn btn-outline"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-download"></i> 下载问卷数据
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                        <h5 style="margin-top: 0; color: #17a2b8;">
+                                            <i class="fas fa-lightbulb"></i> 问卷修改说明
+                                        </h5>
+                                        <ul style="margin-bottom: 0; color: #666; padding-left: 20px;">
+                                            <li>修改问卷数据将立即更新您的用户画像</li>
+                                            <li>新的用户画像将影响后续所有个性化解读</li>
+                                            <li>建议根据您的真实学习进展定期更新问卷</li>
+                                            <li>问卷数据仅用于个性化解读，不会被共享</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                                            
                             <!-- 语言设置 -->
                             <div id="language-settings" class="settings-panel">
                                 <div class="form-group">
@@ -322,12 +371,15 @@
                             </div>
                             
                             <!-- 账户设置 -->
-                            <div id="account-settings" class="settings-panel">
-                                <div class="account-actions">
-                                    <button class="btn btn-danger" onclick="deleteAccount()">
-                                        <i class="fas fa-trash"></i> 删除账户
+                            <div class="settings-section">
+                                <h3><i class="fas fa-user-cog"></i> 账户设置</h3>
+                                <div class="settings-group">
+                                    <button onclick="logout()" class="btn btn-danger">
+                                        <i class="fas fa-sign-out-alt"></i> 退出登录
                                     </button>
-                                    <p class="warning-text">注意：删除账户将永久清除所有数据，包括解读历史和个性化设置。</p>
+                                    <button onclick="deleteAccount()" class="btn btn-outline-danger" style="margin-left: 10px;">
+                                        <i class="fas fa-trash-alt"></i> 删除账户
+                                    </button>
                                 </div>
                             </div>
                         </div>
