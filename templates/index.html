@@ -6,8 +6,157 @@
     <title>ANSAPRA - 高中生自然科学论文自适应阅读程序</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 修改字体链接，只使用这三种中文字体 -->
+    <!-- 字体链接 -->
     <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei:wght@300;400;700&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
+    <style>
+        /* 临时样式，确保双栏布局正常工作 */
+        .two-column-layout {
+            display: flex;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        .column {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .original-column {
+            min-width: 45%;
+        }
+        
+        .interpretation-column {
+            min-width: 55%;
+        }
+        
+        /* 聊天界面样式 */
+        .chat-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 85%;
+        }
+        
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+        
+        .ai-message {
+            background: #f5f5f5;
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        /* 问卷模态框样式 */
+        #questionnaire-modal .modal-content {
+            max-width: 1000px;
+            max-height: 90vh;
+            width: 95%;
+        }
+        
+        #questionnaire-modal .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        /* 评分滑块样式 */
+        .rating-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0);
+            border-radius: 4px;
+            outline: none;
+            margin: 15px 0;
+            cursor: pointer;
+        }
+        
+        .rating-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .rating-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        /* 星星评分 */
+        .star {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .star:hover {
+            transform: scale(1.2);
+        }
+        
+        .star.active {
+            color: #ffc107;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 992px) {
+            .two-column-layout {
+                flex-direction: column;
+            }
+            
+            .column {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .chat-input {
+                flex-direction: column;
+            }
+            
+            .chat-input input {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- 登录/注册模态框 -->
@@ -54,8 +203,6 @@
                         <input type="password" id="confirm-password" required>
                     </div>
                     
-                    <!-- 问卷部分已移除，通过全屏问卷填写 -->
-                    
                     <button type="submit" class="btn btn-primary">注册</button>
                 </form>
                 
@@ -94,7 +241,7 @@
                     <h1 class="logo">ANSAPRA</h1>
                     <p class="tagline">高中生自然科学论文自适应阅读程序</p>
                 </div>
-            </div>     
+                
                 <nav class="main-nav">
                     <ul>
                         <li><a href="#" class="nav-link active" data-page="intro">网站介绍</a></li>
@@ -156,142 +303,99 @@
             <!-- 论文解读页面 -->
             <section id="interpretation-page" class="page">
                 <div class="page-header">
-                    <h2>论文解读</h2>
+                    <h2><i class="fas fa-book-reader"></i> 论文解读</h2>
+                    <p>上传论文文件或粘贴文本，系统将根据您的知识框架生成个性化解读</p>
                 </div>
                 
                 <div class="page-content">
-                    <div class="interpretation-container">
-                        <!-- 上传区域 -->
+                    <!-- 单栏输入视图 -->
+                    <div id="single-view">
                         <div class="upload-section">
                             <div class="upload-box" id="upload-box">
                                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
                                 <h3>上传论文文件</h3>
                                 <p>支持PDF、DOCX、TXT文件格式，最大16MB</p>
-                                <input type="file" id="file-input" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg" style="display: none;">
+                                <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
                                 <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
                                     选择文件
                                 </button>
-                                <p class="file-info" id="file-info"></p>
+                                <p class="file-info" id="file-info">未选择文件</p>
                             </div>
                             
                             <div class="text-input-section">
                                 <h3>或输入论文文本</h3>
-                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="8"></textarea>
+                                <textarea id="paper-text" placeholder="粘贴论文摘要或关键段落..." rows="10"></textarea>
                                 <div class="char-count">
-                                    <span id="char-count">0</span> / 5000 字符
+                                    字数: <span id="char-count">0</span>/5000
                                 </div>
                             </div>
                             
                             <div class="action-buttons">
-                                <button class="btn btn-primary btn-large" onclick="startInterpretation()">
-                                    <i class="fas fa-play"></i> 开始解读
+                                <button onclick="startInterpretation()" class="btn btn-large btn-primary">
+                                    <i class="fas fa-play"></i> 开始个性化解读
                                 </button>
-                                <button class="btn btn-secondary" onclick="clearInput()">
+                                <button onclick="clearInput()" class="btn btn-large btn-secondary">
                                     <i class="fas fa-trash"></i> 清空
                                 </button>
                             </div>
                         </div>
-                        
-                        <!-- 双栏展示视图 -->
-                        <div id="dual-view-container" style="display: none;">
-                            <div class="two-column-layout">
-                                <!-- 左侧：原文展示 -->
-                                <div class="column original-column">
-                                    <div id="original-pdf-viewer" style="display: none;"></div>
-                                    <div id="original-text-content" style="display: none;"></div>
-                                </div>
-                                
-                                <!-- 右侧：解读和聊天 -->
-                                <div class="column interpretation-column">
-                                    <div class="interpretation-section">
-                                        <h3><i class="fas fa-comment-dots"></i> 个性化解读</h3>
-                                        <div id="interpretation-content" class="interpretation-content"></div>
-                                    </div>
-                                    
-                                    <div class="chat-section">
-                                        <h3><i class="fas fa-robot"></i> 实时AI提问</h3>
-                                        <div id="chat-container" class="chat-container"></div>
-                                        <div class="chat-input">
-                                            <input type="text" id="chat-input" placeholder="有问题想问AI吗？输入您的问题...">
-                                            <button onclick="sendChatMessage()" class="btn btn-primary">
-                                                <i class="fas fa-paper-plane"></i> 发送
-                                            </button>
-                                            <button onclick="clearChatHistory()" class="btn btn-secondary">
-                                                <i class="fas fa-trash"></i> 清空
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 相关推荐 -->
-                                    <div class="recommendations-section">
-                                        <h4><i class="fas fa-search"></i> 搜索相关论文</h4>
-                                        
-                                        <div class="search-platforms">
-                                            <!-- Nature 搜索框 -->
-                                            <div class="search-platform">
-                                                <h5><i class="fas fa-globe" style="color: #0071bc;"></i> Nature 搜索</h5>
-                                                <div class="search-input-group">
-                                                    <input 
-                                                        type="text" 
-                                                        class="search-input" 
-                                                        id="nature-search-input" 
-                                                        placeholder="输入关键词（如：quantum computing, climate change）"
-                                                    >
-                                                    <button class="btn btn-primary search-btn" onclick="searchNature()">
-                                                        <i class="fas fa-search"></i> 搜索
-                                                    </button>
-                                                </div>
-                                                <p class="search-hint">将在新标签页中打开 Nature 官网搜索结果</p>
-                                            </div>
-                                            
-                                            <!-- Science 搜索框 -->
-                                            <div class="search-platform">
-                                                <h5><i class="fas fa-flask" style="color: #dc3545;"></i> Science 搜索</h5>
-                                                <div class="search-input-group">
-                                                    <input 
-                                                        type="text" 
-                                                        class="search-input" 
-                                                        id="science-search-input" 
-                                                        placeholder="输入关键词（如：biology, physics）"
-                                                    >
-                                                    <button class="btn btn-danger search-btn" onclick="searchScience()">
-                                                        <i class="fas fa-search"></i> 搜索
-                                                    </button>
-                                                </div>
-                                                <p class="search-hint">将在新标签页中打开 Science 官网搜索结果</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 思维导图 -->
-                                    <div class="mindmap-section">
-                                        <h4><i class="fas fa-project-diagram"></i> 论文结构思维导图</h4>
-                                        <div class="mindmap-container" id="mindmap-container">
-                                            <!-- 思维导图将通过JS生成 -->
-                                        </div>
-                                    </div>
-                                </div>
+                    </div>
+                    
+                    <!-- 双栏展示视图 -->
+                    <div id="dual-view-container" style="display: none;">
+                        <div class="two-column-layout">
+                            <!-- 左侧：原文展示 -->
+                            <div class="column original-column">
+                                <div id="original-pdf-viewer" style="display: none;"></div>
+                                <div id="original-text-content" style="display: none;"></div>
                             </div>
                             
-                            <!-- 底部操作按钮 -->
-                            <div class="action-buttons" style="margin-top: 30px; text-align: center;">
-                                <button onclick="downloadResult()" class="btn btn-primary">
-                                    <i class="fas fa-download"></i> 下载解读
-                                </button>
-                                <button onclick="saveToHistory()" class="btn btn-secondary">
-                                    <i class="fas fa-history"></i> 保存到历史
-                                </button>
-                                <button onclick="switchToSingleView()" class="btn btn-outline">
-                                    <i class="fas fa-arrow-left"></i> 返回上传
-                                </button>
+                            <!-- 右侧：解读和聊天 -->
+                            <div class="column interpretation-column">
+                                <div class="interpretation-section">
+                                    <h3><i class="fas fa-comment-dots"></i> 个性化解读</h3>
+                                    <div id="interpretation-content" class="interpretation-content"></div>
+                                </div>
+                                
+                                <div class="chat-section">
+                                    <h3><i class="fas fa-robot"></i> 实时AI提问</h3>
+                                    <div id="chat-container" class="chat-container"></div>
+                                    <div class="chat-input">
+                                        <input type="text" id="chat-input" placeholder="有问题想问AI吗？输入您的问题...">
+                                        <button onclick="sendChatMessage()" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane"></i> 发送
+                                        </button>
+                                        <button onclick="clearChatHistory()" class="btn btn-secondary">
+                                            <i class="fas fa-trash"></i> 清空
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 加载状态 -->
-                        <div class="loading-section" id="loading-section" style="display: none;">
-                            <div class="spinner"></div>
-                            <p>正在生成解读，请稍候...</p>
+                        <!-- 相关论文推荐 -->
+                        <div class="recommendations-section" style="margin-top: 30px;">
+                            <h3><i class="fas fa-book"></i> 相关论文推荐</h3>
+                            <div id="recommendations-list" class="recommendations-list"></div>
                         </div>
+                        
+                        <div class="action-buttons" style="margin-top: 30px; text-align: center;">
+                            <button onclick="downloadResult()" class="btn btn-primary">
+                                <i class="fas fa-download"></i> 下载解读
+                            </button>
+                            <button onclick="saveToHistory()" class="btn btn-secondary">
+                                <i class="fas fa-history"></i> 保存到历史
+                            </button>
+                            <button onclick="switchToSingleView()" class="btn btn-outline">
+                                <i class="fas fa-arrow-left"></i> 返回上传
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 加载指示器 -->
+                    <div id="loading-section" class="loading-section" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>正在生成解读，请稍候...</p>
                     </div>
                 </div>
             </section>
@@ -299,7 +403,8 @@
             <!-- 用户设置页面 -->
             <section id="settings-page" class="page">
                 <div class="page-header">
-                    <h2>用户设置</h2>
+                    <h2><i class="fas fa-cog"></i> 用户设置</h2>
+                    <p>个性化设置和账户管理</p>
                 </div>
                 
                 <div class="page-content">
@@ -321,7 +426,7 @@
                             <div id="visual-settings" class="settings-panel">
                                 <!-- 视觉设置表单将通过JS动态加载 -->
                             </div>
-                                            
+                            
                             <!-- 语言设置 -->
                             <div id="language-settings" class="settings-panel">
                                 <div class="form-group">
@@ -340,64 +445,62 @@
                             </div>
                             
                             <!-- 账户设置 -->
-                            <div class="settings-section">
-                                <h3><i class="fas fa-user-cog"></i> 账户设置</h3>
-                                <div class="settings-group">
-                                    <button onclick="logout()" class="btn btn-danger">
-                                        <i class="fas fa-sign-out-alt"></i> 退出登录
+                            <div id="account-settings" class="settings-panel">
+                                <div class="account-actions">
+                                    <button class="btn btn-danger" onclick="deleteAccount()">
+                                        <i class="fas fa-trash"></i> 删除账户
                                     </button>
-                                    <button onclick="deleteAccount()" class="btn btn-outline-danger" style="margin-left: 10px;">
-                                        <i class="fas fa-trash-alt"></i> 删除账户
-                                    </button>
+                                    <p class="warning-text">注意：删除账户将永久清除所有数据，包括解读历史和个性化设置。</p>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- 新增：认知框架问卷修改 -->
-                        <div class="settings-section">
-                            <h3><i class="fas fa-clipboard-list"></i> 认知框架问卷</h3>
-                            <div class="settings-group">
-                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                    <h4 style="margin-top: 0; color: #007bff;">
-                                        <i class="fas fa-user-check"></i> 个性化解读基础
-                                    </h4>
-                                    <p style="margin-bottom: 15px; color: #666;">
-                                        您的认知框架问卷数据是生成个性化解读的重要依据。系统会根据您的知识储备、学习偏好和能力特点，为您提供最适合的论文解读。
-                                    </p>
-                                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                                        <button onclick="showQuestionnaireModal()" 
-                                                class="btn btn-primary"
-                                                style="padding: 12px 24px; font-size: 16px;">
-                                            <i class="fas fa-edit"></i> 修改认知框架问卷
-                                        </button>
-                                        <button onclick="viewQuestionnaireAnalysis()" 
-                                                class="btn btn-secondary"
-                                                style="padding: 12px 24px; font-size: 16px;">
-                                            <i class="fas fa-chart-bar"></i> 查看用户画像
-                                        </button>
-                                        <button onclick="downloadQuestionnaireData()" 
-                                                class="btn btn-outline"
-                                                style="padding: 12px 24px; font-size: 16px;">
-                                            <i class="fas fa-download"></i> 下载问卷数据
-                                        </button>
+                            <!-- 认知框架问卷修改 -->
+                            <div class="settings-section" style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 30px;">
+                                <h3><i class="fas fa-clipboard-list"></i> 认知框架问卷</h3>
+                                <div class="settings-group">
+                                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h4 style="margin-top: 0; color: #007bff;">
+                                            <i class="fas fa-user-check"></i> 个性化解读基础
+                                        </h4>
+                                        <p style="margin-bottom: 15px; color: #666;">
+                                            您的认知框架问卷数据是生成个性化解读的重要依据。系统会根据您的知识储备、学习偏好和能力特点，为您提供最适合的论文解读。
+                                        </p>
+                                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                            <button onclick="showQuestionnaireModal()" 
+                                                    class="btn btn-primary"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-edit"></i> 修改认知框架问卷
+                                            </button>
+                                            <button onclick="viewQuestionnaireAnalysis()" 
+                                                    class="btn btn-secondary"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-chart-bar"></i> 查看用户画像
+                                            </button>
+                                            <button onclick="downloadQuestionnaireData()" 
+                                                    class="btn btn-outline"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-download"></i> 下载问卷数据
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
                                     
-                                <div style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
-                                    <h5 style="margin-top: 0; color: #17a2b8;">
-                                        <i class="fas fa-lightbulb"></i> 问卷修改说明
-                                    </h5>
-                                    <ul style="margin-bottom: 0; color: #666; padding-left: 20px;">
-                                        <li>修改问卷数据将立即更新您的用户画像</li>
-                                        <li>新的用户画像将影响后续所有个性化解读</li>
-                                        <li>建议根据您的真实学习进展定期更新问卷</li>
-                                        <li>问卷数据仅用于个性化解读，不会被共享</li>
-                                    </ul>
+                                    <div style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                        <h5 style="margin-top: 0; color: #17a2b8;">
+                                            <i class="fas fa-lightbulb"></i> 问卷修改说明
+                                        </h5>
+                                        <ul style="margin-bottom: 0; color: #666; padding-left: 20px;">
+                                            <li>修改问卷数据将立即更新您的用户画像</li>
+                                            <li>新的用户画像将影响后续所有个性化解读</li>
+                                            <li>建议根据您的真实学习进展定期更新问卷</li>
+                                            <li>问卷数据仅用于个性化解读，不会被共享</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="settings-actions">
+                        
+                        <div class="settings-actions" style="margin-top: 30px;">
                             <button class="btn btn-primary" onclick="saveSettings()">
                                 <i class="fas fa-save"></i> 保存设置
                             </button>
@@ -411,7 +514,6 @@
         </main>
 
         <!-- 底部导航 -->
-        <!-- 在index.html中找到底部链接部分，确保它们有正确的data-modal属性 -->
         <footer class="footer">
             <div class="footer-content">
                 <div class="footer-links">
@@ -433,19 +535,23 @@
 
     <!-- 模态框容器 -->
     <div id="modal-container"></div>
+    
+    <!-- 问卷修改模态框容器 -->
+    <div id="questionnaire-modal-container"></div>
 
     <!-- JavaScript 文件 -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language.js') }}"></script>
+    
     <!-- 全屏问卷模态框 -->
     <div id="full-questionnaire-modal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 1000px; max-height: 90vh; width: 95%;">
             <div class="modal-header">
                 <h3><i class="fas fa-clipboard-list"></i> 知识框架调查问卷</h3>
-                <button onclick="closeFullQuestionnaire()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: white;">&times;</button>
+                <button onclick="closeFullQuestionnaire()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
                 <div id="full-questionnaire-container">
                     <!-- 问卷内容将通过JS动态加载 -->
                 </div>
@@ -461,5 +567,4 @@
         </div>
     </div>
 </body>
-    
 </html>
