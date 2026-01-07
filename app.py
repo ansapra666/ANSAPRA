@@ -798,19 +798,6 @@ def interpret():
 
         # 简化推荐搜索
         recommendations = []
-        try:
-            search_query = "natural science"
-            if paper_content and len(paper_content) > 50:
-                # 提取前几个非空行作为关键词
-                lines = [line.strip() for line in paper_content.split('\n') if line.strip()]
-                if lines:
-                    search_query = ' '.join(lines[:3])
-            
-            recommendations = search_springer_papers(search_query, 2)
-                    
-        except Exception as search_error:
-            logger.error(f"搜索论文失败: {search_error}")
-            recommendations = []
 
         return jsonify({
             'success': True,
