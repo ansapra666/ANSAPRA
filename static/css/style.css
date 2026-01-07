@@ -5,6 +5,168 @@
     box-sizing: border-box;
 }
 
+/* 阅读习惯设置样式 */
+.settings-group {
+    margin-bottom: 30px;
+}
+
+.radio-group.vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-group.vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.radio-label, .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+}
+
+.radio-label:hover, .checkbox-label:hover {
+    background: #f0f7ff;
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.radio-label input[type="radio"],
+.checkbox-label input[type="checkbox"] {
+    margin-right: 12px;
+    margin-top: 4px;
+    transform: scale(1.2);
+}
+
+.radio-label span,
+.checkbox-label span {
+    flex: 1;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #333;
+}
+
+.setting-hint {
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+    margin-top: 8px;
+    padding-left: 5px;
+}
+
+.settings-note {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
+    border-left: 4px solid #007bff;
+}
+
+.settings-note h5 {
+    color: #007bff;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.settings-note ul {
+    margin: 10px 0;
+}
+
+.settings-note li {
+    margin-bottom: 5px;
+}
+
+/* 设置选项卡样式 */
+.settings-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 5px;
+}
+
+.settings-tab {
+    padding: 12px 24px;
+    background: #f8f9fa;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.settings-tab:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.settings-tab.active {
+    background: #007bff;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+.settings-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 设置操作按钮 */
+.settings-actions {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid #eee;
+    text-align: right;
+}
+
+.settings-actions .btn {
+    padding: 12px 24px;
+    font-size: 16px;
+    margin-left: 10px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .settings-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .settings-tab {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
+        padding: 10px 15px;
+    }
+    
+    .radio-label, .checkbox-label {
+        padding: 10px 12px;
+    }
+    
+    .radio-label span,
+    .checkbox-label span {
+        font-size: 14px;
+    }
+}
+
+
 /* 问卷修改模态框样式 */
 .modal {
     position: fixed;
