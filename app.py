@@ -424,6 +424,7 @@ i) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API error: {e}")
         raise
+        
 def analyze_user_profile(user_data):
     """根据问卷数据分析用户画像"""
     questionnaire = user_data.get('questionnaire', {})
@@ -852,9 +853,17 @@ def interpret():
         history = user.get('reading_history', [])
 
         # 调用DeepSeek API
+        # 调用DeepSeek API
         try:
             start_time = time.time()
-            interpretation = call_deepseek_api(user, paper_content, user_settings, history)
+            # 传递问卷数据和用户设置
+            interpretation = call_deepseek_api(
+                user, 
+                paper_content, 
+                user_settings, 
+                history,
+                questionnaire=user.get('questionnaire', {})
+            )
             logger.info(f"DeepSeek API调用完成，耗时: {time.time() - start_time:.2f}秒")
         except Exception as api_error:
             logger.error(f"DeepSeek API调用失败: {api_error}")
@@ -894,6 +903,146 @@ def get_reading_history():
     
     history = get_history(session['user_email'])
     return jsonify({'success': True, 'history': history})
+
+@app.route('/api/chat', methods=['POST'])
+def chat_with_ai():
+    """实时与AI对话"""
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    data = request.json
+    question = data.get('question', '').strip()
+    chat_history = data.get('chat_history', [])
+    
+    if not question:
+        return jsonify({'success': False, 'message': '问题不能为空'}), 400
+    
+    user = get_user_by_email(session['user_email'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    try:
+        # 获取用户设置
+        user_settings = user.get('settings', {})
+        language = user_settings.get('language', 'zh')
+        
+        # 构建系统提示
+        if language == 'en':
+            system_prompt = "You are a helpful assistant for high school students learning natural sciences. Answer questions clearly and concisely."
+            user_prompt = f"Question: {question}\n\nPlease provide a clear and helpful answer:"
+        else:
+            system_prompt = "你是帮助高中生学习自然科学的助手。请清晰简洁地回答用户的问题。"
+            user_prompt = f"问题：{question}\n\n请提供清晰有用的回答："
+        
+        # 构建消息
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # 如果有聊天历史，添加历史对话
+        if chat_history and len(chat_history) > 0:
+            for chat in chat_history[-4:]:  # 只保留最近4条对话
+                if chat.get('question') and chat.get('answer'):
+                    messages.append({"role": "user", "content": chat['question']})
+                    messages.append({"role": "assistant", "content": chat['answer']})
+        
+        messages.append({"role": "user", "content": user_prompt})
+        
+        headers = {
+            'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'model': 'deepseek-chat',
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': 1000,
+            'stream': False
+        }
+        
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        
+        if 'choices' in result and len(result['choices']) > 0:
+            answer = result['choices'][0]['message']['content']
+            
+            # 记录到聊天历史
+            chat_item = {
+                'question': question,
+                'answer': answer,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # 如果用户已登录且不是游客，可以保存聊天历史
+            if 'user_email' in session and not session.get('is_guest'):
+                users = load_users()
+                email = session['user_email']
+                if email in users:
+                    if 'chat_history' not in users[email]:
+                        users[email]['chat_history'] = []
+                    users[email]['chat_history'].append(chat_item)
+                    # 保持最近50条聊天记录
+                    if len(users[email]['chat_history']) > 50:
+                        users[email]['chat_history'] = users[email]['chat_history'][-50:]
+                    save_users(users)
+            
+            return jsonify({
+                'success': True,
+                'answer': answer,
+                'chat_item': chat_item
+            })
+        else:
+            raise ValueError("No response from AI")
+            
+    except requests.exceptions.Timeout:
+        logger.error("AI聊天请求超时")
+        return jsonify({'success': False, 'message': 'AI响应超时，请稍后重试'}), 500
+    except Exception as e:
+        logger.error(f"AI聊天错误: {e}")
+        return jsonify({'success': False, 'message': f'AI处理失败: {str(e)}'}), 500
+
+@app.route('/api/chat/history', methods=['GET'])
+def get_chat_history():
+    """获取用户聊天历史"""
+    if 'user_email' not in session or session.get('is_guest'):
+        return jsonify({'success': False, 'message': '未登录或游客模式'}), 401
+    
+    users = load_users()
+    email = session['user_email']
+    
+    if email in users:
+        chat_history = users[email].get('chat_history', [])
+        return jsonify({'success': True, 'chat_history': chat_history})
+    
+    return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+@app.route('/api/user/questionnaire', methods=['PUT'])
+def update_user_questionnaire():
+    """更新用户问卷数据"""
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    data = request.json
+    questionnaire = data.get('questionnaire', {})
+    
+    users = load_users()
+    email = session['user_email']
+    
+    if email in users:
+        users[email]['questionnaire'] = questionnaire
+        save_users(users)
+        
+        # 重新分析用户画像
+        user_data = users[email]
+        profile_analysis = analyze_user_profile(user_data)
+        
+        return jsonify({
+            'success': True,
+            'message': '问卷更新成功',
+            'profile_analysis': profile_analysis
+        })
+    
+    return jsonify({'success': False, 'message': '用户不存在'}), 404
 
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
