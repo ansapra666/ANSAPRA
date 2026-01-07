@@ -33,21 +33,28 @@ function loadSettingsForms() {
     loadVisualSettings();
 }
 
+// 加载阅读习惯设置表单
 function loadReadingSettings() {
     const container = document.getElementById('reading-settings');
     if (!container) return;
     
     container.innerHTML = `
-        <form id="reading-settings-form">
+        <div class="settings-group">
+            <h4><i class="fas fa-book-reader"></i> 阅读习惯设置</h4>
+            <p style="color: #666; margin-bottom: 20px;">根据您的阅读偏好个性化调整论文解读内容</p>
+            
+            <!-- 问题10：准备程度 -->
             <div class="form-group">
-                <label>1. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？</label>
-                <div class="radio-group">
+                <label>
+                    <strong>10. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？</strong>
+                </label>
+                <div class="radio-group vertical">
                     <label class="radio-label">
                         <input type="radio" name="preparation" value="A">
                         <span>A. 几乎不做准备</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="preparation" value="B">
+                        <input type="radio" name="preparation" value="B" checked>
                         <span>B. 做一些准备</span>
                     </label>
                     <label class="radio-label">
@@ -55,39 +62,47 @@ function loadReadingSettings() {
                         <span>C. 做较为深入的准备</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：准备程度越高，解读时将去除基础术语解释，只解释高难度术语</p>
             </div>
             
+            <!-- 问题11：阅读原因 -->
             <div class="form-group">
-                <label>2. 您阅读自然科学论文的原因是？</label>
-                <div class="radio-group">
+                <label>
+                    <strong>11. 您阅读自然科学论文的原因是？</strong>
+                </label>
+                <div class="radio-group vertical">
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="A">
-                        <span>A. 目标驱动者: 为完成特定任务（如作业、比赛）而阅读，追求高效和直接</span>
+                        <span>A. 目标驱动者：为完成特定任务（如作业、比赛）而阅读，追求高效和直接</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="purpose" value="B">
-                        <span>B. 知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解</span>
+                        <input type="radio" name="purpose" value="B" checked>
+                        <span>B. 知识探索者：受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="C">
-                        <span>C. 深度学习者: 为了深入理解并研究某一领域知识，论文知识之外，同时重视研究方法和应用；希望通过本论文</span>
+                        <span>C. 深度学习者：为了深入理解并研究某一领域知识，论文知识之外，同时重视研究方法和应用</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="purpose" value="D">
                         <span>D. 科学了解者：希望通过论文解读提升个人科学素养和整体科学感知能力</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：系统将根据您的选择调整解读内容的侧重点</p>
             </div>
             
+            <!-- 问题12：阅读时长 -->
             <div class="form-group">
-                <label>3. 您愿意在多长时间内解读一篇自然科学论文？</label>
-                <div class="radio-group">
+                <label>
+                    <strong>12. 您愿意在多长时间内解读一篇自然科学论文？</strong>
+                </label>
+                <div class="radio-group vertical">
                     <label class="radio-label">
                         <input type="radio" name="time" value="A">
                         <span>A. 10分钟内</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="time" value="B">
+                        <input type="radio" name="time" value="B" checked>
                         <span>B. 10-30分钟内</span>
                     </label>
                     <label class="radio-label">
@@ -95,11 +110,15 @@ function loadReadingSettings() {
                         <span>C. 30分钟及以上</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：阅读时长越长，解读内容越详细</p>
             </div>
             
+            <!-- 问题13：解读风格 -->
             <div class="form-group">
-                <label>4. 您喜好的自然科学论文解读风格与方式是？</label>
-                <div class="radio-group">
+                <label>
+                    <strong>13. 您喜好的自然科学论文解读风格与方式是？</strong>
+                </label>
+                <div class="radio-group vertical">
                     <label class="radio-label">
                         <input type="radio" name="style" value="A">
                         <span>A. 生动形象，语言偏口语化，能联系生活中最简单的例子和类比解读论文</span>
@@ -109,7 +128,7 @@ function loadReadingSettings() {
                         <span>B. 量化解读，尽量通过数据和公式解读论文</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="style" value="C">
+                        <input type="radio" name="style" value="C" checked>
                         <span>C. 专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整</span>
                     </label>
                     <label class="radio-label">
@@ -121,47 +140,59 @@ function loadReadingSettings() {
                         <span>E. 逐步推导，通过问题引入的方式，类似于课堂教学的方式逐步介绍知识，强调互动性</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：系统将根据您的选择调整解读风格</p>
             </div>
             
+            <!-- 问题14：解读深度 -->
             <div class="form-group">
-                <label>5. 您喜好的自然科学论文解读深度是？</label>
-                <div class="radio-group">
+                <label>
+                    <strong>14. 您喜好的自然科学论文解读深度是？</strong>
+                </label>
+                <div class="radio-group vertical">
                     <label class="radio-label">
                         <input type="radio" name="depth" value="A">
-                        <span>A. 简洁概括</span>
+                        <span>A. 简洁概括（约1000字概述）</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="depth" value="B">
-                        <span>B. 平衡详细</span>
+                        <input type="radio" name="depth" value="B" checked>
+                        <span>B. 平衡详细（约2000字概述）</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="depth" value="C">
-                        <span>C. 详细深入</span>
+                        <span>C. 详细深入（约3000字概述）</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：深度选择将影响论文概述部分的详细程度</p>
             </div>
             
+            <!-- 问题15：读后自测类型（多选） -->
             <div class="form-group">
-                <label>6. 您希望读后自测部分包含哪些内容？</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="A">
+                <label>
+                    <strong>15. 您希望读后自测部分包含哪些内容？（可多选）</strong>
+                </label>
+                <div class="checkbox-group vertical">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="test_type" value="A" checked>
                         <span>A. 相关定义填空题</span>
                     </label>
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="B">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="test_type" value="B">
                         <span>B. 易错易混选择题</span>
                     </label>
-                    <label class="radio-label">
-                        <input type="radio" name="test_type" value="C">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="test_type" value="C">
                         <span>C. 公式逻辑默写题</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：自测小问题将根据您的选择生成相应题型</p>
             </div>
             
+            <!-- 问题16：图表形式偏好（多选） -->
             <div class="form-group">
-                <label>7. 您偏好的图表形式是？（可多选）</label>
-                <div class="checkbox-group">
+                <label>
+                    <strong>16. 您偏好的图表形式是？（可多选）</strong>
+                </label>
+                <div class="checkbox-group vertical">
                     <label class="checkbox-label">
                         <input type="checkbox" name="chart_types" value="A" checked>
                         <span>A. 思维导图（树状）</span>
@@ -179,13 +210,68 @@ function loadReadingSettings() {
                         <span>D. 统计图（折线图、柱状图等）</span>
                     </label>
                 </div>
+                <p class="setting-hint">提示：思维导图将根据您的偏好生成相应类型的图表</p>
             </div>
-        </form>
+            
+            <div class="settings-note" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                <h5><i class="fas fa-info-circle"></i> 设置说明</h5>
+                <p>这些设置将直接影响AI生成的解读内容：</p>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>术语解释的难度和数量</li>
+                    <li>解读内容的侧重点和详细程度</li>
+                    <li>解读风格和语言表达方式</li>
+                    <li>自测小问题的题型</li>
+                    <li>思维导图的呈现形式</li>
+                </ul>
+            </div>
+        </div>
     `;
     
-    // 加载保存的设置
-    loadSavedSettings();
+    // 加载当前设置
+    loadCurrentReadingSettings();
 }
+
+// 加载当前阅读习惯设置
+function loadCurrentReadingSettings() {
+    if (!AppState.user || AppState.user.is_guest) return;
+    
+    fetch('/api/user/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.settings && data.settings.reading) {
+                const settings = data.settings.reading;
+                
+                // 设置单选按钮
+                const radioFields = ['preparation', 'purpose', 'time', 'style', 'depth'];
+                radioFields.forEach(field => {
+                    const element = document.querySelector(`input[name="${field}"][value="${settings[field]}"]`);
+                    if (element) {
+                        element.checked = true;
+                    }
+                });
+                
+                // 设置复选框（读后自测类型）
+                const testTypeCheckboxes = document.querySelectorAll('input[name="test_type"]');
+                if (settings.test_type && Array.isArray(settings.test_type)) {
+                    testTypeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = settings.test_type.includes(checkbox.value);
+                    });
+                }
+                
+                // 设置复选框（图表形式）
+                const chartTypeCheckboxes = document.querySelectorAll('input[name="chart_types"]');
+                if (settings.chart_types && Array.isArray(settings.chart_types)) {
+                    chartTypeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = settings.chart_types.includes(checkbox.value);
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载阅读习惯设置失败:', error);
+        });
+}
+
 function loadVisualSettings() {
     const container = document.getElementById('visual-settings');
     if (!container) return;
