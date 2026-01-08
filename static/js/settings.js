@@ -43,10 +43,10 @@ function loadReadingSettings() {
             <h4><i class="fas fa-book-reader"></i> 阅读习惯设置</h4>
             <p style="color: #666; margin-bottom: 20px;">根据您的阅读偏好个性化调整论文解读内容</p>
             
-            <!-- 问题10：准备程度 -->
+            <!-- 问题1：准备程度 -->
             <div class="form-group">
                 <label>
-                    <strong>10. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？</strong>
+                    <strong>1. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？</strong>
                 </label>
                 <div class="radio-group vertical">
                     <label class="radio-label">
@@ -65,10 +65,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：准备程度越高，解读时将去除基础术语解释，只解释高难度术语</p>
             </div>
             
-            <!-- 问题11：阅读原因 -->
+            <!-- 问题2：阅读原因 -->
             <div class="form-group">
                 <label>
-                    <strong>11. 您阅读自然科学论文的原因是？</strong>
+                    <strong>2. 您阅读自然科学论文的原因是？</strong>
                 </label>
                 <div class="radio-group vertical">
                     <label class="radio-label">
@@ -91,10 +91,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：系统将根据您的选择调整解读内容的侧重点</p>
             </div>
             
-            <!-- 问题12：阅读时长 -->
+            <!-- 问题3：阅读时长 -->
             <div class="form-group">
                 <label>
-                    <strong>12. 您愿意在多长时间内解读一篇自然科学论文？</strong>
+                    <strong>3. 您愿意在多长时间内解读一篇自然科学论文？</strong>
                 </label>
                 <div class="radio-group vertical">
                     <label class="radio-label">
@@ -113,10 +113,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：阅读时长越长，解读内容越详细</p>
             </div>
             
-            <!-- 问题13：解读风格 -->
+            <!-- 问题4：解读风格 -->
             <div class="form-group">
                 <label>
-                    <strong>13. 您喜好的自然科学论文解读风格与方式是？</strong>
+                    <strong>4. 您喜好的自然科学论文解读风格与方式是？</strong>
                 </label>
                 <div class="radio-group vertical">
                     <label class="radio-label">
@@ -143,10 +143,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：系统将根据您的选择调整解读风格</p>
             </div>
             
-            <!-- 问题14：解读深度 -->
+            <!-- 问题5：解读深度 -->
             <div class="form-group">
                 <label>
-                    <strong>14. 您喜好的自然科学论文解读深度是？</strong>
+                    <strong>5. 您喜好的自然科学论文解读深度是？</strong>
                 </label>
                 <div class="radio-group vertical">
                     <label class="radio-label">
@@ -165,10 +165,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：深度选择将影响论文概述部分的详细程度</p>
             </div>
             
-            <!-- 问题15：读后自测类型（多选） -->
+            <!-- 问题6：读后自测类型（多选） -->
             <div class="form-group">
                 <label>
-                    <strong>15. 您希望读后自测部分包含哪些内容？（可多选）</strong>
+                    <strong>6. 您希望读后自测部分包含哪些内容？（可多选）</strong>
                 </label>
                 <div class="checkbox-group vertical">
                     <label class="checkbox-label">
@@ -187,10 +187,10 @@ function loadReadingSettings() {
                 <p class="setting-hint">提示：自测小问题将根据您的选择生成相应题型</p>
             </div>
             
-            <!-- 问题16：图表形式偏好（多选） -->
+            <!-- 问题7：图表形式偏好（多选） -->
             <div class="form-group">
                 <label>
-                    <strong>16. 您偏好的图表形式是？（可多选）</strong>
+                    <strong>7. 您偏好的图表形式是？（可多选）</strong>
                 </label>
                 <div class="checkbox-group vertical">
                     <label class="checkbox-label">
@@ -224,11 +224,30 @@ function loadReadingSettings() {
                     <li>思维导图的呈现形式</li>
                 </ul>
             </div>
+
+            <!-- 认知框架问卷修改部分 -->
+            <div class="questionnaire-update-section" style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
+                <h4><i class="fas fa-clipboard-list"></i> 知识框架问卷</h4>
+                <p style="color: #666; margin-bottom: 15px;">您可以重新填写知识框架问卷，更新您的学习画像。</p>
+                
+                <div id="questionnaire-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <p><i class="fas fa-info-circle"></i> 当前问卷摘要加载中...</p>
+                </div>
+                
+                <button class="btn btn-primary" onclick="updateQuestionnaire()">
+                    <i class="fas fa-edit"></i> 修改知识框架问卷
+                </button>
+                
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                    提示：更新问卷会影响后续的个性化解读效果
+                </p>
+            </div>
         </div>
     `;
     
     // 加载当前设置
     loadCurrentReadingSettings();
+    loadQuestionnaireSummary();
 }
 
 // 加载当前阅读习惯设置
@@ -270,6 +289,48 @@ function loadCurrentReadingSettings() {
         .catch(error => {
             console.error('加载阅读习惯设置失败:', error);
         });
+}
+
+// 加载问卷摘要
+async function loadQuestionnaireSummary() {
+    if (!AppState.user || AppState.user.is_guest) return;
+    
+    try {
+        const response = await fetch('/api/user/profile');
+        const data = await response.json();
+        
+        if (data.success && data.questionnaire) {
+            const questionnaire = data.questionnaire;
+            const summaryDiv = document.getElementById('questionnaire-summary');
+            
+            const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+            const systemMap = { A: '国际体系', B: '普高体系' };
+            const freqMap = { A: '一周1次或更频繁', B: '一个月1-3次', C: '几个月1次' };
+            
+            const grade = gradeMap[questionnaire.grade] || '未填写';
+            const system = systemMap[questionnaire.education_system] || '未填写';
+            const frequency = freqMap[questionnaire.learning_frequency] || '未填写';
+            
+            summaryDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>年级：</strong> ${grade}
+                    </div>
+                    <div>
+                        <strong>教育体系：</strong> ${system}
+                    </div>
+                    <div>
+                        <strong>学习频率：</strong> ${frequency}
+                    </div>
+                </div>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                    问卷包含${Object.keys(questionnaire).length}项数据
+                </p>
+            `;
+        }
+    } catch (error) {
+        console.error('加载问卷摘要失败:', error);
+    }
 }
 
 function loadVisualSettings() {
