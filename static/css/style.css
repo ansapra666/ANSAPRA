@@ -5,6 +5,7 @@
     box-sizing: border-box;
 }
 
+/* 修复设置页面对齐问题 */
 .settings-container {
     max-width: 900px;
     margin: 0 auto;
@@ -14,6 +15,9 @@
 .settings-header {
     margin-bottom: 30px;
     text-align: center;
+    /* 确保标题与内容对齐 */
+    padding-left: 0;
+    padding-right: 0;
 }
 
 .settings-tabs {
@@ -23,49 +27,48 @@
     margin-bottom: 30px;
     border-bottom: 2px solid #e9ecef;
     padding-bottom: 15px;
+    /* 确保选项卡与内容对齐 */
+    padding-left: 0;
+    padding-right: 0;
 }
 
-.settings-tab {
-    padding: 10px 20px;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.settings-tab.active {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
-}
-
+/* 修复面板对齐 - 关键修改 */
 .settings-panel {
     background: white;
     border-radius: 10px;
-    padding: 30px;
+    padding: 30px 20px; /* 左右padding减小，与大标题对齐 */
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     display: none;
+    /* 确保面板内容与标题对齐 */
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .settings-panel.active {
     display: block;
 }
 
+/* 修改设置组，确保内容从最左边开始 */
 .settings-group {
     margin-bottom: 30px;
+    padding-left: 0;
 }
 
+/* 修改表单组，确保左对齐 */
 .form-group {
     margin-bottom: 25px;
+    padding-left: 0;
 }
 
+/* 修复单选组对齐 */
 .radio-group.vertical {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding-left: 0;
 }
 
+/* 修复标签对齐 */
 .radio-label, .checkbox-label {
     display: flex;
     align-items: center;
@@ -75,16 +78,87 @@
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    /* 确保标签内容左对齐 */
+    justify-content: flex-start;
+    text-align: left;
 }
 
-.radio-label:hover, .checkbox-label:hover {
-    background: #e9ecef;
+/* 修复设置动作按钮对齐 */
+.settings-actions {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid #eee;
+    text-align: right;
+    padding-left: 0;
+    padding-right: 0;
 }
 
-.setting-hint {
-    font-size: 14px;
-    color: #6c757d;
-    margin-top: 5px;
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 15px;
+    }
+    
+    .settings-panel {
+        padding: 20px 15px; /* 在移动设备上进一步减小左右padding */
+    }
+    
+    .settings-header {
+        margin-bottom: 20px;
+    }
+}
+
+/* 新增：专门修复设置内容页面的对齐 */
+#settings-page .page-content {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#settings-page .settings-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* 确保所有设置内容都从容器最左边开始 */
+#settings-page .form-group label,
+#settings-page .radio-label span,
+#settings-page .checkbox-label span,
+#settings-page .setting-hint {
+    text-align: left;
+    display: block;
+    width: 100%;
+}
+
+/* 修复字体选择网格对齐 */
+#settings-page .font-family-grid {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+#settings-page .font-option {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* 修复行高选择器对齐 */
+#settings-page .form-control {
+    width: 100%;
+    margin-left: 0;
+}
+
+/* 修复认知框架问卷部分的对齐 */
+#settings-page .settings-section {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* 确保所有设置面板内容都与容器左边缘对齐 */
+#settings-page .settings-panel > * {
+    padding-left: 0;
+    margin-left: 0;
 }
 
 @keyframes fadeIn {
