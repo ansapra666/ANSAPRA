@@ -1046,19 +1046,26 @@ function addQuestionnaireToSettings(questionnaire) {
     const accountSettings = document.getElementById('account-settings');
     if (!accountSettings) return;
     
+    // 检查是否已存在问卷部分
+    if (document.querySelector('.questionnaire-settings')) {
+        return;
+    }
+    
     const questionnaireSection = document.createElement('div');
     questionnaireSection.className = 'questionnaire-settings';
     questionnaireSection.innerHTML = `
-        <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
-        <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
-        <button class="btn btn-secondary" onclick="updateQuestionnaire()">
-            <i class="fas fa-redo"></i> 重新填写问卷
-        </button>
-        <div class="current-questionnaire-summary" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-            <h5>当前问卷摘要：</h5>
-            <p>年级：${getGradeText(questionnaire.grade)}</p>
-            <p>教育体系：${getSystemText(questionnaire.education_system)}</p>
-            <!-- 可以添加更多摘要信息 -->
+        <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
+            <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
+            <button class="btn btn-secondary" onclick="showQuestionnaireModal()">
+                <i class="fas fa-redo"></i> 重新填写问卷
+            </button>
+            <div class="current-questionnaire-summary" style="margin-top: 15px; padding: 15px; background: white; border-radius: 5px; border: 1px solid #ddd;">
+                <h5>当前问卷摘要：</h5>
+                <p>年级：${getGradeText(questionnaire.grade)}</p>
+                <p>教育体系：${getSystemText(questionnaire.education_system)}</p>
+                <p>学习频率：${getFrequencyText(questionnaire.learning_frequency)}</p>
+            </div>
         </div>
     `;
     
