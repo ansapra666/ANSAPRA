@@ -1242,6 +1242,63 @@ def get_translations():
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
 
+# 在 app.py 中添加缺失的路由
+
+@app.route('/api/get-questionnaire-template', methods=['GET'])
+def get_questionnaire_template():
+    """获取问卷模板"""
+    try:
+        # 这里可以返回问卷的HTML模板
+        # 或者从文件加载
+        return jsonify({
+            'success': True,
+            'html': '问卷HTML内容'
+        })
+    except Exception as e:
+        logger.error(f"获取问卷模板失败: {e}")
+        return jsonify({'success': False, 'message': '获取问卷模板失败'}), 500
+
+@app.route('/api/user/update-questionnaire', methods=['POST'])
+@require_login
+def update_user_questionnaire():
+    """更新用户问卷数据"""
+    try:
+        user_email = session.get('user_email')
+        if not user_email:
+            return jsonify({'success': False, 'message': '用户未登录'}), 401
+        
+        data = request.get_json()
+        questionnaire = data.get('questionnaire', {})
+        
+        if not questionnaire:
+            return jsonify({'success': False, 'message': '问卷数据为空'}), 400
+        
+        # 验证问卷数据
+        required_fields = ['grade', 'education_system', 'learning_frequency']
+        for field in required_fields:
+            if field not in questionnaire:
+                return jsonify({'success': False, 'message': f'缺少必填字段: {field}'}), 400
+        
+        users = load_users()
+        if user_email in users:
+            users[user_email]['questionnaire'] = questionnaire
+            save_users(users)
+            
+            # 更新session中的用户数据
+            session['user_questionnaire'] = questionnaire
+            
+            return jsonify({
+                'success': True,
+                'message': '问卷更新成功'
+            })
+        else:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+            
+    except Exception as e:
+        logger.error(f"更新用户问卷失败: {e}")
+        return jsonify({'success': False, 'message': '更新失败'}), 500
+
+
 # 调试端点：详细分析PDF
 @app.route('/api/debug/pdf', methods=['POST'])
 def debug_pdf():
