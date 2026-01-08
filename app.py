@@ -11,6 +11,7 @@ import uuid
 import logging
 import time
 import io
+from functools import wraps
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -31,6 +32,15 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 # 用户数据文件路径
 USERS_FILE = 'data/users.json'
+
+def require_login(f):
+    """登录验证装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_email' not in session:
+            return jsonify({'success': False, 'message': '请先登录'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 def load_users():
     """加载用户数据"""
@@ -1128,33 +1138,6 @@ def get_chat_history():
     
     return jsonify({'success': False, 'message': '用户不存在'}), 404
 
-@app.route('/api/user/questionnaire', methods=['PUT'])
-def update_user_questionnaire():
-    """更新用户问卷数据"""
-    if 'user_email' not in session:
-        return jsonify({'success': False, 'message': '未登录'}), 401
-    
-    data = request.json
-    questionnaire = data.get('questionnaire', {})
-    
-    users = load_users()
-    email = session['user_email']
-    
-    if email in users:
-        users[email]['questionnaire'] = questionnaire
-        save_users(users)
-        
-        # 重新分析用户画像
-        user_data = users[email]
-        profile_analysis = analyze_user_profile(user_data)
-        
-        return jsonify({
-            'success': True,
-            'message': '问卷更新成功',
-            'profile_analysis': profile_analysis
-        })
-    
-    return jsonify({'success': False, 'message': '用户不存在'}), 404
 
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
