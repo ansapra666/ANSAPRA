@@ -1262,7 +1262,9 @@ body {
 .settings-container {
     background: white;
     border-radius: 12px;
-    padding: 30px;
+    max-width: 100%; /* 改为100%而不是800px */
+    margin: 0 20px; /* 左右留出边距 */
+    padding: 30px 20px; /* 调整内边距 */;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -1272,6 +1274,7 @@ body {
     margin-bottom: 30px;
     border-bottom: 2px solid #eee;
     padding-bottom: 15px;
+    padding-left: 0; /* 确保左侧没有内边距 */
 }
 
 .settings-tab {
