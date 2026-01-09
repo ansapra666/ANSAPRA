@@ -1263,7 +1263,6 @@ body {
     background: white;
     border-radius: 12px;
     max-width: 100%; /* 改为100%而不是800px */
-    margin: 0 20px; /* 左右留出边距 */
     padding: 30px 20px; /* 调整内边距 */;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
