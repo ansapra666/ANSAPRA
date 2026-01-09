@@ -1154,9 +1154,7 @@ async function updateQuestionnaire() {
 
 // 修改认知框架问卷的完整功能
 function showQuestionnaireModal() {
-    // 先获取当前用户问卷数据（如果存在）
-    const currentQuestionnaire = AppState.user?.questionnaire || {};
-    
+    // 创建模态框HTML
     const modalHTML = `
     <div class="modal" id="questionnaire-modal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: white; border-radius: 10px; padding: 20px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;">
@@ -1173,21 +1171,28 @@ function showQuestionnaireModal() {
         </div>
     </div>`;
     
-    const modalContainer = document.getElementById('modal-container');
-    modalContainer.innerHTML = modalHTML;
+    // 移除任何现有的模态框
+    const existingModal = document.getElementById('questionnaire-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // 插入到body中
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // 加载问卷内容
-    loadQuestionnaireContent(currentQuestionnaire);
-    
-    // 显示模态框
-    setTimeout(() => {
-        document.getElementById('questionnaire-modal').style.display = 'flex';
-    }, 10);
+    const container = document.getElementById('modal-questionnaire-container');
+    if (container) {
+        const currentQuestionnaire = AppState.user?.questionnaire || {};
+        loadQuestionnaireContent(container, currentQuestionnaire);
+    }
 }
 
 function closeQuestionnaireModal() {
-    const modalContainer = document.getElementById('modal-container');
-    modalContainer.innerHTML = '';
+    const modal = document.getElementById('questionnaire-modal');
+    if (modal) {
+        modal.remove(); // 完全移除模态框
+    }
 }
 
 // 加载问卷内容并填充现有数据
@@ -2361,3 +2366,7 @@ window.saveSettings = saveSettings;
 window.resetSettings = resetSettings;
 window.deleteAccount = deleteAccount;
 window.removeBackground = removeBackground;
+// 暴露必要函数到全局作用域
+window.showQuestionnaireModal = showQuestionnaireModal;
+window.closeQuestionnaireModal = closeQuestionnaireModal;
+window.submitUpdatedQuestionnaire = submitUpdatedQuestionnaire;
