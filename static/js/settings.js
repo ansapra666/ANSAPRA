@@ -1152,51 +1152,59 @@ async function updateQuestionnaire() {
     showQuestionnaireModal();
 }
 
+// 修改认知框架问卷的完整功能
 function showQuestionnaireModal() {
+    // 先获取当前用户问卷数据（如果存在）
+    const currentQuestionnaire = AppState.user?.questionnaire || {};
+    
     const modalHTML = `
-        <div class="modal" id="questionnaire-modal">
-            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3><i class="fas fa-clipboard-list"></i> 更新知识框架问卷</h3>
-                    <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
-                </div>
-                <div id="modal-questionnaire-container" style="max-height: 70vh; overflow-y: auto;">
-                    加载中...
-                </div>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
-                        <i class="fas fa-save"></i> 保存更新
-                    </button>
-                    <button class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-left: 10px;">
-                        取消
-                    </button>
-                </div>
+    <div class="modal" id="questionnaire-modal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: white; border-radius: 10px; padding: 20px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #eee;">
+                <h3 style="margin: 0; color: #007bff;">
+                    <i class="fas fa-clipboard-list"></i> 修改知识框架问卷
+                </h3>
+                <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">×</button>
+            </div>
+            
+            <div id="modal-questionnaire-container">
+                <!-- 问卷内容将通过JS加载 -->
             </div>
         </div>
-    `;
+    </div>`;
     
     const modalContainer = document.getElementById('modal-container');
     modalContainer.innerHTML = modalHTML;
     
-    // 加载问卷到模态框
+    // 加载问卷内容
+    loadQuestionnaireContent(currentQuestionnaire);
+    
+    // 显示模态框
     setTimeout(() => {
-        loadQuestionnaireToModal();
-    }, 100);
+        document.getElementById('questionnaire-modal').style.display = 'flex';
+    }, 10);
 }
 
-function loadLocalQuestionnaire(container) {
-    // 这里应该包含完整的问卷HTML，从main.js中复制过来
-    // 由于问卷HTML很长，这里只显示关键部分
+function closeQuestionnaireModal() {
+    const modalContainer = document.getElementById('modal-container');
+    modalContainer.innerHTML = '';
+}
+
+// 加载问卷内容并填充现有数据
+function loadQuestionnaireContent(currentData = {}) {
+    const container = document.getElementById('modal-questionnaire-container');
+    if (!container) return;
+    
+    // 使用你提供的问卷HTML
     container.innerHTML = `
-        <div class="questionnaire-section">
-            
-            
-            <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    <form id="update-questionnaire-form">
+        <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
             <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
                 <h3 style="color: #007bff; margin-bottom: 10px;">知识框架调查问卷</h3>
                 <p style="color: #666; font-size: 16px;">请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
             </div>
             
+            <!-- 第一部分：基本情况 -->
             <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
                 <h4 style="color: #28a745; margin-bottom: 20px;">一、基本情况</h4>
                 
@@ -1250,7 +1258,7 @@ function loadLocalQuestionnaire(container) {
                     </div>
                 </div>
                 
-                <!-- 学科兴趣 -->
+                <!-- 学科兴趣评分部分 - 这里只显示物理学的示例，其他学科类似 -->
                 <div class="form-group" style="margin-bottom: 30px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
                     <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
@@ -1265,11 +1273,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="interest_physics">☆</span>
+                                        <span class="star" data-value="2" data-for="interest_physics">☆</span>
+                                        <span class="star active" data-value="3" data-for="interest_physics">☆</span>
+                                        <span class="star" data-value="4" data-for="interest_physics">☆</span>
+                                        <span class="star" data-value="5" data-for="interest_physics">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1289,11 +1297,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="interest_biology">☆</span>
+                                        <span class="star" data-value="2" data-for="interest_biology">☆</span>
+                                        <span class="star active" data-value="3" data-for="interest_biology">☆</span>
+                                        <span class="star" data-value="4" data-for="interest_biology">☆</span>
+                                        <span class="star" data-value="5" data-for="interest_biology">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1313,11 +1321,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="interest_chemistry">☆</span>
+                                        <span class="star" data-value="2" data-for="interest_chemistry">☆</span>
+                                        <span class="star active" data-value="3" data-for="interest_chemistry">☆</span>
+                                        <span class="star" data-value="4" data-for="interest_chemistry">☆</span>
+                                        <span class="star" data-value="5" data-for="interest_chemistry">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1337,11 +1345,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="interest_geology">☆</span>
+                                        <span class="star" data-value="2" data-for="interest_geology">☆</span>
+                                        <span class="star active" data-value="3" data-for="interest_geology">☆</span>
+                                        <span class="star" data-value="4" data-for="interest_geology">☆</span>
+                                        <span class="star" data-value="5" data-for="interest_geology">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1361,11 +1369,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="interest_astronomy">☆</span>
+                                        <span class="star" data-value="2" data-for="interest_astronomy">☆</span>
+                                        <span class="star active" data-value="3" data-for="interest_astronomy">☆</span>
+                                        <span class="star" data-value="4" data-for="interest_astronomy">☆</span>
+                                        <span class="star" data-value="5" data-for="interest_astronomy">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1559,6 +1567,7 @@ function loadLocalQuestionnaire(container) {
                 </div>
             </div>
             
+            <!-- 第二部分：科学感知 -->
             <div class="question-group" style="margin-bottom: 40px;">
                 <h4 style="color: #28a745; margin-bottom: 20px;">二、科学感知</h4>
                 
@@ -1577,11 +1586,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="learning_style_quantitative">☆</span>
+                                        <span class="star" data-value="2" data-for="learning_style_quantitative">☆</span>
+                                        <span class="star active" data-value="3" data-for="learning_style_quantitative">☆</span>
+                                        <span class="star" data-value="4" data-for="learning_style_quantitative">☆</span>
+                                        <span class="star" data-value="5" data-for="learning_style_quantitative">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1601,11 +1610,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="learning_style_textual">☆</span>
+                                        <span class="star" data-value="2" data-for="learning_style_textual">☆</span>
+                                        <span class="star active" data-value="3" data-for="learning_style_textual">☆</span>
+                                        <span class="star" data-value="4" data-for="learning_style_textual">☆</span>
+                                        <span class="star" data-value="5" data-for="learning_style_textual">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1625,11 +1634,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="learning_style_visual">☆</span>
+                                        <span class="star" data-value="2" data-for="learning_style_visual">☆</span>
+                                        <span class="star active" data-value="3" data-for="learning_style_visual">☆</span>
+                                        <span class="star" data-value="4" data-for="learning_style_visual">☆</span>
+                                        <span class="star" data-value="5" data-for="learning_style_visual">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1649,11 +1658,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="learning_style_interactive">☆</span>
+                                        <span class="star" data-value="2" data-for="learning_style_interactive">☆</span>
+                                        <span class="star active" data-value="3" data-for="learning_style_interactive">☆</span>
+                                        <span class="star" data-value="4" data-for="learning_style_interactive">☆</span>
+                                        <span class="star" data-value="5" data-for="learning_style_interactive">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1673,11 +1682,11 @@ function loadLocalQuestionnaire(container) {
                                 <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                     <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
                                     <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                                        <span class="star" data-value="1" data-for="learning_style_practical">☆</span>
+                                        <span class="star" data-value="2" data-for="learning_style_practical">☆</span>
+                                        <span class="star active" data-value="3" data-for="learning_style_practical">☆</span>
+                                        <span class="star" data-value="4" data-for="learning_style_practical">☆</span>
+                                        <span class="star" data-value="5" data-for="learning_style_practical">☆</span>
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1730,11 +1739,11 @@ function loadLocalQuestionnaire(container) {
                         <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
                             <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                                <span class="star" data-value="1" data-for="scientific_thinking">☆</span>
+                                <span class="star" data-value="2" data-for="scientific_thinking">☆</span>
+                                <span class="star active" data-value="3" data-for="scientific_thinking">☆</span>
+                                <span class="star" data-value="4" data-for="scientific_thinking">☆</span>
+                                <span class="star" data-value="5" data-for="scientific_thinking">☆</span>
                             </div>
                         </div>
                         <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1756,11 +1765,11 @@ function loadLocalQuestionnaire(container) {
                         <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
                             <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                                <span class="star" data-value="1" data-for="scientific_insight">☆</span>
+                                <span class="star" data-value="2" data-for="scientific_insight">☆</span>
+                                <span class="star active" data-value="3" data-for="scientific_insight">☆</span>
+                                <span class="star" data-value="4" data-for="scientific_insight">☆</span>
+                                <span class="star" data-value="5" data-for="scientific_insight">☆</span>
                             </div>
                         </div>
                         <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1782,11 +1791,11 @@ function loadLocalQuestionnaire(container) {
                         <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
                             <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                                <span class="star" data-value="1" data-for="scientific_sensitivity">☆</span>
+                                <span class="star" data-value="2" data-for="scientific_sensitivity">☆</span>
+                                <span class="star active" data-value="3" data-for="scientific_sensitivity">☆</span>
+                                <span class="star" data-value="4" data-for="scientific_sensitivity">☆</span>
+                                <span class="star" data-value="5" data-for="scientific_sensitivity">☆</span>
                             </div>
                         </div>
                         <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1808,11 +1817,11 @@ function loadLocalQuestionnaire(container) {
                         <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
                             <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                                <span class="star" data-value="1" data-for="interdisciplinary_ability">☆</span>
+                                <span class="star" data-value="2" data-for="interdisciplinary_ability">☆</span>
+                                <span class="star active" data-value="3" data-for="interdisciplinary_ability">☆</span>
+                                <span class="star" data-value="4" data-for="interdisciplinary_ability">☆</span>
+                                <span class="star" data-value="5" data-for="interdisciplinary_ability">☆</span>
                             </div>
                         </div>
                         <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1838,11 +1847,11 @@ function loadLocalQuestionnaire(container) {
                         <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
                             <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                                <span class="star" data-value="1" data-for="paper_evaluation_score">☆</span>
+                                <span class="star" data-value="2" data-for="paper_evaluation_score">☆</span>
+                                <span class="star active" data-value="3" data-for="paper_evaluation_score">☆</span>
+                                <span class="star" data-value="4" data-for="paper_evaluation_score">☆</span>
+                                <span class="star" data-value="5" data-for="paper_evaluation_score">☆</span>
                             </div>
                         </div>
                         <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
@@ -1861,31 +1870,31 @@ function loadLocalQuestionnaire(container) {
                     <div class="checkbox-group">
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
+                                <input type="checkbox" name="evaluation_criteria[]" value="A" style="margin-right: 10px;">
                                 <span>A. 选段对现象描述的学术语言使用</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
+                                <input type="checkbox" name="evaluation_criteria[]" value="B" style="margin-right: 10px;">
                                 <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
+                                <input type="checkbox" name="evaluation_criteria[]" value="C" style="margin-right: 10px;">
                                 <span>C. 选段中提及的实验数据</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
+                                <input type="checkbox" name="evaluation_criteria[]" value="D" style="margin-right: 10px;">
                                 <span>D. 选段中涉及的科学理论（现象和本质）</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
+                                <input type="checkbox" name="evaluation_criteria[]" value="E" style="margin-right: 10px;">
                                 <span>E. 单纯凭感觉评分</span>
                             </label>
                         </div>
@@ -1930,9 +1939,9 @@ function loadLocalQuestionnaire(container) {
                 </div>
             </div>
             
-            <!-- 问卷按钮 -->
-            <div class="questionnaire-buttons">
-                <button type="button" class="btn btn-secondary" onclick="closeQuestionnaireModal()">
+            <!-- 提交按钮 -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-right: 15px;">
                     <i class="fas fa-times"></i> 取消
                 </button>
                 <button type="button" class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
@@ -1940,12 +1949,75 @@ function loadLocalQuestionnaire(container) {
                 </button>
             </div>
         </div>
-    `;
+    </form>`;
+    
+    // 填充现有数据
+    fillExistingQuestionnaireData(currentData);
     
     // 初始化评分系统
     initQuestionnaireRatingSystem();
 }
 
+// 填充现有问卷数据
+function fillExistingQuestionnaireData(questionnaireData) {
+    if (!questionnaireData || Object.keys(questionnaireData).length === 0) {
+        return;
+    }
+    
+    // 填充单选按钮
+    Object.keys(questionnaireData).forEach(key => {
+        const value = questionnaireData[key];
+        
+        // 处理单选按钮
+        const radioInputs = document.querySelectorAll(`input[name="${key}"][value="${value}"]`);
+        radioInputs.forEach(input => {
+            input.checked = true;
+        });
+        
+        // 处理滑块
+        const sliderInput = document.querySelector(`input[name="${key}"][type="range"]`);
+        if (sliderInput) {
+            sliderInput.value = value;
+            sliderInput.setAttribute('data-rating', value);
+            
+            // 更新显示
+            const ratingValue = sliderInput.closest('.rating-control')?.querySelector('.rating-value');
+            if (ratingValue) {
+                ratingValue.textContent = value;
+                ratingValue.style.fontSize = '24px';
+                ratingValue.style.fontWeight = 'bold';
+                ratingValue.style.color = '#007bff';
+            }
+            
+            // 更新星星
+            const stars = sliderInput.closest('.rating-control')?.querySelectorAll('.rating-stars .star');
+            if (stars) {
+                stars.forEach(star => {
+                    const starValue = star.getAttribute('data-value');
+                    if (parseInt(starValue) <= parseInt(value)) {
+                        star.textContent = '★';
+                        star.style.color = '#ffc107';
+                    } else {
+                        star.textContent = '☆';
+                        star.style.color = '#ccc';
+                    }
+                });
+            }
+        }
+        
+        // 处理复选框（多选题）
+        if (key === 'evaluation_criteria' && Array.isArray(value)) {
+            value.forEach(criteriaValue => {
+                const checkbox = document.querySelector(`input[name="evaluation_criteria[]"][value="${criteriaValue}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }
+    });
+}
+
+// 初始化问卷评分系统
 function initQuestionnaireRatingSystem() {
     // 为所有评分滑块添加事件监听
     document.querySelectorAll('.rating-slider').forEach(slider => {
@@ -1963,8 +2035,12 @@ function initQuestionnaireRatingSystem() {
             stars.forEach(star => {
                 star.addEventListener('click', function() {
                     const value = this.getAttribute('data-value');
-                    slider.value = value;
-                    updateQuestionnaireRatingDisplay(slider, value);
+                    const sliderName = this.getAttribute('data-for');
+                    const slider = document.querySelector(`input[name="${sliderName}"]`);
+                    if (slider) {
+                        slider.value = value;
+                        updateQuestionnaireRatingDisplay(slider, value);
+                    }
                 });
             });
             
@@ -1974,62 +2050,139 @@ function initQuestionnaireRatingSystem() {
     });
 }
 
+// 更新问卷评分显示
 function updateQuestionnaireRatingDisplay(slider, value) {
     const ratingControl = slider.closest('.rating-control');
-    const ratingValue = ratingControl?.querySelector('.rating-value');
-    const stars = ratingControl?.querySelectorAll('.rating-stars .star');
+    if (!ratingControl) return;
     
-    if (ratingValue) ratingValue.textContent = value;
+    const ratingValue = ratingControl.querySelector('.rating-value');
+    const stars = ratingControl.querySelectorAll('.rating-stars .star');
+    
+    if (ratingValue) {
+        ratingValue.textContent = value;
+        ratingValue.style.fontSize = '24px';
+        ratingValue.style.fontWeight = 'bold';
+        ratingValue.style.color = '#007bff';
+    }
     
     if (stars) {
         stars.forEach(star => {
-            const starValue = parseInt(star.getAttribute('data-value'));
-            if (starValue <= value) {
-                star.classList.add('active');
+            const starValue = star.getAttribute('data-value');
+            if (parseInt(starValue) <= parseInt(value)) {
                 star.textContent = '★';
+                star.style.color = '#ffc107';
             } else {
-                star.classList.remove('active');
                 star.textContent = '☆';
+                star.style.color = '#ccc';
             }
         });
     }
 }
 
+
+
+// 提交更新的问卷数据
 async function submitUpdatedQuestionnaire() {
-    const questionnaire = collectQuestionnaireData();
-    
-    if (!validateQuestionnaire(questionnaire)) {
-        showNotification('问卷填写不完整，请完成所有必填项', 'error');
-        return;
-    }
-    
     try {
+        // 收集表单数据
+        const form = document.getElementById('update-questionnaire-form');
+        const formData = new FormData(form);
+        
+        // 转换FormData为对象
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+            // 处理复选框数组
+            if (key.endsWith('[]')) {
+                const cleanKey = key.replace('[]', '');
+                if (!data[cleanKey]) {
+                    data[cleanKey] = [];
+                }
+                data[cleanKey].push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // 验证必填项
+        const requiredFields = [
+            'grade', 'education_system', 'interest_physics', 'interest_biology',
+            'interest_chemistry', 'interest_geology', 'interest_astronomy',
+            'learning_frequency', 'physics_question', 'chemistry_question',
+            'biology_question', 'astronomy_question', 'geology_question',
+            'learning_style_quantitative', 'learning_style_textual',
+            'learning_style_visual', 'learning_style_interactive',
+            'learning_style_practical', 'knowledge_structure',
+            'scientific_thinking', 'scientific_insight',
+            'scientific_sensitivity', 'interdisciplinary_ability',
+            'paper_evaluation_score', 'climate_question'
+        ];
+        
+        const missingFields = [];
+        requiredFields.forEach(field => {
+            if (!data[field] || (Array.isArray(data[field]) && data[field].length === 0)) {
+                missingFields.push(field);
+            }
+        });
+        
+        if (missingFields.length > 0) {
+            alert(`请完成以下必填项：${missingFields.join(', ')}`);
+            return;
+        }
+        
+        // 显示加载提示
+        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        submitBtn.disabled = true;
+        
+        // 发送API请求
         const response = await fetch('/api/user/update-questionnaire', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ questionnaire })
+            body: JSON.stringify({
+                questionnaire: data
+            }),
+            credentials: 'include'
         });
         
-        const data = await response.json();
+        const result = await response.json();
         
-        if (data.success) {
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        
+        if (result.success) {
             // 更新本地用户数据
             if (AppState.user) {
-                AppState.user.questionnaire = questionnaire;
+                AppState.user.questionnaire = data;
             }
-            showNotification('问卷已成功更新！', 'success');
+            
+            alert('问卷已成功更新！');
             closeQuestionnaireModal();
-            // 刷新问卷摘要
-            loadQuestionnaireSummary();
+            
+            // 刷新设置页面显示
+            if (typeof loadReadingSettings === 'function') {
+                loadReadingSettings();
+            }
         } else {
-            showNotification(data.message || '更新失败', 'error');
+            alert(`更新失败：${result.message || '未知错误'}`);
         }
+        
     } catch (error) {
-        console.error('更新问卷失败:', error);
-        showNotification('网络错误，请稍后重试', 'error');
+        console.error('提交问卷失败:', error);
+        
+        // 恢复按钮状态
+        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存更新';
+            submitBtn.disabled = false;
+        }
+        
+        alert('提交问卷时发生网络错误，请检查网络连接后重试。');
     }
+}
 }
 
 function closeQuestionnaireModal() {
@@ -2039,36 +2192,7 @@ function closeQuestionnaireModal() {
     }
 }
 
-async function submitUpdatedQuestionnaire() {
-    // 收集问卷数据
-    const questionnaire = collectQuestionnaireData();
-    
-    try {
-        const response = await fetch('/api/user/update-questionnaire', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ questionnaire })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('问卷已更新！新的学习画像将应用于后续解读。', 'success');
-            closeQuestionnaireModal();
-            // 刷新页面或重新加载设置
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            showNotification(data.message || '更新失败', 'error');
-        }
-    } catch (error) {
-        console.error('更新问卷失败:', error);
-        showNotification('网络错误，请稍后重试', 'error');
-    }
-}
+
 function collectSettings() {
     const settings = {
         reading: {},
