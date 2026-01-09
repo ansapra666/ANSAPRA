@@ -2378,7 +2378,22 @@ window.saveSettings = saveSettings;
 window.resetSettings = resetSettings;
 window.deleteAccount = deleteAccount;
 window.removeBackground = removeBackground;
-// 暴露必要函数到全局作用域
+// 暴露函数到全局作用域
+window.showTab = showTab;
+window.enterAsGuest = enterAsGuest;
+window.logout = logout;
 window.showQuestionnaireModal = showQuestionnaireModal;
 window.closeQuestionnaireModal = closeQuestionnaireModal;
+window.showFullQuestionnaire = showFullQuestionnaire;
+window.closeFullQuestionnaire = closeFullQuestionnaire;
+window.saveQuestionnaire = saveQuestionnaire;
+window.updateQuestionnaire = updateQuestionnaire;
+window.resetFontSize = resetFontSize;
+window.resetAllVisualSettings = resetAllVisualSettings;
+window.removeBackground = removeBackground;
+window.setAsBackground = setAsBackground;
+window.applyTheme = applyTheme;
+window.updateFontPreview = updateFontPreview;
+window.updateFontInfo = updateFontInfo;
+window.handleBackgroundUpload = handleBackgroundUpload;
 window.submitUpdatedQuestionnaire = submitUpdatedQuestionnaire;
