@@ -7,25 +7,38 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupSettingsTabs() {
-    const tabButtons = document.querySelectorAll('.settings-tab');
-    const tabPanels = document.querySelectorAll('.settings-panel');
+    const settingsContainer = document.querySelector('.settings-container');
+    if (!settingsContainer) return;
     
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const tabName = this.dataset.tab;
+    // 使用事件委托，处理动态加载的标签
+    settingsContainer.addEventListener('click', function(event) {
+        if (event.target.classList.contains('settings-tab')) {
+            const tabName = event.target.dataset.tab;
+            const tabButtons = settingsContainer.querySelectorAll('.settings-tab');
+            const tabPanels = settingsContainer.querySelectorAll('.settings-panel');
             
             // 移除所有active类
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabPanels.forEach(panel => panel.classList.remove('active'));
             
             // 激活当前标签
-            this.classList.add('active');
+            event.target.classList.add('active');
             const targetPanel = document.getElementById(`${tabName}-settings`);
             if (targetPanel) {
                 targetPanel.classList.add('active');
             }
-        });
+        }
     });
+    
+    // 初始化第一个标签为激活状态
+    const firstTab = document.querySelector('.settings-tab.active');
+    if (firstTab) {
+        const firstTabName = firstTab.dataset.tab;
+        const firstPanel = document.getElementById(`${firstTabName}-settings`);
+        if (firstPanel) {
+            firstPanel.classList.add('active');
+        }
+    }
 }
 
 function loadSettingsForms() {
