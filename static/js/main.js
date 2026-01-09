@@ -1646,6 +1646,111 @@ async function startInterpretation() {
     }
 }
 
+
+// 提交更新的问卷数据
+async function submitUpdatedQuestionnaire() {
+    try {
+        // 收集表单数据
+        const form = document.getElementById('update-questionnaire-form');
+        const formData = new FormData(form);
+        
+        // 转换FormData为对象
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+            // 处理复选框数组
+            if (key.endsWith('[]')) {
+                const cleanKey = key.replace('[]', '');
+                if (!data[cleanKey]) {
+                    data[cleanKey] = [];
+                }
+                data[cleanKey].push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // 验证必填项
+        const requiredFields = [
+            'grade', 'education_system', 'interest_physics', 'interest_biology',
+            'interest_chemistry', 'interest_geology', 'interest_astronomy',
+            'learning_frequency', 'physics_question', 'chemistry_question',
+            'biology_question', 'astronomy_question', 'geology_question',
+            'learning_style_quantitative', 'learning_style_textual',
+            'learning_style_visual', 'learning_style_interactive',
+            'learning_style_practical', 'knowledge_structure',
+            'scientific_thinking', 'scientific_insight',
+            'scientific_sensitivity', 'interdisciplinary_ability',
+            'paper_evaluation_score', 'climate_question'
+        ];
+        
+        const missingFields = [];
+        requiredFields.forEach(field => {
+            if (!data[field] || (Array.isArray(data[field]) && data[field].length === 0)) {
+                missingFields.push(field);
+            }
+        });
+        
+        if (missingFields.length > 0) {
+            alert(`请完成以下必填项：${missingFields.join(', ')}`);
+            return;
+        }
+        
+        // 显示加载提示
+        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        submitBtn.disabled = true;
+        
+        // 发送API请求
+        const response = await fetch('/api/user/update-questionnaire', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                questionnaire: data
+            }),
+            credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        
+        if (result.success) {
+            // 更新本地用户数据
+            if (AppState.user) {
+                AppState.user.questionnaire = data;
+            }
+            
+            alert('问卷已成功更新！');
+            closeQuestionnaireModal();
+            
+            // 刷新设置页面显示
+            if (typeof loadReadingSettings === 'function') {
+                loadReadingSettings();
+            }
+        } else {
+            alert(`更新失败：${result.message || '未知错误'}`);
+        }
+        
+    } catch (error) {
+        console.error('提交问卷失败:', error);
+        
+        // 恢复按钮状态
+        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存更新';
+            submitBtn.disabled = false;
+        }
+        
+        alert('提交问卷时发生网络错误，请检查网络连接后重试。');
+    }
+}
+
+
 function formatInterpretation(text) {
     // 确保文本以提示语结尾
     if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
