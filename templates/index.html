@@ -420,6 +420,29 @@
                             <!-- 阅读习惯设置 -->
                             <div id="reading-settings" class="settings-panel active">
                                 <!-- 阅读习惯设置表单将通过JS动态加载 -->
+                                <div class="settings-section" style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 30px;">
+                                    <h3><i class="fas fa-clipboard-list"></i> 认知框架问卷</h3>
+                                    <div class="settings-group">
+                                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                            <h4 style="margin-top: 0; color: #007bff;">
+                                                <i class="fas fa-user-check"></i> 个性化解读基础
+                                            </h4>
+                                            <p style="margin-bottom: 15px; color: #666;">
+                                                您的认知框架问卷数据是生成个性化解读的重要依据。系统会根据您的知识储备、学习偏好和能力特点，为您提供最适合的论文解读。
+                                            </p>
+                                            <button onclick="showQuestionnaireModal()" 
+                                                    class="btn btn-primary"
+                                                    style="padding: 12px 24px; font-size: 16px;">
+                                                <i class="fas fa-edit"></i> 修改认知框架问卷
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- 显示当前问卷摘要 -->
+                                        <div id="current-questionnaire-summary" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                            <!-- 问卷摘要将通过JS动态加载 -->
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             
                             <!-- 视觉设置 -->
