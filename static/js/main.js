@@ -1587,73 +1587,84 @@ function setupCookieConsent() {
     }
 }
 
-// 修改文件处理逻辑，确保正确传递文件
+// 添加以下函数到 main.js
 async function startInterpretation() {
-    if (AppState.isProcessing) return;
+    const fileInput = document.getElementById('file-input');
+    const paperText = document.getElementById('paper-text').value;
     
-    const file = DOM.fileInput.files[0];
-    const text = DOM.paperText.value.trim();
-    
-    if (!file && !text) {
+    // 检查是否有文件或文本
+    if (!fileInput.files[0] && !paperText.trim()) {
         showNotification('请上传文件或输入文本', 'error');
         return;
     }
     
-    AppState.isProcessing = true;
-    DOM.resultsSection.style.display = 'none';
-    DOM.loadingSection.style.display = 'block';
+    // 显示加载状态
+    document.getElementById('single-view').style.display = 'none';
+    document.getElementById('dual-view-container').style.display = 'none';
+    document.getElementById('loading-section').style.display = 'block';
     
-    try {
-        const formData = new FormData();
-        
-        // 如果有文件，添加文件
-        if (file) {
-            formData.append('file', file);
-        }
-        
-        // 如果有文本，添加文本
-        if (text) {
-            formData.append('text', text);
-        }
-        
-        // 显示上传进度
-        const progressElement = document.createElement('div');
-        progressElement.innerHTML = '<p>正在上传文件到DeepSeek API...</p>';
-        DOM.loadingSection.appendChild(progressElement);
-        
-        // 发送请求
-        const response = await fetch('/api/interpret', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
+    // 准备表单数据
+    const formData = new FormData();
+    
+    if (fileInput.files[0]) {
+        formData.append('file', fileInput.files[0]);
+    }
+    
+    if (paperText.trim()) {
+        formData.append('text', paperText);
+    }
+    
+    // 发送请求
+    fetch('/api/interpret', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loading-section').style.display = 'none';
         
         if (data.success) {
-            // 显示结果
-            DOM.originalContent.textContent = data.original_content;
-            DOM.interpretationContent.innerHTML = formatInterpretation(data.interpretation);
+            // 显示双栏视图
+            document.getElementById('dual-view-container').style.display = 'block';
             
-            // 显示推荐论文
-            displayRecommendations(data.recommendations || []);
+            // 显示原文
+            const originalTextContent = document.getElementById('original-text-content');
+            if (originalTextContent) {
+                originalTextContent.style.display = 'block';
+                originalTextContent.innerHTML = `<div class="paper-content">${data.original || '未获取到原文内容'}</div>`;
+            }
             
-            DOM.resultsSection.style.display = 'block';
-            showNotification('解读生成成功！', 'success');
+            // 显示解读结果
+            const interpretationContent = document.getElementById('interpretation-content');
+            if (interpretationContent) {
+                interpretationContent.innerHTML = data.interpretation || '未获取到解读内容';
+            }
             
-            // 滚动到结果区域
-            DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
+            // 显示相关推荐
+            const recommendationsList = document.getElementById('recommendations-list');
+            if (recommendationsList && data.recommendations) {
+                recommendationsList.innerHTML = data.recommendations.map(rec => `
+                    <div class="recommendation-item">
+                        <h5>${rec.title || '未命名'}</h5>
+                        <p>${rec.author || '未知作者'} - ${rec.year || '未知年份'}</p>
+                        <p style="font-size: 12px; color: #666;">${rec.abstract || '无摘要'}</p>
+                    </div>
+                `).join('');
+            }
         } else {
             showNotification(data.message || '解读失败', 'error');
+            document.getElementById('single-view').style.display = 'block';
         }
-        
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('解读错误:', error);
+        document.getElementById('loading-section').style.display = 'none';
+        document.getElementById('single-view').style.display = 'block';
         showNotification('网络错误，请稍后重试', 'error');
-    } finally {
-        AppState.isProcessing = false;
-        DOM.loadingSection.style.display = 'none';
-    }
+    });
 }
+
 
 
 // 提交更新的问卷数据
