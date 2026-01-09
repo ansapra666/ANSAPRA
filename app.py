@@ -101,6 +101,84 @@ def create_user(email, username, password, questionnaire=None):
     save_users(users)
     return True, user_data
 
+@app.route('/api/user/profile', methods=['GET'])
+@require_login
+def get_user_profile():
+    """获取用户完整信息，包括问卷数据"""
+    try:
+        user_email = session.get('user_email')
+        if not user_email:
+            return jsonify({'success': False, 'message': '用户未登录'}), 401
+        
+        users = load_users()
+        if user_email in users:
+            user = users[user_email]
+            return jsonify({
+                'success': True,
+                'user': {
+                    'email': user['email'],
+                    'username': user['username'],
+                    'settings': user.get('settings', {}),
+                    'questionnaire': user.get('questionnaire', {})
+                }
+            })
+        else:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+            
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {e}")
+        return jsonify({'success': False, 'message': '获取用户信息失败'}), 500
+
+@app.route('/api/user/reading-settings', methods=['GET'])
+@require_login
+def get_reading_settings():
+    """获取用户阅读设置"""
+    try:
+        user_email = session.get('user_email')
+        users = load_users()
+        
+        if user_email in users:
+            settings = users[user_email].get('settings', {})
+            reading_settings = settings.get('reading', {})
+            
+            return jsonify({
+                'success': True,
+                'settings': {
+                    'reading': reading_settings
+                }
+            })
+        else:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+            
+    except Exception as e:
+        logger.error(f"获取阅读设置失败: {e}")
+        return jsonify({'success': False, 'message': '获取设置失败'}), 500
+
+@app.route('/api/user/visual-settings', methods=['GET'])
+@require_login
+def get_visual_settings():
+    """获取用户视觉设置"""
+    try:
+        user_email = session.get('user_email')
+        users = load_users()
+        
+        if user_email in users:
+            settings = users[user_email].get('settings', {})
+            visual_settings = settings.get('visual', {})
+            
+            return jsonify({
+                'success': True,
+                'settings': {
+                    'visual': visual_settings
+                }
+            })
+        else:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+            
+    except Exception as e:
+        logger.error(f"获取视觉设置失败: {e}")
+        return jsonify({'success': False, 'message': '获取设置失败'}), 500
+
 def update_user_settings(email, settings):
     """更新用户设置"""
     users = load_users()
@@ -1174,22 +1252,6 @@ def check_auth():
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
-
-@app.route('/api/user/update-questionnaire', methods=['POST'])
-def update_questionnaire():
-    if 'user_email' not in session:
-        return jsonify({'success': False, 'message': '未登录'}), 401
-    
-    data = request.json
-    questionnaire = data.get('questionnaire', {})
-    users = load_users()
-    
-    if session['user_email'] in users:
-        users[session['user_email']]['questionnaire'] = questionnaire
-        save_users(users)
-        return jsonify({'success': True})
-    
-    return jsonify({'success': False, 'message': '用户不存在'}), 404
 
 @app.route('/api/user/profile', methods=['GET'])
 def get_user_profile():
