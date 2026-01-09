@@ -315,6 +315,7 @@ function clearChatHistory() {
     showNotification('聊天记录已清空', 'success');
 }
 
+// 在 switchPage 函数中添加
 function switchPage(pageName) {
     AppState.currentPage = pageName;
     localStorage.setItem('lastPage', pageName);
@@ -337,7 +338,15 @@ function switchPage(pageName) {
     
     // 如果切换到设置页面，确保语言设置正确显示
     if (pageName === 'settings') {
-        updateLanguageSettingsTab();
+        // 重新初始化设置标签
+        setTimeout(() => {
+            if (typeof setupSettingsTabs === 'function') {
+                setupSettingsTabs();
+            }
+            if (typeof loadSettingsForms === 'function') {
+                loadSettingsForms();
+            }
+        }, 100);
     }
     
     // 滚动到顶部
