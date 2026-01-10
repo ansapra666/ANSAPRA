@@ -16,7 +16,10 @@ let DOM = {};
 document.addEventListener('DOMContentLoaded', function() {
     initializeDOM();
     checkAuthentication();
-    loadTranslations();
+    // 初始化语言管理器
+    if (typeof initLanguageManager === 'function') {
+        initLanguageManager();
+    }
     setupEventListeners();
     setupSearchKeybindings();
     
@@ -33,6 +36,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (AppState.user && !AppState.user.is_guest) {
         loadChatHistory();
     }
+    
+
     
     // 检查是否有已保存的问卷
     const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
@@ -128,10 +133,21 @@ function showApp() {
         const savedPage = localStorage.getItem('lastPage');
         if (savedPage && document.querySelector(`[data-page="${savedPage}"]`)) {
             switchPage(savedPage);
+        } else {
+            // 初次注册用户默认进入使用说明页面
+            switchPage('instructions');
         }
         
         // 加载用户设置
         loadUserSettings();
+        
+        // 强制应用语言设置，确保所有元素都被正确翻译
+        setTimeout(() => {
+            const savedLang = localStorage.getItem('language') || 'zh';
+            if (window.languageManager) {
+                window.languageManager.applyLanguage(savedLang);
+            }
+        }, 100);
     }
 }
 
@@ -169,6 +185,15 @@ function setupEventListeners() {
             const page = this.dataset.page;
             switchPage(page);
         });
+    });
+    
+    // 监听语言变化，更新动态添加的内容
+    document.addEventListener('languageChanged', (e) => {
+        console.log(`Language changed to: ${e.detail.language}`);
+        // 重新加载使用说明，确保新添加的元素也能被翻译
+        loadInstructions();
+        // 重新加载设置表单，确保设置页面的元素也能被翻译
+        loadSettingsForms();
     });
     
     // 文件上传事件
@@ -315,7 +340,6 @@ function clearChatHistory() {
     showNotification('聊天记录已清空', 'success');
 }
 
-// 在 switchPage 函数中添加
 function switchPage(pageName) {
     AppState.currentPage = pageName;
     localStorage.setItem('lastPage', pageName);
@@ -336,15 +360,13 @@ function switchPage(pageName) {
         }
     });
     
-    // 如果切换到设置页面，确保语言设置正确显示
+    // 如果切换到设置页面，确保语言设置正确显示并加载用户设置
     if (pageName === 'settings') {
-        // 重新初始化设置标签
+        updateLanguageSettingsTab();
+        // 延迟调用，确保设置表单已加载
         setTimeout(() => {
-            if (typeof setupSettingsTabs === 'function') {
-                setupSettingsTabs();
-            }
-            if (typeof loadSettingsForms === 'function') {
-                loadSettingsForms();
+            if (typeof loadCurrentReadingSettings === 'function') {
+                loadCurrentReadingSettings();
             }
         }, 100);
     }
@@ -377,9 +399,97 @@ function handleFileSelect(e) {
         return;
     }
     
+    // 对于PDF文件，创建本地URL以便在浏览器中打开
+    if (fileName.endsWith('.pdf')) {
+        AppState.currentPDFUrl = URL.createObjectURL(file);
+    } else {
+        AppState.currentPDFUrl = null;
+    }
+    
     DOM.fileInfo.textContent = `已选择: ${file.name} (${fileSize.toFixed(2)} MB)`;
     DOM.fileInfo.style.color = '#28a745';
+    
+    // 记录最近阅读记录
+    recordReadingHistory(file);
 }
+
+// 记录最近阅读记录
+function recordReadingHistory(file) {
+    // 获取现有的阅读记录
+    let readingHistory = JSON.parse(localStorage.getItem('readingHistory') || '[]');
+    
+    // 创建新的阅读记录
+    const newRecord = {
+        id: Date.now(),
+        fileName: file.name,
+        timestamp: new Date().toISOString(),
+        fileSize: (file.size / 1024 / 1024).toFixed(2),
+        fileType: file.type
+    };
+    
+    // 添加到阅读记录的开头
+    readingHistory.unshift(newRecord);
+    
+    // 限制记录数量为10条
+    readingHistory = readingHistory.slice(0, 10);
+    
+    // 保存到localStorage
+    localStorage.setItem('readingHistory', JSON.stringify(readingHistory));
+}
+
+// 清空最近阅读记录
+function clearReadingHistory() {
+    if (confirm('确定要清空所有阅读记录吗？')) {
+        localStorage.removeItem('readingHistory');
+        showNotification('阅读记录已清空', 'success');
+        // 重新加载页面或刷新设置部分
+        location.reload();
+    }
+}
+
+// 添加最近阅读记录到账户设置
+function addReadingHistoryToSettings() {
+    const readingHistory = JSON.parse(localStorage.getItem('readingHistory') || '[]');
+    
+    if (readingHistory.length > 0) {
+        const accountSettings = document.getElementById('account-settings');
+        if (accountSettings) {
+            const historyHTML = `
+                <div class="reading-history-section" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h5><i class="fas fa-book"></i> <span data-i18n="recent-reading-history">最近阅读记录</span></h5>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #ddd;">
+                                    <th style="padding: 8px; text-align: left;"><span data-i18n="paper-title">论文标题</span></th>
+                                    <th style="padding: 8px; text-align: left;"><span data-i18n="time">时间</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${readingHistory.map(item => `
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 8px;">${item.fileName}</td>
+                                        <td style="padding: 8px; font-size: 12px; color: #666;">
+                                            ${new Date(item.timestamp).toLocaleDateString()}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-small btn-secondary" onclick="clearReadingHistory()" style="margin-top: 10px;">
+                        <i class="fas fa-trash"></i> <span data-i18n="clear-reading-history">清空阅读记录</span>
+                    </button>
+                </div>
+            `;
+            
+            accountSettings.insertAdjacentHTML('beforeend', historyHTML);
+        }
+    }
+}
+
+// 在加载用户设置时调用
+addReadingHistoryToSettings();
 
 function updateCharCount() {
     const count = DOM.paperText.value.length;
@@ -450,79 +560,84 @@ function closeFullQuestionnaire() {
 
 // 加载完整问卷到容器
 function loadFullQuestionnaire(container) {
+    const currentLang = localStorage.getItem('language') || 'zh';
     // 清空容器
     container.innerHTML = '';
     
     // 创建问卷内容
-    const questionnaireHTML = `
-        <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
-            <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
-                <h3 style="color: #007bff; margin-bottom: 10px;">知识框架调查问卷</h3>
-                <p style="color: #666; font-size: 16px;">请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
-            </div>
-            
-            <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
-                <h4 style="color: #28a745; margin-bottom: 20px;">一、基本情况</h4>
-                
-                <!-- 年级 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">1. 您所在的年级是？</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="grade" value="A" required style="margin-right: 10px;">
-                                <span>A. 9年级</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="grade" value="B" style="margin-right: 10px;">
-                                <span>B. 10年级</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="grade" value="C" style="margin-right: 10px;">
-                                <span>C. 11年级</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="grade" value="D" style="margin-right: 10px;">
-                                <span>D. 12年级</span>
-                            </label>
-                        </div>
-                    </div>
+    let questionnaireHTML = '';
+    
+    if (currentLang === 'en') {
+        // 英文问卷模板
+        questionnaireHTML = `
+            <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+                <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
+                    <h3 style="color: #007bff; margin-bottom: 10px;">Knowledge Framework Questionnaire</h3>
+                    <p style="color: #666; font-size: 16px;">Please fill out the following questionnaire to help us better provide personalized interpretations for you</p>
                 </div>
                 
-                <!-- 教育体系 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您所处的教育体系是？</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="education_system" value="A" required style="margin-right: 10px;">
-                                <span>A. 国际体系</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="education_system" value="B" style="margin-right: 10px;">
-                                <span>B. 普高体系</span>
-                            </label>
+                                <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
+                    <h4 style="color: #28a745; margin-bottom: 20px;">I. Basic Information</h4>
+                    
+                    <!-- Grade -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">1. What grade are you in?</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="A" required style="margin-right: 10px;">
+                                    <span>A. Grade 9</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="B" style="margin-right: 10px;">
+                                    <span>B. Grade 10</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="C" style="margin-right: 10px;">
+                                    <span>C. Grade 11</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="D" style="margin-right: 10px;">
+                                    <span>D. Grade 12</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </div>
+                    
+                    <!-- Education System -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. What education system are you under?</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="education_system" value="A" required style="margin-right: 10px;">
+                                    <span>A. International System</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="education_system" value="B" style="margin-right: 10px;">
+                                    <span>B. General High School System</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 
-                <!-- 学科兴趣 -->
+                <!-- Subject Interest -->
                 <div class="form-group" style="margin-bottom: 30px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
-                    <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
+                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. How interested are you in each natural science subject? (Rate from 1-5)</label>
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">Drag the slider to select a score, 1 means not interested, 5 means very interested</p>
                     
                     <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-                        <!-- 物理学 -->
+                        <!-- Physics -->
                         <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">物理学：</label>
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">Physics:</label>
                             <div class="rating-control">
                                 <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
@@ -537,16 +652,16 @@ function loadFullQuestionnaire(container) {
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不感兴趣</span>
-                                    <span>一般</span>
-                                    <span>非常感兴趣</span>
+                                    <span>Not interested</span>
+                                    <span>Neutral</span>
+                                    <span>Very interested</span>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 生物学 -->
+                        <!-- Biology -->
                         <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">生物学、医学等：</label>
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">Biology, Medicine, etc.:</label>
                             <div class="rating-control">
                                 <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
@@ -561,16 +676,16 @@ function loadFullQuestionnaire(container) {
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不感兴趣</span>
-                                    <span>一般</span>
-                                    <span>非常感兴趣</span>
+                                    <span>Not interested</span>
+                                    <span>Neutral</span>
+                                    <span>Very interested</span>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 化学 -->
+                        <!-- Chemistry -->
                         <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">化学：</label>
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">Chemistry:</label>
                             <div class="rating-control">
                                 <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
@@ -585,16 +700,16 @@ function loadFullQuestionnaire(container) {
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不感兴趣</span>
-                                    <span>一般</span>
-                                    <span>非常感兴趣</span>
+                                    <span>Not interested</span>
+                                    <span>Neutral</span>
+                                    <span>Very interested</span>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 地理地质学 -->
+                        <!-- Geography and Geology -->
                         <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">地理地质学：</label>
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">Geography and Geology:</label>
                             <div class="rating-control">
                                 <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
@@ -609,16 +724,16 @@ function loadFullQuestionnaire(container) {
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不感兴趣</span>
-                                    <span>一般</span>
-                                    <span>非常感兴趣</span>
+                                    <span>Not interested</span>
+                                    <span>Neutral</span>
+                                    <span>Very interested</span>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 天体天文学 -->
+                        <!-- Astronomy and Astrophysics -->
                         <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">天体天文学：</label>
+                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">Astronomy and Astrophysics:</label>
                             <div class="rating-control">
                                 <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
@@ -633,579 +748,902 @@ function loadFullQuestionnaire(container) {
                                     </div>
                                 </div>
                                 <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不感兴趣</span>
-                                    <span>一般</span>
-                                    <span>非常感兴趣</span>
+                                    <span>Not interested</span>
+                                    <span>Neutral</span>
+                                    <span>Very interested</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 学习频率 -->
+                <!-- Learning Frequency -->
                 <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. 您学习自然科学课外知识的频率是？</label>
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. How often do you learn extracurricular knowledge of natural sciences?</label>
                     <div class="radio-group">
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="learning_frequency" value="A" required style="margin-right: 10px;">
-                                <span>A. 一周1次或更频繁</span>
+                                <span>A. Once a week or more frequently</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="learning_frequency" value="B" style="margin-right: 10px;">
-                                <span>B. 一个月1-3次</span>
+                                <span>B. 1-3 times a month</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="learning_frequency" value="C" style="margin-right: 10px;">
-                                <span>C. 几个月1次</span>
+                                <span>C. Once every few months</span>
                             </label>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 物理问题 -->
+                <!-- Physics Question -->
                 <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. In a double-slit interference experiment, monochromatic light with wavelength λ is used. If the entire experimental setup is moved from air into a transparent liquid with refractive index n, while keeping the distance D from the screen to the double slits and the slit spacing d unchanged, how will the distance Δx between adjacent bright fringes on the screen change?</label>
                     <div class="radio-group">
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="physics_question" value="A" required style="margin-right: 10px;">
-                                <span>A. 变为原来的n倍</span>
+                                <span>A. Become n times the original</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="physics_question" value="B" style="margin-right: 10px;">
-                                <span>B. 变为原来的1/n</span>
+                                <span>B. Become 1/n times the original</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="physics_question" value="C" style="margin-right: 10px;">
-                                <span>C. 保持不变</span>
+                                <span>C. Remain unchanged</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="physics_question" value="D" style="margin-right: 10px;">
-                                <span>D. 无法确定，因为光的频率也改变了</span>
+                                <span>D. Cannot be determined because the frequency of light also changes</span>
                             </label>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 化学问题 -->
+                <!-- Chemistry Question -->
                 <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. A small amount of solid sodium acetate (CH₃COONa) is added to a certain volume of dilute acetic acid (CH₃COOH) solution. Assuming the change in solution volume is negligible, this operation will cause which of the following in the solution:</label>
                     <div class="radio-group">
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="chemistry_question" value="A" required style="margin-right: 10px;">
-                                <span>A. pH值显著下降</span>
+                                <span>A. Significant decrease in pH value</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="chemistry_question" value="B" style="margin-right: 10px;">
-                                <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
+                                <span>B. Increase in the ratio of acetate ion concentration to hydrogen ion concentration</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="chemistry_question" value="C" style="margin-right: 10px;">
-                                <span>C. 醋酸的电离度显著降低</span>
+                                <span>C. Significant decrease in the degree of ionization of acetic acid</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="chemistry_question" value="D" style="margin-right: 10px;">
-                                <span>D. 水的离子积常数Kw增大</span>
+                                <span>D. Increase in the ion product constant Kw of water</span>
                             </label>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 生物问题 -->
+                <!-- Biology Question -->
                 <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">7. Reference Example Question: The aquatic plant Quillwort uses CAM metabolism when submerged, fixing CO₂ at night to produce malic acid and releasing CO₂ during the day for photosynthesis. This is thought to be due to the scarcity of CO₂ in water during the day caused by intense competition from other photosynthetic organisms.<br>Based on this logic, which of the following situations would most likely prompt terrestrial cacti to open their stomata at night (rather than during the day) to absorb CO₂?</label>
                     <div class="radio-group">
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="biology_question" value="A" required style="margin-right: 10px;">
-                                <span>A. 为了在夜间更有效地进行光反应。</span>
+                                <span>A. To more effectively carry out light reactions at night.</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="biology_question" value="B" style="margin-right: 10px;">
-                                <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
+                                <span>B. To close stomata during the day to reduce water loss while still obtaining CO₂.</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="biology_question" value="C" style="margin-right: 10px;">
-                                <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
+                                <span>C. Because there is more water in the soil at night, which facilitates CO₂ absorption.</span>
                             </label>
                         </div>
                         <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                             <label style="display: block; cursor: pointer; margin: 0;">
                                 <input type="radio" name="biology_question" value="D" style="margin-right: 10px;">
-                                <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
+                                <span>D. Because CO₂ solubility is higher at lower night temperatures.</span>
                             </label>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 天文问题 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="astronomy_question" value="A" required style="margin-right: 10px;">
-                                <span>A. 行星的精确质量</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="astronomy_question" value="B" style="margin-right: 10px;">
-                                <span>B. 行星轨道周期的最小质量（M sin i）</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="astronomy_question" value="C" style="margin-right: 10px;">
-                                <span>C. 行星的半径</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="astronomy_question" value="D" style="margin-right: 10px;">
-                                <span>D. 行星大气的成分</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
                 
-                <!-- 地质问题 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="geology_question" value="A" required style="margin-right: 10px;">
-                                <span>A. 持续的海平面上升</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="geology_question" value="B" style="margin-right: 10px;">
-                                <span>B. 一次海平面下降，随后又上升</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="geology_question" value="C" style="margin-right: 10px;">
-                                <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="geology_question" value="D" style="margin-right: 10px;">
-                                <span>D. 持续的构造抬升</span>
-                            </label>
-                        </div>
-                    </div>
+                <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
+                    <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
+                            style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
+                            style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
+                        <i class="fas fa-save"></i> Save Questionnaire
+                    </button>
                 </div>
             </div>
-            
-            <div class="question-group" style="margin-bottom: 40px;">
-                <h4 style="color: #28a745; margin-bottom: 20px;">二、科学感知</h4>
+        `;
+    } else {
+        // 中文问卷模板
+        questionnaireHTML = `
+            <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+                <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
+                    <h3 style="color: #007bff; margin-bottom: 10px;">知识框架调查问卷</h3>
+                    <p style="color: #666; font-size: 16px;">请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
+                </div>
                 
-                <!-- 学习方式偏好 -->
-                <div class="form-group" style="margin-bottom: 30px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
-                    <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
+                <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
+                    <h4 style="color: #28a745; margin-bottom: 20px;">一、基本情况</h4>
                     
-                    <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-                        <!-- 量化学习 -->
-                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
-                            <div class="rating-control">
-                                <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
-                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
-                                    </div>
-                                </div>
-                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不喜欢</span>
-                                    <span>一般</span>
-                                    <span>非常喜欢</span>
-                                </div>
+                    <!-- 年级 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">1. 您所在的年级是？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="A" required style="margin-right: 10px;">
+                                    <span>A. 9年级</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="B" style="margin-right: 10px;">
+                                    <span>B. 10年级</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="C" style="margin-right: 10px;">
+                                    <span>C. 11年级</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="grade" value="D" style="margin-right: 10px;">
+                                    <span>D. 12年级</span>
+                                </label>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- 教育体系 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您所处的教育体系是？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="education_system" value="A" required style="margin-right: 10px;">
+                                    <span>A. 国际体系</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="education_system" value="B" style="margin-right: 10px;">
+                                    <span>B. 普高体系</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 学科兴趣 -->
+                    <div class="form-group" style="margin-bottom: 30px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您对各个自然科学学科的感兴趣程度？（1-5打分）</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">拖动滑块选择分数，1分表示不感兴趣，5分表示非常感兴趣</p>
                         
-                        <!-- 文字理解 -->
-                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">B. 文字理解，通过清晰详细的语言表述知识点：</label>
-                            <div class="rating-control">
-                                <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
-                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                        <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                            <!-- 物理学 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">物理学：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="interest_physics" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不感兴趣</span>
+                                        <span>一般</span>
+                                        <span>非常感兴趣</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不喜欢</span>
-                                    <span>一般</span>
-                                    <span>非常喜欢</span>
+                            </div>
+                            
+                            <!-- 生物学 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">生物学、医学等：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="interest_biology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不感兴趣</span>
+                                        <span>一般</span>
+                                        <span>非常感兴趣</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 化学 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">化学：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="interest_chemistry" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不感兴趣</span>
+                                        <span>一般</span>
+                                        <span>非常感兴趣</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 地理地质学 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">地理地质学：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="interest_geology" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不感兴趣</span>
+                                        <span>一般</span>
+                                        <span>非常感兴趣</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 天体天文学 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">天体天文学：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="interest_astronomy" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不感兴趣</span>
+                                        <span>一般</span>
+                                        <span>非常感兴趣</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- 学习频率 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. 您学习自然科学课外知识的频率是？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="learning_frequency" value="A" required style="margin-right: 10px;">
+                                    <span>A. 一周1次或更频繁</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="learning_frequency" value="B" style="margin-right: 10px;">
+                                    <span>B. 一个月1-3次</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="learning_frequency" value="C" style="margin-right: 10px;">
+                                    <span>C. 几个月1次</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 物理问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. 在双缝干涉实验中，使用波长为λ的单色光。如果将整个实验装置从空气移入折射率为n的透明液体中，同时将屏到双缝的距离D和双缝间距d保持不变，那么屏幕上相邻明条纹中心的间距Δx将如何变化？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="physics_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. 变为原来的n倍</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="physics_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 变为原来的1/n</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="physics_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 保持不变</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="physics_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 无法确定，因为光的频率也改变了</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 化学问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. 将少量固体醋酸钠（CH₃COONa）加入到一定体积的稀醋酸（CH₃COOH）溶液中。假设溶液体积变化忽略不计，该操作会导致溶液中：</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="chemistry_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. pH值显著下降</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="chemistry_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 醋酸根离子浓度与氢离子浓度的比值增大</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="chemistry_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 醋酸的电离度显著降低</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="chemistry_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 水的离子积常数Kw增大</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 生物问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">7. 参考示例题型：水生植物Quillwort在 submerged 时采用CAM代谢，夜间固定CO₂生成苹果酸，白天释放CO₂进行光合作用。这被认为是由于白天水中CO₂被其他光合生物强烈竞争而导致稀缺。<br>据此逻辑，以下哪种情况最可能促使陆生仙人掌在夜间（而非白天）开放其气孔吸收CO₂？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="biology_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. 为了在夜间更有效地进行光反应。</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="biology_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 为了在白天关闭气孔以减少水分散失，同时仍能获取CO₂。</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="biology_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 因为夜间土壤中水分更多，有利于CO₂吸收。</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="biology_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 因为夜间温度更低，CO₂溶解度更高。</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 天文问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 假设我们可以观测到一颗围绕类太阳恒星运行的系外行星。通过测量恒星光谱的多普勒位移，我们得到了恒星视向速度随时间变化的周期性曲线。<strong>仅凭这条曲线</strong>，我们可以最可靠地确定该系外行星的哪个参数？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="astronomy_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. 行星的精确质量</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="astronomy_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 行星轨道周期的最小质量（M sin i）</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="astronomy_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 行星的半径</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="astronomy_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 行星大气的成分</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 地质问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 在分析某河流三角洲的沉积岩芯时，科学家发现从底层到顶层，沉积物颗粒的平均粒径有"粗 -> 细 -> 粗"的垂向变化序列。这最有可能指示了该区域在沉积期间经历了：</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="geology_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. 持续的海平面上升</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="geology_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 一次海平面下降，随后又上升</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="geology_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 一次海平面的上升，随后又下降（一个完整的海侵-海退旋回）</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="geology_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 持续的构造抬升</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-group" style="margin-bottom: 40px;">
+                    <h4 style="color: #28a745; margin-bottom: 20px;">二、科学感知</h4>
+                    
+                    <!-- 学习方式偏好 -->
+                    <div class="form-group" style="margin-bottom: 30px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">1. 您认为您对以下学习方式的喜好与习惯程度是？【1-5评分】</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px; font-style: italic;">1为极其不喜欢/习惯，5为极其喜欢/习惯</p>
                         
-                        <!-- 可视化学习 -->
-                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
-                            <div class="rating-control">
-                                <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
-                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                        <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                            <!-- 量化学习 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">A. 量化学习，数字和公式更能解释清楚特定知识点：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不喜欢</span>
+                                        <span>一般</span>
+                                        <span>非常喜欢</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不喜欢</span>
-                                    <span>一般</span>
-                                    <span>非常喜欢</span>
-                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- 互动性学习 -->
-                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
-                            <div class="rating-control">
-                                <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
-                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                            
+                            <!-- 文字理解 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">B. 文字理解，通过清晰详细的语言表述知识点：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不喜欢</span>
+                                        <span>一般</span>
+                                        <span>非常喜欢</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不喜欢</span>
-                                    <span>一般</span>
-                                    <span>非常喜欢</span>
-                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- 实践性学习 -->
-                        <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                            <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
-                            <div class="rating-control">
-                                <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                                       style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                                <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                    <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
-                                    <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                        <span class="star" data-value="1">☆</span>
-                                        <span class="star" data-value="2">☆</span>
-                                        <span class="star active" data-value="3">☆</span>
-                                        <span class="star" data-value="4">☆</span>
-                                        <span class="star" data-value="5">☆</span>
+                            
+                            <!-- 可视化学习 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">C. 可视化学习，习惯借助图表甚至立体模型展现特定知识点：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不喜欢</span>
+                                        <span>一般</span>
+                                        <span>非常喜欢</span>
                                     </div>
                                 </div>
-                                <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                                    <span>不喜欢</span>
-                                    <span>一般</span>
-                                    <span>非常喜欢</span>
+                            </div>
+                            
+                            <!-- 互动性学习 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">D. 互动性学习，依赖问题引导、课堂互动或视频等视听型教学方式：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不喜欢</span>
+                                        <span>一般</span>
+                                        <span>非常喜欢</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 实践性学习 -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">E. 实践性学习，习惯通过动手实践和严谨实验过程理解特定知识点：</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                        style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>不喜欢</span>
+                                        <span>一般</span>
+                                        <span>非常喜欢</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- 知识结构 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="knowledge_structure" value="A" required style="margin-right: 10px;">
-                                <span>A. 一本厚重的教科书，由浅入深</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="knowledge_structure" value="B" style="margin-right: 10px;">
-                                <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="knowledge_structure" value="C" style="margin-right: 10px;">
-                                <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="knowledge_structure" value="D" style="margin-right: 10px;">
-                                <span>D. 一个全能但是无序的工具箱</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 科学思考力 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
-                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                        <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
-                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                    
+                    <!-- 知识结构 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. 您觉得以下哪一个描述最符合自然科学（天文学，生物学等）知识在您大脑中的样子？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_structure" value="A" required style="margin-right: 10px;">
+                                    <span>A. 一本厚重的教科书，由浅入深</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_structure" value="B" style="margin-right: 10px;">
+                                    <span>B. 一个完整的蜘蛛网，互相联系，互相支撑</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_structure" value="C" style="margin-right: 10px;">
+                                    <span>C. 独立的数据库，每个学科都是独一无二的存储</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_structure" value="D" style="margin-right: 10px;">
+                                    <span>D. 一个全能但是无序的工具箱</span>
+                                </label>
                             </div>
                         </div>
-                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                            <span>很差</span>
-                            <span>较差</span>
-                            <span>一般</span>
-                            <span>较好</span>
-                            <span>很好</span>
-                        </div>
                     </div>
-                </div>
-                
-                <!-- 科学洞察力 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
-                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                        <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
-                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                    
+                    <!-- 科学思考力 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">3. 您觉得您的科学思考力（使用自然科学等方式思考问题）如何（1-5分）</label>
+                        <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>很差</span>
+                                <span>较差</span>
+                                <span>一般</span>
+                                <span>较好</span>
+                                <span>很好</span>
                             </div>
                         </div>
-                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                            <span>很差</span>
-                            <span>较差</span>
-                            <span>一般</span>
-                            <span>较好</span>
-                            <span>很好</span>
-                        </div>
                     </div>
-                </div>
-                
-                <!-- 科学现象敏感度 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
-                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                        <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
-                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                    
+                    <!-- 科学洞察力 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">4. 您觉得您的科学洞察力（从现象到本质的能力）如何（1-5分）</label>
+                        <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>很差</span>
+                                <span>较差</span>
+                                <span>一般</span>
+                                <span>较好</span>
+                                <span>很好</span>
                             </div>
                         </div>
-                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                            <span>很差</span>
-                            <span>较差</span>
-                            <span>一般</span>
-                            <span>较好</span>
-                            <span>很好</span>
-                        </div>
                     </div>
-                </div>
-                
-                <!-- 跨学科联系能力 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
-                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                        <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
-                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                    
+                    <!-- 科学现象敏感度 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">5. 您觉得您的科学现象敏感度（从生活中发现科学问题）（1-5分）</label>
+                        <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>很差</span>
+                                <span>较差</span>
+                                <span>一般</span>
+                                <span>较好</span>
+                                <span>很好</span>
                             </div>
                         </div>
-                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                            <span>很差</span>
-                            <span>较差</span>
-                            <span>一般</span>
-                            <span>较好</span>
-                            <span>很好</span>
-                        </div>
                     </div>
-                </div>
-                
-                <!-- 论文评价 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
-                    <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0; font-size: 14px; line-height: 1.6; color: #666;">
-                        <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
-                    </div>
-                    <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
-                    <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
-                        <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
-                               style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
-                        <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
-                            <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
-                                <span class="star" data-value="1">☆</span>
-                                <span class="star" data-value="2">☆</span>
-                                <span class="star active" data-value="3">☆</span>
-                                <span class="star" data-value="4">☆</span>
-                                <span class="star" data-value="5">☆</span>
+                    
+                    <!-- 跨学科联系能力 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">6. 您觉得您的跨学科联系能力如何（针对特定现象联系多学科知识解答）（1-5分）</label>
+                        <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>很差</span>
+                                <span>较差</span>
+                                <span>一般</span>
+                                <span>较好</span>
+                                <span>很好</span>
                             </div>
                         </div>
-                        <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                            <span>很差</span>
-                            <span>较差</span>
-                            <span>一般</span>
-                            <span>较好</span>
-                            <span>很好</span>
+                    </div>
+                    
+                    <!-- 论文评价 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">7. 请阅读如下这个科学选段，回答问题，您可以搜索资料，但是不能询问AI：</label>
+                        <div class="paper-excerpt" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0; font-size: 14px; line-height: 1.6; color: #666;">
+                            <p>本研究通过先进的量子相干光谱技术，发现经过特定频率（528Hz）声波处理的水分子会形成稳定的"谐振记忆结构"。当志愿者饮用这种结构化水后，其生物光子发射强度平均提升47.3%（p&lt;0.05），线粒体ATP合成效率显著改善。实验采用双盲设计，30名志愿者随机分为两组，实验组饮用结构化水，对照组饮用普通蒸馏水。一周后，实验组在主观幸福感量表（SWLS）上的得分比对照组高出62%，同时其DNA端粒长度经PCR检测显示平均延长0.4个碱基对。这些结果表明，水分子可以通过频率信息存储和传递机制，直接优化人类细胞的量子生物场，为能量医学开辟新途径。</p>
+                        </div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">请为这段论文选段从学术严谨性与学术逻辑性方面打分（1-5）1-很差，5-很好</label>
+                        <div class="rating-control" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3分（一般）</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>很差</span>
+                                <span>较差</span>
+                                <span>一般</span>
+                                <span>较好</span>
+                                <span>很好</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 评价标准 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
+                        <div class="checkbox-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
+                                    <span>A. 选段对现象描述的学术语言使用</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
+                                    <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
+                                    <span>C. 选段中提及的实验数据</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
+                                    <span>D. 选段中涉及的科学理论（现象和本质）</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
+                                    <span>E. 单纯凭感觉评分</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 气候问题 -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="B" style="margin-right: 10px;">
+                                    <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="C" style="margin-right: 10px;">
+                                    <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="D" style="margin-right: 10px;">
+                                    <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="E" style="margin-right: 10px;">
+                                    <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 评价标准 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. 您刚才通过什么方面做出选段学术严谨性与逻辑性的评分判断？（可多选）</label>
-                    <div class="checkbox-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
-                                <span>A. 选段对现象描述的学术语言使用</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
-                                <span>B. 选段中提及的分析问题、测量用到的科学技术</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
-                                <span>C. 选段中提及的实验数据</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
-                                <span>D. 选段中涉及的科学理论（现象和本质）</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
-                                <span>E. 单纯凭感觉评分</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
                 
-                <!-- 气候问题 -->
-                <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. 提及全球变暖与温室效应，您最想探究的问题是什么？</label>
-                    <div class="radio-group">
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="climate_question" value="A" required style="margin-right: 10px;">
-                                <span>A. 全球变暖能直接导致或者间接导致什么后果？</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="climate_question" value="B" style="margin-right: 10px;">
-                                <span>B. 温室效应是什么？什么是温室气体？它是怎么导致全球变暖的？</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="climate_question" value="C" style="margin-right: 10px;">
-                                <span>C. 有什么相关技术可以改善温室效应？我们可以做什么去改善温室效应？</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="climate_question" value="D" style="margin-right: 10px;">
-                                <span>D. 温室效应背后的学科领域是什么？哪些学科可以帮助理解或是改善温室效应？</span>
-                            </label>
-                        </div>
-                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                            <label style="display: block; cursor: pointer; margin: 0;">
-                                <input type="radio" name="climate_question" value="E" style="margin-right: 10px;">
-                                <span>E. 除了温室效应，还有什么会导致全球变暖？</span>
-                            </label>
-                        </div>
-                    </div>
+                <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
+                    <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
+                            style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
+                        <i class="fas fa-times"></i> 取消
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
+                            style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
+                        <i class="fas fa-save"></i> 保存问卷
+                    </button>
                 </div>
             </div>
-            
-            <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
-                <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
-                        style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                    <i class="fas fa-times"></i> 取消
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
-                        style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                    <i class="fas fa-save"></i> 保存问卷
-                </button>
-            </div>
-        </div>
-    `;
+        `;
+    }
     
     container.innerHTML = questionnaireHTML;
     
@@ -1244,6 +1682,116 @@ function saveQuestionnaire() {
         // 更新注册表单中的问卷显示
         updateRegisterFormQuestionnaire();
     }
+}
+
+// 加载问卷摘要
+function loadQuestionnaireSummary() {
+    if (!AppState.user || AppState.user.is_guest) {
+        showNotification('请先登录以查看问卷', 'error');
+        return;
+    }
+    
+    fetch('/api/user/questionnaire')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const questionnaire = data.questionnaire;
+                const summaryElement = document.getElementById('questionnaire-summary');
+                if (summaryElement) {
+                    const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+                    const systemMap = { A: '国际体系', B: '普高体系' };
+                    const grade = gradeMap[questionnaire.grade] || '未知';
+                    const system = systemMap[questionnaire.education_system] || '未知';
+                    
+                    summaryElement.innerHTML = `
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">当前知识框架问卷</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>年级：</strong>${grade}</p>
+                                <p><strong>教育体系：</strong>${system}</p>
+                                <p><strong>学习频率：</strong>${questionnaire.learning_frequency === 'A' ? '一周1次或更频繁' : questionnaire.learning_frequency === 'B' ? '一个月1-3次' : '几个月1次'}</p>
+                                <button class="btn btn-primary mt-3" onclick="updateQuestionnaire()">
+                                    <i class="fas fa-edit"></i> 修改问卷
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                showNotification('加载问卷失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('加载问卷错误:', error);
+            showNotification('网络错误，请稍后重试', 'error');
+        });
+}
+
+// 更新问卷
+function updateQuestionnaire() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = `
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 10px; padding: 30px; max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
+                <h3 style="margin: 0; color: #007bff;"><i class="fas fa-edit"></i> 修改知识框架问卷</h3>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease;">&times;</button>
+            </div>
+            <div id="update-questionnaire-container"></div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 加载问卷内容
+    loadFullQuestionnaire(document.getElementById('update-questionnaire-container'));
+}
+
+// 提交更新的问卷
+function submitUpdatedQuestionnaire() {
+    const questionnaire = collectQuestionnaireData();
+    
+    if (!validateQuestionnaire(questionnaire)) {
+        showNotification('问卷填写不完整，请完成所有必填项', 'error');
+        return;
+    }
+    
+    fetch('/api/user/questionnaire', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(questionnaire)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('问卷更新成功', 'success');
+            document.querySelector('.modal').remove();
+            loadQuestionnaireSummary();
+        } else {
+            showNotification('问卷更新失败', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('更新问卷错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    });
 }
 
 // 更新注册表单中的问卷显示
@@ -1541,6 +2089,32 @@ async function logout() {
 function setupCookieConsent() {
     // 检查用户是否已经同意Cookie
     if (!localStorage.getItem('cookieConsent')) {
+        // 获取当前语言
+        const currentLang = localStorage.getItem('language') || 'zh';
+        
+        // 根据语言获取翻译文本
+        const getCookieText = () => {
+            const translations = {
+                zh: {
+                    message: '我们使用Cookie来提升您的浏览体验。继续使用本网站即表示您同意我们的',
+                    cookiePolicy: 'Cookie政策',
+                    accept: '同意',
+                    settings: '设置',
+                    reject: '拒绝'
+                },
+                en: {
+                    message: 'We use cookies to enhance your browsing experience. By continuing to use this website, you agree to our',
+                    cookiePolicy: 'Cookie Policy',
+                    accept: 'Accept',
+                    settings: 'Settings',
+                    reject: 'Reject'
+                }
+            };
+            return translations[currentLang] || translations.zh;
+        };
+        
+        const cookieText = getCookieText();
+        
         const cookieBanner = document.createElement('div');
         cookieBanner.id = 'cookie-consent-banner';
         cookieBanner.innerHTML = `
@@ -1549,19 +2123,19 @@ function setupCookieConsent() {
                     <div style="flex: 1; min-width: 300px;">
                         <p style="margin: 0; font-size: 14px; line-height: 1.5;">
                             <i class="fas fa-cookie-bite" style="margin-right: 10px;"></i>
-                            我们使用Cookie来提升您的浏览体验。继续使用本网站即表示您同意我们的
-                            <a href="#" onclick="showModal('cookie'); return false;" style="color: #4dabf7; text-decoration: underline;">Cookie政策</a>。
+                            ${cookieText.message}
+                            <a href="#" onclick="showModal('cookie'); return false;" style="color: #4dabf7; text-decoration: underline;">${cookieText.cookiePolicy}</a>。
                         </p>
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button id="cookie-accept" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                            <i class="fas fa-check"></i> 同意
+                            <i class="fas fa-check"></i> ${cookieText.accept}
                         </button>
                         <button id="cookie-settings" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                            <i class="fas fa-cog"></i> 设置
+                            <i class="fas fa-cog"></i> ${cookieText.settings}
                         </button>
                         <button id="cookie-reject" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                            <i class="fas fa-times"></i> 拒绝
+                            <i class="fas fa-times"></i> ${cookieText.reject}
                         </button>
                     </div>
                 </div>
@@ -1587,194 +2161,177 @@ function setupCookieConsent() {
     }
 }
 
-// 添加以下函数到 main.js
+// 修改文件处理逻辑，确保正确传递文件
 async function startInterpretation() {
-    const fileInput = document.getElementById('file-input');
-    const paperText = document.getElementById('paper-text').value;
+    if (AppState.isProcessing) return;
     
-    // 检查是否有文件或文本
-    if (!fileInput.files[0] && !paperText.trim()) {
+    const file = DOM.fileInput.files[0];
+    const text = DOM.paperText.value.trim();
+    
+    if (!file && !text) {
         showNotification('请上传文件或输入文本', 'error');
         return;
     }
     
-    // 显示加载状态
-    document.getElementById('single-view').style.display = 'none';
-    document.getElementById('dual-view-container').style.display = 'none';
-    document.getElementById('loading-section').style.display = 'block';
+    AppState.isProcessing = true;
+    DOM.resultsSection.style.display = 'none';
+    DOM.loadingSection.style.display = 'block';
     
-    // 准备表单数据
-    const formData = new FormData();
-    
-    if (fileInput.files[0]) {
-        formData.append('file', fileInput.files[0]);
-    }
-    
-    if (paperText.trim()) {
-        formData.append('text', paperText);
-    }
-    
-    // 发送请求
-    fetch('/api/interpret', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('loading-section').style.display = 'none';
-        
-        if (data.success) {
-            // 显示双栏视图
-            document.getElementById('dual-view-container').style.display = 'block';
-            
-            // 显示原文
-            const originalTextContent = document.getElementById('original-text-content');
-            if (originalTextContent) {
-                originalTextContent.style.display = 'block';
-                originalTextContent.innerHTML = `<div class="paper-content">${data.original || '未获取到原文内容'}</div>`;
-            }
-            
-            // 显示解读结果
-            const interpretationContent = document.getElementById('interpretation-content');
-            if (interpretationContent) {
-                interpretationContent.innerHTML = data.interpretation || '未获取到解读内容';
-            }
-            
-            // 显示相关推荐
-            const recommendationsList = document.getElementById('recommendations-list');
-            if (recommendationsList && data.recommendations) {
-                recommendationsList.innerHTML = data.recommendations.map(rec => `
-                    <div class="recommendation-item">
-                        <h5>${rec.title || '未命名'}</h5>
-                        <p>${rec.author || '未知作者'} - ${rec.year || '未知年份'}</p>
-                        <p style="font-size: 12px; color: #666;">${rec.abstract || '无摘要'}</p>
-                    </div>
-                `).join('');
-            }
-        } else {
-            showNotification(data.message || '解读失败', 'error');
-            document.getElementById('single-view').style.display = 'block';
-        }
-    })
-    .catch(error => {
-        console.error('解读错误:', error);
-        document.getElementById('loading-section').style.display = 'none';
-        document.getElementById('single-view').style.display = 'block';
-        showNotification('网络错误，请稍后重试', 'error');
-    });
-}
-
-
-
-// 提交更新的问卷数据
-async function submitUpdatedQuestionnaire() {
     try {
-        // 收集表单数据
-        const form = document.getElementById('update-questionnaire-form');
-        const formData = new FormData(form);
+        const formData = new FormData();
         
-        // 转换FormData为对象
-        const data = {};
-        for (let [key, value] of formData.entries()) {
-            // 处理复选框数组
-            if (key.endsWith('[]')) {
-                const cleanKey = key.replace('[]', '');
-                if (!data[cleanKey]) {
-                    data[cleanKey] = [];
+        // 如果有文件，添加文件
+        if (file) {
+            formData.append('file', file);
+            console.log('添加文件到FormData:', file.name, file.size);
+            // 当有文件时，不添加文本，避免冲突
+        } else if (text) {
+            // 只有当没有文件时，才添加文本
+            formData.append('text', text);
+            console.log('添加文本到FormData:', text.substring(0, 50) + '...');
+        }
+        
+        // 添加当前语言设置
+        const currentLanguage = window.languageManager ? window.languageManager.getCurrentLanguage() : 'zh';
+        formData.append('language', currentLanguage);
+        console.log('发送到API的语言:', currentLanguage);
+        
+        // 显示上传进度
+        const progressElement = document.createElement('div');
+        progressElement.innerHTML = '<p>正在上传文件到DeepSeek API...</p>';
+        DOM.loadingSection.appendChild(progressElement);
+        
+        // 发送请求（添加超时设置）
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时
+        
+        try {
+            console.log('开始发送请求到/api/interpret');
+            const response = await fetch('/api/interpret', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            console.log('API响应状态:', response.status);
+            console.log('API响应状态文本:', response.statusText);
+            
+            // 检查响应状态
+            if (!response.ok) {
+                // 尝试读取错误响应内容
+                try {
+                    const errorData = await response.json();
+                    console.error('API错误响应:', errorData);
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText}\n${errorData.message || ''}`);
+                } catch (jsonError) {
+                    // 如果无法解析JSON，使用原始错误
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
                 }
-                data[cleanKey].push(value);
+            }
+            
+            let data;
+            try {
+                data = await response.json();
+                console.log('API响应数据:', data);
+            } catch (jsonError) {
+                console.error('JSON解析错误:', jsonError);
+                // 尝试读取原始响应内容
+                const rawText = await response.text();
+                console.error('原始响应内容:', rawText);
+                showNotification('服务器返回格式错误，请稍后重试', 'error');
+                return;
+            }
+            
+            if (data.success) {
+                // 显示结果
+                // 对于PDF文件，优化原文内容显示
+                if (AppState.currentPDFUrl) {
+                    // 如果是PDF文件，直接显示PDF查看器
+                    DOM.originalContent.innerHTML = `
+                        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <p style="margin-bottom: 15px;"><strong>原文内容：</strong></p>
+                            <div id="pdf-viewer" style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: 700px;">
+                                <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                                    <p>正在加载PDF文件...</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    // 渲染PDF查看器
+                    renderPDFViewer(AppState.currentPDFUrl);
+                } else {
+                    // 对于非PDF文件，直接显示原文内容
+                    DOM.originalContent.innerHTML = `
+                        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <p style="margin-bottom: 15px;"><strong>原文内容：</strong></p>
+                            <div style="white-space: pre-wrap; word-break: break-all;">
+                                ${data.original_content}
+                            </div>
+                        </div>
+                    `;
+                    // 设置非PDF文件的原文展示比例为16:9
+                    DOM.originalContent.style.width = '100%';
+                    DOM.originalContent.style.height = '56.25vw';
+                }
+                // 设置解读内容的展示比例为16:9
+                DOM.interpretationContent.style.width = '100%';
+                DOM.interpretationContent.style.height = '56.25vw';
+                DOM.interpretationContent.style.overflow = 'auto';
+                DOM.interpretationContent.innerHTML = formatInterpretation(data.interpretation);
+                
+                // 显示推荐论文
+                displayRecommendations(data.recommendations || []);
+                
+                // 添加查看原文按钮（如果是PDF文件）
+                if (AppState.currentPDFUrl) {
+                    addViewOriginalButton();
+                }
+                
+                DOM.resultsSection.style.display = 'block';
+                showNotification('解读生成成功！', 'success');
+                
+                // 滚动到结果区域
+                DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
+                
+                // 生成论文相关图表
+                generatePaperCharts(data.original_content, data.interpretation);
+                
+                // 添加AI对话框到解读页面
+                addAIConversationDialog(data.original_content, data.interpretation);
             } else {
-                data[key] = value;
+                showNotification(data.message || '解读失败', 'error');
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                console.error('请求超时:', error);
+                showNotification('请求超时，请稍后重试', 'error');
+            } else {
+                console.error('解读错误:', error);
+                console.error('错误详情:', error.message);
+                console.error('错误堆栈:', error.stack);
+                showNotification('网络错误，请稍后重试', 'error');
             }
         }
-        
-        // 验证必填项
-        const requiredFields = [
-            'grade', 'education_system', 'interest_physics', 'interest_biology',
-            'interest_chemistry', 'interest_geology', 'interest_astronomy',
-            'learning_frequency', 'physics_question', 'chemistry_question',
-            'biology_question', 'astronomy_question', 'geology_question',
-            'learning_style_quantitative', 'learning_style_textual',
-            'learning_style_visual', 'learning_style_interactive',
-            'learning_style_practical', 'knowledge_structure',
-            'scientific_thinking', 'scientific_insight',
-            'scientific_sensitivity', 'interdisciplinary_ability',
-            'paper_evaluation_score', 'climate_question'
-        ];
-        
-        const missingFields = [];
-        requiredFields.forEach(field => {
-            if (!data[field] || (Array.isArray(data[field]) && data[field].length === 0)) {
-                missingFields.push(field);
-            }
-        });
-        
-        if (missingFields.length > 0) {
-            alert(`请完成以下必填项：${missingFields.join(', ')}`);
-            return;
-        }
-        
-        // 显示加载提示
-        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-        submitBtn.disabled = true;
-        
-        // 发送API请求
-        const response = await fetch('/api/user/update-questionnaire', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                questionnaire: data
-            }),
-            credentials: 'include'
-        });
-        
-        const result = await response.json();
-        
-        // 恢复按钮状态
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        
-        if (result.success) {
-            // 更新本地用户数据
-            if (AppState.user) {
-                AppState.user.questionnaire = data;
-            }
-            
-            alert('问卷已成功更新！');
-            closeQuestionnaireModal();
-            
-            // 刷新设置页面显示
-            if (typeof loadReadingSettings === 'function') {
-                loadReadingSettings();
-            }
-        } else {
-            alert(`更新失败：${result.message || '未知错误'}`);
-        }
-        
-    } catch (error) {
-        console.error('提交问卷失败:', error);
-        
-        // 恢复按钮状态
-        const submitBtn = document.querySelector('button[onclick="submitUpdatedQuestionnaire()"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存更新';
-            submitBtn.disabled = false;
-        }
-        
-        alert('提交问卷时发生网络错误，请检查网络连接后重试。');
+    } finally {
+        AppState.isProcessing = false;
+        DOM.loadingSection.style.display = 'none';
     }
 }
-
 
 function formatInterpretation(text) {
     // 确保文本以提示语结尾
-    if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
-        text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
+    const currentLang = localStorage.getItem('language') || 'zh';
+    if (currentLang === 'en') {
+        if (!text.includes('Interpretation content generated by DeepSeek AI, for reference only')) {
+            text += '\n\n---\n\n*Interpretation content generated by DeepSeek AI, for reference only*';
+        }
+    } else {
+        if (!text.includes('解读内容由DeepSeek AI生成，仅供参考')) {
+            text += '\n\n---\n\n*解读内容由DeepSeek AI生成，仅供参考*';
+        }
     }
     
     // 将文本中的标题格式化为HTML
@@ -1850,9 +2407,16 @@ async function loadUserSettings() {
 function applySettings(settings) {
     if (!settings) return;
     
+    // 更新AppState中的设置
+    if (AppState && AppState.user && AppState.user.settings) {
+        AppState.user.settings = settings;
+    } else if (AppState && AppState.user) {
+        AppState.user.settings = settings;
+    }
+    
     // 应用视觉设置
     if (settings.visual) {
-        const { theme, font_size, font_family } = settings.visual;
+        const { theme, font_size, chinese_font, english_font, line_height, letter_spacing, text_color } = settings.visual;
         
         // 应用主题
         if (theme) {
@@ -1864,29 +2428,159 @@ function applySettings(settings) {
             document.documentElement.style.fontSize = `${font_size}px`;
         }
         
-        if (font_family) {
-            document.body.style.fontFamily = font_family;
+        // 应用字体家族
+        if (chinese_font && english_font) {
+            const fontStack = `${chinese_font}, ${english_font}`;
+            document.body.style.fontFamily = fontStack;
+        } else if (chinese_font) {
+            document.body.style.fontFamily = chinese_font;
+        } else if (english_font) {
+            document.body.style.fontFamily = english_font;
+        }
+        
+        // 应用行高
+        if (line_height) {
+            document.body.style.lineHeight = line_height;
+        }
+        
+        // 应用字间距
+        if (letter_spacing) {
+            document.body.style.letterSpacing = letter_spacing;
+        }
+        
+        // 应用文字颜色
+        if (text_color) {
+            // 文字颜色映射
+            const textColors = {
+                dark_pink: '#8a5c73',  // 深粉色（更深）
+                dark_blue: '#5c738a',  // 深蓝色（更深）
+                dark_green: '#5c8a5c', // 深绿色（更深）
+                dark_purple: '#735c8a', // 深紫色（更深）
+                dark_gray: '#000000'   // 黑色（替换深灰色）
+            };
+            
+            const selectedColor = textColors[text_color] || textColors.dark_purple;
+            
+            // 应用文字颜色到标题
+            const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            headings.forEach(heading => {
+                heading.style.color = selectedColor;
+            });
+            
+            // 应用文字颜色到按钮
+            const buttons = document.querySelectorAll('.btn, .settings-tab, .nav-link, .footer-link');
+            buttons.forEach(button => {
+                button.style.color = selectedColor;
+            });
         }
     }
     
     // 应用语言设置
     if (settings.language) {
         AppState.language = settings.language;
-        updateLanguage();
+        // 使用语言管理器应用语言设置，确保本地存储也被更新
+        if (window.languageManager) {
+            window.languageManager.applyLanguage(settings.language);
+        }
     }
 }
 
 function applyTheme(theme) {
     const themes = {
-        'A': '#ffe6f2', // 粉色
-        'B': '#e6f7ff', // 浅蓝色
-        'C': '#e6ffe6', // 浅绿色
-        'D': '#f2e6ff', // 浅紫色
-        'E': '#ffffff'  // 自定义（白色）
+        'A': { light: '#f8f0f6', dark: '#d1b3c7' }, // 柔和粉 -> 深粉
+        'B': { light: '#f0f7ff', dark: '#b3c7e6' }, // 科技蓝 -> 深蓝
+        'C': { light: '#f0f9f0', dark: '#b3d1b3' }, // 清新绿 -> 深绿
+        'D': { light: '#f3f0f9', dark: '#c7b3d1' }, // 优雅紫 -> 深紫
+        'E': { light: '#f8f9fa', dark: '#d1d1d1' }  // 简约白 -> 深灰
     };
     
-    const color = themes[theme] || '#f8f9fa';
-    document.body.style.backgroundColor = color;
+    const themeColors = themes[theme] || themes['E'];
+    const lightColor = themeColors.light;
+    const darkColor = themeColors.dark;
+    
+    // 应用背景颜色
+    document.body.style.backgroundColor = lightColor;
+    
+    // 应用footer标题背景颜色
+    const footerHeadings = document.querySelectorAll('.footerpage h3, .footerpage h4');
+    footerHeadings.forEach(heading => {
+        heading.style.backgroundColor = lightColor;
+    });
+    
+    // 应用页面标题背景颜色
+    const pageHeaders = document.querySelectorAll('.page-header');
+    pageHeaders.forEach(header => {
+        header.style.backgroundColor = lightColor;
+    });
+    
+    // 应用footer按钮背景颜色
+    const footerButtons = document.querySelectorAll('.footer-link');
+    footerButtons.forEach(button => {
+        button.style.backgroundColor = lightColor;
+        
+        // 设置按钮hover效果
+        button.onmouseover = function() {
+            this.style.backgroundColor = darkColor;
+        };
+        
+        button.onmouseout = function() {
+            this.style.backgroundColor = lightColor;
+        };
+    });
+    
+    // 应用按钮点击框颜色
+    const buttons = document.querySelectorAll('.btn, .settings-tab, .nav-link');
+    buttons.forEach(button => {
+        // 设置按钮的边框和背景颜色
+        button.style.borderColor = darkColor;
+        button.style.backgroundColor = lightColor;
+        
+        // 设置按钮hover效果
+        button.onmouseover = function() {
+            this.style.backgroundColor = darkColor;
+        };
+        
+        button.onmouseout = function() {
+            this.style.backgroundColor = lightColor;
+        };
+    });
+    
+    // 应用图标颜色
+    const icons = document.querySelectorAll('.fas, .far');
+    icons.forEach(icon => {
+        icon.style.color = darkColor;
+    });
+    
+    // 应用字体大小拖动条颜色
+    const sliders = document.querySelectorAll('input[type="range"]');
+    sliders.forEach(slider => {
+        slider.style.accentColor = darkColor;
+    });
+    
+    // 应用选择框颜色
+    const radioLabels = document.querySelectorAll('.radio-label');
+    radioLabels.forEach(label => {
+        const radio = label.querySelector('input[type="radio"]');
+        if (radio) {
+            // 使用CSS变量或直接设置样式
+            label.style.setProperty('--radio-color', darkColor);
+            radio.style.accentColor = darkColor;
+        }
+    });
+    
+    // 应用复选框颜色
+    const checkboxLabels = document.querySelectorAll('.checkbox-label');
+    checkboxLabels.forEach(label => {
+        const checkbox = label.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            checkbox.style.accentColor = darkColor;
+        }
+    });
+    
+    // 应用用户选择的文字颜色，确保文字颜色不随主题变化
+    if (typeof updateFontPreview === 'function') {
+        updateFontPreview();
+    }
 }
 
 // 语言切换
@@ -1904,39 +2598,22 @@ async function loadTranslations() {
     }
 }
 
+// Language management is now handled by language.js
+// This function is deprecated
 function updateLanguage() {
-    const lang = AppState.language;
-    document.documentElement.lang = lang;
-    
-    // 更新界面文本
-    updateUIText(lang);
+    console.warn('updateLanguage() is deprecated, use languageManager instead');
 }
 
-// 更新界面文本的函数
+// Language management is now handled by language.js
+// This function is deprecated
 function updateUIText(lang) {
-    const translations = AppState.translations[lang] || AppState.translations.zh;
-    
-    // 更新标题
-    document.title = translations.appName || 'ANSAPRA';
-    
-    // 更新导航栏
-    updateNavigationText(translations);
-    
-    // 更新按钮文本
-    updateButtonsText(translations);
-    
-    // 更新表单标签
-    updateFormLabels(translations);
+    console.warn('updateUIText() is deprecated, use languageManager instead');
 }
 
+// Language management is now handled by language.js
+// This function is deprecated
 function updateNavigationText(translations) {
-    const navLinks = document.querySelectorAll('.nav-link');
-    const pages = {
-        'intro': '网站介绍',
-        'instructions': '使用说明',
-        'interpretation': '论文解读',
-        'settings': '用户设置'
-    };
+    console.warn('updateNavigationText() is deprecated, use languageManager instead');
     
     // 这里可以根据翻译对象更新导航文本
     // 暂时保留中文，可以根据需要扩展
@@ -1974,6 +2651,398 @@ function updateLanguageSettingsTab() {
             labels[1].textContent = translations.en || 'English';
         }
     }
+}
+
+// 搜索Nature论文
+function searchNature() {
+    const input = document.getElementById('nature-search-input');
+    if (!input) return;
+    
+    const keywords = input.value.trim();
+    if (!keywords) {
+        showNotification('请输入搜索关键词', 'error');
+        return;
+    }
+    
+    // 构建Nature搜索URL
+    const natureUrl = `https://www.nature.com/search?q=${encodeURIComponent(keywords)}`;
+    window.open(natureUrl, '_blank');
+}
+
+// 搜索Science论文
+function searchScience() {
+    const input = document.getElementById('science-search-input');
+    if (!input) return;
+    
+    const keywords = input.value.trim();
+    if (!keywords) {
+        showNotification('请输入搜索关键词', 'error');
+        return;
+    }
+    
+    // 构建Science搜索URL
+    const scienceUrl = `https://www.science.org/search?query=${encodeURIComponent(keywords)}`;
+    window.open(scienceUrl, '_blank');
+}
+
+// 显示推荐论文（保留函数以避免兼容性问题）
+function displayRecommendations(recommendations) {
+    // 由于UI已更改为搜索框，此函数不再需要执行任何操作
+    // 保留函数定义以避免JavaScript错误
+}
+
+// 生成论文相关图表
+async function generatePaperCharts(originalContent, interpretation) {
+    console.log('开始生成论文相关图表');
+    
+    const mindmapContainer = document.getElementById('mindmap-container');
+    if (!mindmapContainer) {
+        console.error('mindmap-container 元素不存在');
+        return;
+    }
+    
+    // 清空容器
+    mindmapContainer.innerHTML = '';
+    
+    // 获取用户的图表形式偏好设置
+    let chartTypes = ['A']; // 默认使用思维导图
+    
+    // 尝试从用户设置中获取图表形式偏好
+    try {
+        // 先尝试使用本地AppState
+        if (AppState && AppState.user && AppState.user.settings && AppState.user.settings.reading) {
+            chartTypes = AppState.user.settings.reading.chart_types || ['A'];
+        } else if (window.AppState && window.AppState.user && window.AppState.user.settings && window.AppState.user.settings.reading) {
+            // 再尝试使用window.AppState
+            chartTypes = window.AppState.user.settings.reading.chart_types || ['A'];
+        }
+    } catch (error) {
+        console.error('获取图表形式偏好失败:', error);
+        // 使用默认值
+        chartTypes = ['A'];
+    }
+    
+    console.log('图表类型:', chartTypes);
+    
+    // 创建图表容器
+    const chartsContainer = document.createElement('div');
+    // 根据图表数量设置不同的布局
+    if (chartTypes.length === 4) {
+        // 四个图表时使用网格布局，两行两列
+        chartsContainer.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px;
+            margin-top: 20px;
+        `;
+    } else {
+        // 其他情况使用弹性布局
+        chartsContainer.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        `;
+    }
+    
+    // 为每种图表类型创建容器
+    const chartContainers = {};
+    
+    if (chartTypes.includes('A')) {
+        // 生成思维导图
+        const mindmapSection = document.createElement('div');
+        mindmapSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        mindmapSection.innerHTML = `
+            <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+            <div id="chart-container-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">思维导图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(mindmapSection);
+        chartContainers['A'] = 'chart-container-A';
+    }
+    
+    if (chartTypes.includes('B')) {
+        // 生成流程图
+        const flowchartSection = document.createElement('div');
+        flowchartSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        flowchartSection.innerHTML = `
+            <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+            <div id="chart-container-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">流程图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(flowchartSection);
+        chartContainers['B'] = 'chart-container-B';
+    }
+    
+    if (chartTypes.includes('C')) {
+        // 生成表格
+        const tableSection = document.createElement('div');
+        tableSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        tableSection.innerHTML = `
+            <h5>核心数据表格</h5>
+            <div id="chart-container-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">表格生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(tableSection);
+        chartContainers['C'] = 'chart-container-C';
+    }
+    
+    if (chartTypes.includes('D')) {
+        // 生成统计图
+        const chartSection = document.createElement('div');
+        chartSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        chartSection.innerHTML = `
+            <h5><i class="fas fa-chart-bar"></i> 研究结果统计图</h5>
+            <div id="chart-container-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">统计图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(chartSection);
+        chartContainers['D'] = 'chart-container-D';
+    }
+    
+    // 如果没有生成任何图表，显示默认提示
+    if (chartsContainer.children.length === 0) {
+        mindmapContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 15px;"></i>
+                <p>根据您的设置，暂时没有生成图表</p>
+                <p>您可以在设置中调整图表形式偏好</p>
+            </div>
+        `;
+    } else {
+        mindmapContainer.appendChild(chartsContainer);
+        console.log('图表容器已添加到mindmap-container');
+    }
+    
+    // 调用API生成图表数据
+    try {
+        // 获取当前语言
+        let currentLanguage = 'zh';
+        try {
+            if (window.languageManager) {
+                currentLanguage = window.languageManager.getCurrentLanguage();
+            } else {
+                // 尝试从localStorage获取
+                currentLanguage = localStorage.getItem('language') || 'zh';
+            }
+        } catch (error) {
+            console.error('获取当前语言失败:', error);
+            currentLanguage = 'zh';
+        }
+        
+        console.log('当前语言:', currentLanguage);
+        console.log('论文内容长度:', originalContent ? originalContent.length : 0);
+        
+        // 发送请求到API
+        const response = await fetch('/api/generate-charts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                paper_content: originalContent,
+                chart_types: chartTypes,
+                language: currentLanguage
+            })
+        });
+        
+        console.log('API响应状态:', response.status);
+        
+        const data = await response.json();
+        console.log('API响应数据:', data);
+        
+        if (data.success) {
+            // 更新图表内容
+            if (data.charts) {
+                console.log('图表数据:', data.charts);
+                // 为每种图表类型执行代码
+                for (const [chartType, chartCode] of Object.entries(data.charts)) {
+                    if (chartContainers[chartType]) {
+                        try {
+                            // 创建一个安全的执行环境
+                            const containerId = chartContainers[chartType];
+                            const container = document.getElementById(containerId);
+                            
+                            if (container) {
+                                console.log(`更新图表 ${chartType} 内容`);
+                                // 清空容器
+                                container.innerHTML = '';
+                                
+                                // 解析图表代码，提取mermaid语法
+                                let mermaidCode = chartCode;
+                                
+                                // 处理markdown格式的mermaid代码块
+                                const mermaidMatch = chartCode.match(/```mermaid[\s\S]*?```/);
+                                if (mermaidMatch) {
+                                    mermaidCode = mermaidMatch[0].replace(/```mermaid\n?/, '').replace(/```$/, '').trim();
+                                }
+                                
+                                // 对于表格类型，直接显示markdown表格
+                                if (chartType === 'C') {
+                                    // 创建一个内容容器
+                                    const contentContainer = document.createElement('div');
+                                    contentContainer.style.cssText = `
+                                        padding: 15px;
+                                        background: #f9f9f9;
+                                        border-radius: 5px;
+                                        font-size: 14px;
+                                        line-height: 1.5;
+                                        overflow-x: auto;
+                                    `;
+                                    
+                                    // 转换markdown表格为HTML
+                                    let htmlContent = chartCode;
+                                    // 简单的表格转换
+                                    htmlContent = htmlContent.replace(/\|(.*?)\|\n\|(.*?)\|\n((?:\|.*?\|\n)*)/g, (match, headers, separator, rows) => {
+                                        const headerCells = headers.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        const rowsArray = rows.trim().split('\n').map(row => {
+                                            return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        });
+                                        
+                                        let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">';
+                                        // 表头
+                                        tableHtml += '<thead><tr>';
+                                        headerCells.forEach(cell => {
+                                            tableHtml += `<th style="border: 1px solid #ddd; padding: 8px; text-align: left; background: #f2f2f2;">${cell}</th>`;
+                                        });
+                                        tableHtml += '</tr></thead>';
+                                        // 表格内容
+                                        tableHtml += '<tbody>';
+                                        rowsArray.forEach(row => {
+                                            tableHtml += '<tr>';
+                                            row.forEach(cell => {
+                                                tableHtml += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
+                                            });
+                                            tableHtml += '</tr>';
+                                        });
+                                        tableHtml += '</tbody></table>';
+                                        return tableHtml;
+                                    });
+                                    
+                                    contentContainer.innerHTML = htmlContent;
+                                    container.appendChild(contentContainer);
+                                } else {
+                                    // 对于其他类型，使用mermaid渲染
+                                    try {
+                                        // 创建mermaid容器
+                                        const mermaidContainer = document.createElement('div');
+                                        mermaidContainer.className = 'mermaid';
+                                        mermaidContainer.style.cssText = `
+                                            padding: 20px;
+                                            background: white;
+                                            border-radius: 5px;
+                                            font-size: 14px;
+                                        `;
+                                        mermaidContainer.textContent = mermaidCode;
+                                        
+                                        container.appendChild(mermaidContainer);
+                                        
+                                        // 初始化mermaid
+                                        if (window.mermaid) {
+                                            window.mermaid.init(undefined, mermaidContainer);
+                                            console.log(`Mermaid图表已初始化：${chartType}`);
+                                        } else {
+                                            console.error('Mermaid库未加载');
+                                            container.innerHTML = '<p style="text-align: center; color: red;">图表渲染失败：Mermaid库未加载</p>';
+                                        }
+                                    } catch (error) {
+                                        console.error(`渲染图表失败 (${chartType}):`, error);
+                                        container.innerHTML = `<p style="text-align: center; color: red;">图表渲染失败: ${error.message}</p>`;
+                                    }
+                                }
+                            } else {
+                                console.error(`容器 ${containerId} 不存在`);
+                            }
+                        } catch (execError) {
+                            console.error(`执行图表代码失败 (${chartType}):`, execError);
+                            const container = document.getElementById(chartContainers[chartType]);
+                            if (container) {
+                                container.innerHTML = `<p style="text-align: center; color: red;">图表生成失败: ${execError.message}</p>`;
+                            }
+                        }
+                    }
+                }
+            } else {
+                console.error('API返回成功但没有图表数据');
+                // 显示错误信息
+                const errorMessage = document.createElement('div');
+                errorMessage.style.cssText = `
+                    width: 100%;
+                    padding: 10px;
+                    background: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                    border-radius: 5px;
+                    margin-top: 10px;
+                    text-align: center;
+                `;
+                errorMessage.textContent = '图表生成失败，请稍后重试';
+                chartsContainer.appendChild(errorMessage);
+            }
+        } else {
+            console.error('图表生成失败:', data.message);
+            // 显示错误信息
+            const errorMessage = document.createElement('div');
+            errorMessage.style.cssText = `
+                width: 100%;
+                padding: 10px;
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+                border-radius: 5px;
+                margin-top: 10px;
+                text-align: center;
+            `;
+            errorMessage.textContent = data.message || '图表生成失败，请稍后重试';
+            chartsContainer.appendChild(errorMessage);
+        }
+    } catch (error) {
+        console.error('图表生成API调用失败:', error);
+        // 显示错误信息
+        const errorMessage = document.createElement('div');
+        errorMessage.style.cssText = `
+            width: 100%;
+            padding: 10px;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            margin-top: 10px;
+            text-align: center;
+        `;
+        errorMessage.textContent = '网络错误，请稍后重试';
+        chartsContainer.appendChild(errorMessage);
+    }
+    
+    console.log('论文相关图表生成完成');
 }
 
 // 加载问卷数据
@@ -2265,168 +3334,6 @@ function validateQuestionnaire(questionnaire) {
     return true;
 }
 
-// 改进的注册处理函数
-async function handleRegister() {
-    const email = document.getElementById('register-email').value;
-    const username = document.getElementById('register-username').value;
-    const password = document.getElementById('register-password').value;
-    const confirmPassword = document.getElementById('confirm-password').value;
-    
-    // 基本验证
-    if (!email || !username || !password) {
-        showNotification('请填写所有必填项', 'error');
-        return;
-    }
-    
-    // 邮箱格式验证
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        showNotification('请输入有效的邮箱地址', 'error');
-        return;
-    }
-    
-    // 密码验证
-    if (password.length < 6) {
-        showNotification('密码长度至少6位', 'error');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showNotification('两次输入的密码不一致', 'error');
-        return;
-    }
-    
-    // 问卷验证
-    const questionnaire = collectQuestionnaireData();
-    
-    // 检查必填问题是否都回答了
-    const requiredFields = [
-        { field: 'grade', name: '年级' },
-        { field: 'education_system', name: '教育体系' },
-        { field: 'learning_frequency', name: '学习频率' },
-        { field: 'physics_question', name: '物理问题（双缝干涉）' },
-        { field: 'chemistry_question', name: '化学问题（醋酸钠）' },
-        { field: 'biology_question', name: '生物问题（仙人掌气孔）' },
-        { field: 'astronomy_question', name: '天文问题（系外行星）' },
-        { field: 'geology_question', name: '地球科学问题（沉积岩芯）' },
-        { field: 'knowledge_structure', name: '知识结构认知' },
-        { field: 'climate_question', name: '气候问题（全球变暖）' }
-    ];
-    
-    for (const { field, name } of requiredFields) {
-        if (!questionnaire[field]) {
-            showNotification(`请完成问卷中的必填问题：${name}`, 'error');
-            scrollToQuestion(field);
-            return;
-        }
-    }
-    
-    // 检查兴趣评分是否都选择了
-    const interests = questionnaire.interests;
-    const interestFields = [
-        { field: 'physics', name: '物理学' },
-        { field: 'biology', name: '生物学/医学' },
-        { field: 'chemistry', name: '化学' },
-        { field: 'geology', name: '地理地质学' },
-        { field: 'astronomy', name: '天体天文学' }
-    ];
-    
-    for (const { field, name } of interestFields) {
-        if (!interests[field]) {
-            showNotification(`请为${name}选择兴趣评分（1-5分）`, 'error');
-            scrollToQuestion('interest_' + field);
-            return;
-        }
-    }
-    
-    // 检查学习方式评分是否都选择了
-    const learningStyles = questionnaire.learning_styles;
-    const styleFields = [
-        { field: 'quantitative', name: '量化学习' },
-        { field: 'textual', name: '文字理解' },
-        { field: 'visual', name: '可视化学习' },
-        { field: 'interactive', name: '互动性学习' },
-        { field: 'practical', name: '实践性学习' }
-    ];
-    
-    for (const { field, name } of styleFields) {
-        if (!learningStyles[field]) {
-            showNotification(`请为${name}选择评分（1-5分）`, 'error');
-            scrollToQuestion('learning_style_' + field);
-            return;
-        }
-    }
-    
-    // 检查能力自评是否都选择了
-    const abilities = questionnaire.scientific_abilities;
-    const abilityFields = [
-        { field: 'thinking', name: '科学思考力' },
-        { field: 'insight', name: '科学洞察力' },
-        { field: 'sensitivity', name: '科学现象敏感度' },
-        { field: 'interdisciplinary', name: '跨学科联系能力' }
-    ];
-    
-    for (const { field, name } of abilityFields) {
-        if (!abilities[field]) {
-            showNotification(`请完成${name}的自评（1-5分）`, 'error');
-            scrollToQuestion('scientific_' + field);
-            return;
-        }
-    }
-    
-    // 检查论文评价是否选择了
-    if (!questionnaire.paper_evaluation_score) {
-        showNotification('请为论文选段打分（1-5分）', 'error');
-        scrollToQuestion('paper_evaluation_score');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email,
-                username,
-                password,
-                questionnaire
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            AppState.user = data.user;
-            showApp();
-            
-            // 显示用户画像分析结果
-            showNotification('注册成功！用户画像分析已保存，将用于个性化解读。', 'success');
-            
-            // 显示简要的用户画像信息
-            setTimeout(() => {
-                const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
-                const systemMap = { A: '国际体系', B: '普高体系' };
-                const grade = gradeMap[questionnaire.grade] || '未知';
-                const system = systemMap[questionnaire.education_system] || '未知';
-                
-                const welcomeMsg = `欢迎${username}！您已成功注册。系统将根据您的信息提供个性化解读：\n`
-                    + `- 年级：${grade}\n`
-                    + `- 教育体系：${system}\n`
-                    + `- 问卷数据已保存，将用于优化解读质量`;
-                
-                alert(welcomeMsg);
-            }, 1000);
-            
-        } else {
-            showNotification(data.message || '注册失败', 'error');
-        }
-    } catch (error) {
-        console.error('注册错误:', error);
-        showNotification('网络错误，请稍后重试', 'error');
-    }
-}
 
 // 滚动到对应问题的辅助函数
 function scrollToQuestion(questionName) {
@@ -2476,7 +3383,7 @@ function setupQuestionnaireValidation() {
             
             // 如果值有效，添加成功样式
             if (this.value) {
-                this.style.borderColor = '#28a745';
+                this.style.borderColor = '#92e0a4ff';
                 this.style.boxShadow = '0 0 0 3px rgba(40, 167, 69, 0.1)';
                 
                 // 2秒后移除样式
@@ -2499,71 +3406,104 @@ function loadInstructions() {
     const container = document.querySelector('#instructions-page .page-content');
     if (container) {
         container.innerHTML = `
+            <style>
+                .content-section ul {
+                    list-style-position: outside;
+                    padding-left: 40px;
+                    margin-left: 0;
+                }
+                .content-section h3 {
+                    position: relative;
+                    padding-left: 30px;
+                }
+                .content-section h3 i {
+                    position: absolute;
+                    left: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                }
+                .content-section h4 {
+                    position: relative;
+                    padding-left: 20px;
+                    margin-top: 20px;
+                }
+                .content-section h4:before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 10px;
+                    height: 10px;
+                    background-color: var(--theme-color, #8bb9e9ff);
+                    border-radius: 50%;
+                }
+            </style>
             <div class="content-section">
-                <h3><i class="fas fa-code"></i> 技术说明</h3>
+                <h3><span data-i18n="technical-description">技术说明</span></h3>
                 <ul>
-                    <li><strong>后端框架：</strong>基于Flask、Python、Web框架构建</li>
-                    <li><strong>前端技术：</strong>HTML5 + CSS3 + JavaScript响应式设计</li>
-                    <li><strong>文件处理：</strong>集成专业解析库处理PDF和DOCX文件</li>
-                    <li><strong>API接口：</strong>调用DeepSeek-V1 API，支持前后端分离</li>
+                    <li><strong><span data-i18n="backend-framework">后端框架：</span></strong><span data-i18n="backend-framework-desc">基于Flask、Python、Web框架构建</span></li>
+                    <li><strong><span data-i18n="frontend-technology">前端技术：</span></strong><span data-i18n="frontend-technology-desc">HTML5 + CSS3 + JavaScript响应式设计</span></li>
+                    <li><strong><span data-i18n="file-processing">文件处理：</span></strong><span data-i18n="file-processing-desc">集成专业解析库处理PDF和DOCX文件</span></li>
+                    <li><strong><span data-i18n="api-interface">API接口：</span></strong><span data-i18n="api-interface-desc">调用DeepSeek-V1 API，支持前后端分离</span></li>
                 </ul>
             </div>
             
             <div class="content-section">
-                <h3><i class="fas fa-list-ol"></i> 使用步骤</h3>
-                <h4>1. 阅读产品介绍与使用说明</h4>
+                <h3><span data-i18n="usage-steps">使用步骤</span></h3>
+                <h4><span data-i18n="step-1-title">1. 阅读产品介绍与使用说明</span></h4>
                 <ul>
-                    <li><strong>了解功能：</strong>详细阅读首页功能介绍，了解我们的核心开发理念</li>
-                    <li><strong>观看使用说明：</strong>详细阅读本页使用说明部分，了解网页基本使用方法</li>
+                    <li><strong><span data-i18n="understand-features">了解功能：</span></strong><span data-i18n="understand-features-desc">详细阅读首页功能介绍，了解我们的核心开发理念</span></li>
+                    <li><strong><span data-i18n="watch-tutorial">观看使用说明：</span></strong><span data-i18n="watch-tutorial-desc">详细阅读本页使用说明部分，了解网页基本使用方法</span></li>
                 </ul>
                 
-                <h4>2. 进入 "用户设置"页面，进行参数配置</h4>
+                <h4><span data-i18n="step-2-title">2. 进入 "用户设置"页面，进行参数配置</span></h4>
                 <ul>
-                    <li><strong>视觉设置：</strong>选择不同颜色的背景主题，调节字体形式与大小</li>
-                    <li><strong>阅读习惯设置：</strong>对您个人的论文解读的偏好和特质进行个性化设置</li>
-                    <li><strong>语言设置：</strong>切换网页语言为中文/英文</li>
-                    <li><strong>账户设置：</strong>退出登录</li>
+                                        <li><strong><span data-i18n="reading-habit-settings"></span></strong><span data-i18n="reading-habit-settings-desc">对您个人的论文解读的偏好和特质进行个性化设置</span></li>
+                    <li><strong><span data-i18n="visual-settings">视觉设置：</span></strong><span data-i18n="visual-settings-desc">选择不同颜色的背景主题，调节字体形式与大小</span></li>
+                    <li><strong><span data-i18n="language-settings">语言设置：</span></strong><span data-i18n="language-settings-desc">切换网页语言为中文/英文</span></li>
+                    <li><strong><span data-i18n="account-settings">账户设置：</span></strong><span data-i18n="account-settings-desc">退出登录</span></li>
                 </ul>
                 
-                <h4>3. 进行论文解读</h4>
+                <h4><span data-i18n="step-3-title">3. 进行论文解读</span></h4>
                 <ul>
-                    <li><strong>上传论文：</strong>支持拖拽上传或文件选择，最大支持16MB文件；pdf、docx文件均可接受</li>
-                    <li><strong>文本输入：</strong>直接粘贴论文摘要或关键段落（最长支持5000字符）</li>
-                    <li><strong>生成解读：</strong>点击"开始解读"按钮，等待AI生成详细分析</li>
+                    <li><strong><span data-i18n="upload-papers">上传论文：</span></strong><span data-i18n="upload-papers-desc">支持拖拽上传或文件选择，最大支持16MB文件；pdf、docx文件均可接受</span></li>
+                    <li><strong><span data-i18n="text-input">文本输入：</span></strong><span data-i18n="text-input-desc">直接粘贴论文摘要或关键段落（最长支持5000字符）</span></li>
+                    <li><strong><span data-i18n="generate-analysis">生成解读：</span></strong><span data-i18n="generate-analysis-desc">点击"开始解读"按钮，等待AI生成详细分析</span></li>
                 </ul>
             </div>
             
             <div class="content-section">
-                <h3><i class="fas fa-cogs"></i> 功能介绍</h3>
-                <h4>A. 解读核心功能</h4>
+                <h3><span data-i18n="feature-introduction">功能介绍</span></h3>
+                <h4><span data-i18n="core-interpretation-features">A. 解读核心功能</span></h4>
                 <ul>
-                    <li><strong>智能解读：</strong>将复杂学术语言转换为通俗易懂的解释</li>
-                    <li><strong>术语解释：</strong>对专业术语提供详细定义和背景说明</li>
-                    <li><strong>图表理解：</strong>分析论文中的图表数据，生成用户喜欢的图表，提供直观解读</li>
-                    <li><strong>个性化设置：</strong>注重用户知识框架、阅读偏好差异性，提供设置功能</li>
-                    <li><strong>自适应算法：</strong>通过用户的阅读记录，自动更新、调整解读内容，推送相关论文</li>
+                    <li><strong><span data-i18n="intelligent-interpretation">智能解读：</span></strong><span data-i18n="intelligent-interpretation-desc">将复杂学术语言转换为通俗易懂、自适应的解释</span></li>
+                    <li><strong><span data-i18n="terminology-explanation">术语解释：</span></strong><span data-i18n="terminology-explanation-desc">对专业术语提供详细定义和背景说明</span></li>
+                    <li><strong><span data-i18n="chart-understanding">图表理解：</span></strong><span data-i18n="chart-understanding-desc">分析论文中的图表数据，生成用户喜欢的图表，提供直观解读</span></li>
+                    <li><strong><span data-i18n="personalized-settings">个性化设置：</span></strong><span data-i18n="personalized-settings-desc">注重用户知识框架、阅读偏好差异性，提供设置功能</span></li>
+                    <li><strong><span data-i18n="adaptive-algorithm">自适应算法：</span></strong><span data-i18n="adaptive-algorithm-desc">通过用户的阅读记录，自动更新、调整解读内容，支持相关论文搜索，直达nature、sci官网</span></li>
                 </ul>
                 
-                <h4>B. 视觉设置功能</h4>
+                <h4><span data-i18n="visual-settings-features">B. 视觉设置功能</span></h4>
                 <ul>
-                    <li><strong>背景切换：</strong>支持不同颜色主题调节以及自定义主题设置</li>
-                    <li><strong>字体调节：</strong>可调整解读内容的字体大小和行间距</li>
-                    <li><strong>高亮显示：</strong>重要内容支持批注，支持自定义颜色标记</li>
+                    <li><strong><span data-i18n="background-switching">背景切换：</span></strong><span data-i18n="background-switching-desc">支持不同文字与背景颜色调节，以及自定义主题设置</span></li>
+                    <li><strong><span data-i18n="font-adjustment">字体调节：</span></strong><span data-i18n="font-adjustment-desc">可调整网页文本的字体大小、字体间距和行间距</span></li>
                 </ul>
                 
-                <h4>C. 反馈与联系功能</h4>
-                <p>您可以在页面底部的"联系我们"中找到开发团队的联系方式</p>
+                <h4><span data-i18n="feedback-contact-features">C. 反馈与联系功能</span></h4>
+                <p><span data-i18n="feedback-contact-desc">     您可以在页面底部的"联系我们"中找到开发团队的联系方式</span></p>
                 
-                <h4>D. 其他实用功能</h4>
+                <h4><span data-i18n="other-useful-features">D. 其他实用功能</span></h4>
                 <ul>
-                    <li><strong>多语言支持：</strong>支持中英双语解读界面</li>
-                    <li><strong>进度保存功能：</strong>同一用户登录时自动打开上次退出时的阅读界面</li>
+                    <li><strong><span data-i18n="multilingual-support">多语言支持：</span></strong><span data-i18n="multilingual-support-desc">支持中英双语解读界面</span></li>
+                    <li><strong><span data-i18n="progress-saving">进度保存功能：</span></strong><span data-i18n="progress-saving-desc">同一用户登录时自动打开上次退出时的阅读界面</span></li>
+                    <li><strong><span data-i18n="share-function">知识框架问卷修改功能：</span></strong><span data-i18n="share-function-desc">用户可对注册时期填写的知识框架问卷进行修改</span></li>
                 </ul>
             </div>
             
             <div class="content-section">
-                <h3><i class="fas fa-lightbulb"></i> 温馨提示</h3>
-                <p>本服务旨在辅助学术理解，不替代专业学术评审。重要研究决策请结合专家意见。我们持续优化AI模型，欢迎您在使用过程中提供宝贵反馈，共同打造更好的学术辅助工具！</p>
+                <h3><span data-i18n="friendly-reminder">温馨提示</span></h3>
+                <p><span data-i18n="friendly-reminder-desc">本服务旨在辅助学术理解，不替代专业学术指导。开发者鼓励用户以原文阅读为主，解读内容仅供参考。重要项目请结合专家意见。我们持续优化网站，欢迎您在使用过程中提供宝贵反馈，共同打造更好的学术辅助工具！</span></p>
             </div>
         `;
     }
@@ -2571,166 +3511,367 @@ function loadInstructions() {
 
 // 模态框显示
 function showModal(type) {
+    const currentLang = localStorage.getItem('language') || 'zh';
     let title = '';
     let content = '';
     
     switch(type) {
         case 'privacy':
-            title = '隐私政策 (Privacy Policy)';
-            content = `
-                <h4>最后更新日期：2026年1月1日</h4>
-                
-                <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息。</p>
-                
-                <h5>1. 我们收集的信息</h5>
-                <ul>
-                    <li><strong>您主动提供的信息</strong>：当您注册账户时，我们可能会收集您的邮箱地址、用户名以及问卷数据。</li>
-                    <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间等。</li>
-                </ul>
-                
-                <h5>2. 我们如何使用信息</h5>
-                <ul>
-                    <li>为您提供和优化自适应的论文阅读体验。</li>
-                    <li>进行匿名的、聚合性的数据分析，以持续改进网站功能。</li>
-                </ul>
-                
-                <h5>3. 信息共享与披露</h5>
-                <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。</p>
-                
-                <h5>4. 数据安全</h5>
-                <p>我们采取合理的技术措施保护数据安全。</p>
-                
-                <h5>5. 您的权利</h5>
-                <p>您可以随时在账户设置中查看或更新您提供的个人信息。</p>
-                
-                <h5>6. 关于未成年人</h5>
-                <p>我们的服务主要面向高中生。我们鼓励未成年用户在父母或监护人的指导下使用本平台。</p>
-            `;
+            if (currentLang === 'en') {
+                title = 'Privacy Policy';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>Last Updated: January 1, 2026</h4>
+                    
+                    <p><strong>ANSAPRA</strong> (hereinafter referred to as "we" or "our platform") respects and protects the privacy of all users. This policy aims to explain how we collect, use, store, and protect your personal information.</p>
+                    
+                    <h5>1. Information We Collect</h5>
+                    <ul>
+                        <li><strong>Information you provide</strong>: When you register an account, we may collect your email address, username, and questionnaire data.</li>
+                        <li><strong>Automatically collected information</strong>: To optimize your reading experience, we may anonymously collect your device information, browser type, access time, etc. through technologies like cookies.</li>
+                    </ul>
+                    
+                    <h5>2. How We Use Information</h5>
+                    <ul>
+                        <li>To provide and optimize an adaptive paper reading experience for you.</li>
+                        <li>To conduct anonymous, aggregate data analysis to continuously improve website functionality.</li>
+                    </ul>
+                    
+                    <h5>3. Information Sharing and Disclosure</h5>
+                    <p>We <strong>do not</strong> sell, trade, or rent your personal information to any third party.</p>
+                    
+                    <h5>4. Data Security</h5>
+                    <p>We take reasonable technical measures to protect data security.</p>
+                    
+                    <h5>5. Your Rights</h5>
+                    <p>You can view or update your provided personal information at any time in your account settings.</p>
+                    
+                    <h5>6. About Minors</h5>
+                    <p>Our services are primarily aimed at high school students. We encourage minor users to use this platform under the guidance of their parents or guardians.</p>
+                `;
+            } else {
+                title = '隐私政策 (Privacy Policy)';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>最后更新日期：2026年1月1日</h4>
+                    
+                    <p><strong>ANSAPRA</strong>（以下简称"我们"或"本平台"）尊重并保护所有用户的隐私。本政策旨在说明我们如何收集、使用、存储和保护您的个人信息。</p>
+                    
+                    <h5>1. 我们收集的信息</h5>
+                    <ul>
+                        <li><strong>您主动提供的信息</strong>：当您注册账户时，我们可能会收集您的邮箱地址、用户名以及问卷数据。</li>
+                        <li><strong>自动收集的信息</strong>：为优化阅读体验，我们可能通过Cookie等技术匿名收集您的设备信息、浏览器类型、访问时间等。</li>
+                    </ul>
+                    
+                    <h5>2. 我们如何使用信息</h5>
+                    <ul>
+                        <li>为您提供和优化自适应的论文阅读体验。</li>
+                        <li>进行匿名的、聚合性的数据分析，以持续改进网站功能。</li>
+                    </ul>
+                    
+                    <h5>3. 信息共享与披露</h5>
+                    <p>我们<strong>不会</strong>出售、交易或出租您的个人信息给任何第三方。</p>
+                    
+                    <h5>4. 数据安全</h5>
+                    <p>我们采取合理的技术措施保护数据安全。</p>
+                    
+                    <h5>5. 您的权利</h5>
+                    <p>您可以随时在账户设置中查看或更新您提供的个人信息。</p>
+                    
+                    <h5>6. 关于未成年人</h5>
+                    <p>我们的服务主要面向高中生。我们鼓励未成年用户在父母或监护人的指导下使用本平台。</p>
+                `;
+            }
             break;
             
         case 'terms':
-            title = '服务条款 (Terms of Service)';
-            content = `
-                <h4>生效日期：2026年1月1日</h4>
-                
-                <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。</p>
-                
-                <h5>1. 服务描述</h5>
-                <p>本平台通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
-                
-                <h5>2. 使用规则</h5>
-                <ul>
-                    <li>您必须遵守所有适用的法律和法规。</li>
-                    <li>您不得利用本平台进行任何干扰服务正常运行或损害他人权益的行为。</li>
-                </ul>
-                
-                <h5>3. 免责声明</h5>
-                <ul>
-                    <li>本平台提供的论文解读内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。</li>
-                    <li>我们尽力确保服务稳定，但不对服务的持续性、无中断性或绝对安全性作任何担保。</li>
-                </ul>
-                
-                <h5>4. 知识产权</h5>
-                <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。</p>
-            `;
+            if (currentLang === 'en') {
+                title = 'Terms of Service';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>Effective Date: January 1, 2026</h4>
+                    
+                    <p>Welcome to <strong>ANSAPRA</strong>. This platform is a tool developed by a team of high school students designed to help peers read natural science papers.</p>
+                    
+                    <h5>1. Service Description</h5>
+                    <p>This platform aims to provide personalized recommendations and assist in reading natural science papers based on high school students' cognitive frameworks by calling the official API of the DeepSeek artificial intelligence large language model.</p>
+                    
+                    <h5>2. Usage Rules</h5>
+                    <ul>
+                        <li>You must comply with all applicable laws and regulations.</li>
+                        <li>You may not use this platform for any activities that interfere with the normal operation of services or harm the rights and interests of others.</li>
+                    </ul>
+                    
+                    <h5>3. Disclaimer</h5>
+                    <ul>
+                        <li>The paper interpretation content provided by this platform is AI-generated content, <strong>only for learning assistance and reference</strong>, and does not constitute professional academic advice.</li>
+                        <li>We strive to ensure service stability but do not guarantee the continuity, uninterrupted nature, or absolute security of the service.</li>
+                    </ul>
+                    
+                    <h5>4. Intellectual Property</h5>
+                    <p>The website's design, logo, and original content are owned by the <strong>ANSAPRA Development Team</strong>.</p>
+                `;
+            } else {
+                title = '服务条款 (Terms of Service)';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>生效日期：2026年1月1日</h4>
+                    
+                    <p>欢迎使用 <strong>ANSAPRA</strong>。本平台是一个由高中生团队开发的、旨在帮助同龄人阅读自然科学论文的工具。</p>
+                    
+                    <h5>1. 服务描述</h5>
+                    <p>本平台通过调用DeepSeek人工智能大语言模型官方API，旨在根据高中生的认知框架，个性化推荐和辅助阅读自然科学论文。</p>
+                    
+                    <h5>2. 使用规则</h5>
+                    <ul>
+                        <li>您必须遵守所有适用的法律和法规。</li>
+                        <li>您不得利用本平台进行任何干扰服务正常运行或损害他人权益的行为。</li>
+                    </ul>
+                    
+                    <h5>3. 免责声明</h5>
+                    <ul>
+                        <li>本平台提供的论文解读内容为AI生成内容，<strong>仅作为学习辅助和参考</strong>，不构成专业的学术建议。</li>
+                        <li>我们尽力确保服务稳定，但不对服务的持续性、无中断性或绝对安全性作任何担保。</li>
+                    </ul>
+                    
+                    <h5>4. 知识产权</h5>
+                    <p>网站的设计、Logo、原创内容归<strong>ANSAPRA开发团队</strong>所有。</p>
+                `;
+            }
             break;
             
         case 'cookie':
-            title = 'Cookie 政策 (Cookie Policy)';
-            content = `
-                <h4>Cookie政策说明</h4>
-                
-                <p>我们使用Cookie（小型文本文件）来提升您的浏览体验。</p>
-                
-                <h5>1. Cookie的用途</h5>
-                <ul>
-                    <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态等。</li>
-                    <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况。</li>
-                    <li><strong>偏好Cookie</strong>：记住您的个性化设置。</li>
-                </ul>
-                
-                <h5>2. Cookie控制</h5>
-                <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用。</p>
-                
-                <h5>3. 第三方Cookie</h5>
-                <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。</p>
-            `;
+            if (currentLang === 'en') {
+                title = 'Cookie Policy';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>Cookie Policy Explanation</h4>
+                    
+                    <p>We use cookies (small text files) to enhance your browsing experience.</p>
+                    
+                    <h5>1. Purpose of Cookies</h5>
+                    <ul>
+                        <li><strong>Necessary Cookies</strong>：Used to maintain basic website functions, such as keeping login status.</li>
+                        <li><strong>Analytical Cookies</strong>：Used for anonymously analyzing website traffic and page usage.</li>
+                        <li><strong>Preference Cookies</strong>：Remember your personalized settings.</li>
+                    </ul>
+                    
+                    <h5>2. Cookie Control</h5>
+                    <p>You can refuse or manage cookies through browser settings. However, please note that disabling certain cookies may affect the normal use of some website functions.</p>
+                    
+                    <h5>3. Third-party Cookies</h5>
+                    <p>We currently do not use any third-party cookies for tracking or advertising.</p>
+                `;
+            } else {
+                title = 'Cookie 政策 (Cookie Policy)';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>Cookie政策说明</h4>
+                    
+                    <p>我们使用Cookie（小型文本文件）来提升您的浏览体验。</p>
+                    
+                    <h5>1. Cookie的用途</h5>
+                    <ul>
+                        <li><strong>必要Cookie</strong>：用于维持网站的基本功能，如保持登录状态等。</li>
+                        <li><strong>分析Cookie</strong>：用于匿名分析网站流量和页面使用情况。</li>
+                        <li><strong>偏好Cookie</strong>：记住您的个性化设置。</li>
+                    </ul>
+                    
+                    <h5>2. Cookie控制</h5>
+                    <p>您可以通过浏览器设置拒绝或管理Cookie。但请注意，禁用某些Cookie可能影响部分网站功能的正常使用。</p>
+                    
+                    <h5>3. 第三方Cookie</h5>
+                    <p>我们目前未使用任何用于跟踪或广告的第三方Cookie。</p>
+                `;
+            }
             break;
             
         case 'copyright':
-            title = '版权说明 (Copyright Notice)';
-            content = `
-                <h4>版权声明</h4>
-                
-                <p><strong>ANSAPRA</strong>是一个教育性质的非营利项目。</p>
-                
-                <h5>1. 本网站的版权</h5>
-                <ul>
-                    <li>本网站的整体设计、用户界面、特定功能代码及原创文本内容受版权保护，版权归 <strong>ANSAPRA开发团队</strong> 所有，© 2026。</li>
-                </ul>
-                
-                <h5>2. 引用内容的版权</h5>
-                <ul>
-                    <li>网站内为辅助阅读而引用的论文信息，其版权归原著作权人所有。</li>
-                    <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利。</li>
-                </ul>
-                
-                <h5>3. 侵权举报</h5>
-                <p>如果您认为本网站的内容侵犯了您的版权，请通过以下方式联系我们：</p>
-                <ul>
-                    <li>电子邮件：1182332400@qq.com 或 biokoala@outlook.com</li>
-                </ul>
-            `;
+            if (currentLang === 'en') {
+                title = 'Copyright Notice';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>Copyright Declaration</h4>
+                    
+                    <p><strong>ANSAPRA</strong> is an educational non-profit project.</p>
+                    
+                    <h5>1. Website Copyright</h5>
+                    <ul>
+                        <li>The overall design, user interface, specific function code, and original text content of this website are protected by copyright, owned by the <strong>ANSAPRA Development Team</strong>, © 2026.</li>
+                    </ul>
+                    
+                    <h5>2. Copyright of Cited Content</h5>
+                    <ul>
+                        <li>The copyright of paper information cited on the website for reading assistance belongs to the original copyright holders.</li>
+                        <li>We strictly follow academic norms for citations, aiming to provide research and learning convenience for high school students.</li>
+                    </ul>
+                    
+                    <h5>3. Infringement Reporting</h5>
+                    <p>If you believe that the content of this website infringes your copyright, please contact us through the following methods:</p>
+                    <ul>
+                        <li>Email: 1182332400@qq.com or biokoala@outlook.com</li>
+                    </ul>
+                `;
+            } else {
+                title = '版权说明 (Copyright Notice)';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4>版权声明</h4>
+                    
+                    <p><strong>ANSAPRA</strong>是一个教育性质的非营利项目。</p>
+                    
+                    <h5>1. 本网站的版权</h5>
+                    <ul>
+                        <li>本网站的整体设计、用户界面、特定功能代码及原创文本内容受版权保护，版权归 <strong>ANSAPRA开发团队</strong> 所有，© 2026。</li>
+                    </ul>
+                    
+                    <h5>2. 引用内容的版权</h5>
+                    <ul>
+                        <li>网站内为辅助阅读而引用的论文信息，其版权归原著作权人所有。</li>
+                        <li>我们严格遵守学术规范进行引用，旨在为高中生提供研究学习便利。</li>
+                    </ul>
+                    
+                    <h5>3. 侵权举报</h5>
+                    <p>如果您认为本网站的内容侵犯了您的版权，请通过以下方式联系我们：</p>
+                    <ul>
+                        <li>电子邮件：1182332400@qq.com 或 biokoala@outlook.com</li>
+                    </ul>
+                `;
+            }
             break;
             
         case 'contact':
-            title = '联系我们 (Contact Us)';
-            content = `
-                <h4><i class="fas fa-envelope"></i> 联系我们</h4>
-                
-                <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。因此，我们非常重视您的反馈。</p>
-                
-                <h5><i class="fas fa-comment-dots"></i> 您可以联系我们的事项</h5>
-                <ul>
-                    <li><strong>网站功能建议或错误报告</strong></li>
-                    <li><strong>隐私政策的疑问</strong></li>
-                    <li><strong>合作意向</strong></li>
-                    <li><strong>版权相关问题</strong></li>
-                    <li><strong>其他任何问题</strong></li>
-                </ul>
-                
-                <h5><i class="fas fa-envelope-open-text"></i> 联系方式</h5>
-                <div class="contact-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
-                    <div class="contact-method" style="text-align: center;">
-                        <i class="fas fa-envelope fa-2x" style="color: #007bff;"></i>
-                        <h6>主要邮箱</h6>
-                        <p><a href="mailto:1182332400@qq.com">1182332400@qq.com</a></p>
+            if (currentLang === 'en') {
+                title = 'Contact Us';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4><i class="fas fa-envelope"></i> Contact Us</h4>
+                    
+                    <p>We are a development team composed of high school students. This website, from its inception to optimization, is inseparable from user support. Therefore, we attach great importance to your feedback.</p>
+                    
+                    <h5><i class="fas fa-comment-dots"></i> Matters You Can Contact Us About</h5>
+                    <ul>
+                        <li><strong>Website function suggestions or error reports</strong></li>
+                        <li><strong>Questions about privacy policy</strong></li>
+                        <li><strong>Cooperation intentions</strong></li>
+                        <li><strong>Copyright-related issues</strong></li>
+                        <li><strong>Other related questions</strong></li>
+                    </ul>
+                    
+                    <h5><i class="fas fa-envelope-open-text"></i> Contact Methods</h5>
+                    <div class="contact-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div class="contact-method" style="text-align: center;">
+                            <i class="fas fa-envelope fa-2x" style="color: #007bff;"></i>
+                            <h6>Main Email</h6>
+                            <p><a href="mailto:biokoala@outlook.com">biokoala@outlook.com</a></p>
+                        </div>
+                        <div class="contact-method" style="text-align: center;">
+                            <i class="fas fa-envelope fa-2x" style="color: #28a745;"></i>
+                            <h6>Backup Email</h6>
+                            <p><a href="mailto:1182332400@qq.com">1182332400@qq.com</a></p>
+                        </div>
                     </div>
-                    <div class="contact-method" style="text-align: center;">
-                        <i class="fas fa-envelope fa-2x" style="color: #28a745;"></i>
-                        <h6>备用邮箱</h6>
-                        <p><a href="mailto:biokoala@outlook.com">biokoala@outlook.com</a></p>
+                    
+                    <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h6><i class="fas fa-clock"></i> Response Time</h6>
+                        <p>We will try our best to reply to your email within <strong>10 working days</strong>. Since we are a student team, replies may be during after-school hours. Thank you for your understanding.</p>
                     </div>
-                </div>
-                
-                <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <h6><i class="fas fa-clock"></i> 响应时间</h6>
-                    <p>我们会在<strong>10个工作日内</strong>尽力回复您的邮件。由于我们是学生团队，回复可能会在课后时间，敬请谅解。</p>
-                </div>
-            `;
+                `;
+            } else {
+                title = '联系我们 (Contact Us)';
+                title = title.replace(/./g, m => `<span style="color:var(--text-color, #333)">${m}</span>`);
+                content = `
+                    <h4><i class="fas fa-envelope"></i> 联系我们</h4>
+                    
+                    <p>我们是一个由高中生组成的开发团队。本网站从诞生到优化，都离不开用户的支持。因此，我们非常重视您的反馈。</p>
+                    
+                    <h5><i class="fas fa-comment-dots"></i> 您可以联系我们的事项</h5>
+                    <ul>
+                        <li><strong>网站功能建议或错误报告</strong></li>
+                        <li><strong>隐私政策的疑问</strong></li>
+                        <li><strong>合作意向</strong></li>
+                        <li><strong>版权相关问题</strong></li>
+                        <li><strong>其他相关问题</strong></li>
+                    </ul>
+                    
+                    <h5><i class="fas fa-envelope-open-text"></i> 联系方式</h5>
+                    <div class="contact-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div class="contact-method" style="text-align: center;">
+                            <i class="fas fa-envelope fa-2x" style="color: #007bff;"></i>
+                            <h6>主要邮箱</h6>
+                            <p><a href="mailto:biokoala@outlook.com">biokoala@outlook.com</a></p>
+                        </div>
+                        <div class="contact-method" style="text-align: center;">
+                            <i class="fas fa-envelope fa-2x" style="color: #28a745;"></i>
+                            <h6>备用邮箱</h6>
+                            <p><a href="mailto:1182332400@qq.com">1182332400@qq.com</a></p>
+                        </div>
+                    </div>
+                    
+                    <div class="response-time" style="background: #e8f4ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h6><i class="fas fa-clock"></i> 响应时间</h6>
+                        <p>我们会在<strong>10个工作日内</strong>尽力回复您的邮件。由于我们是学生团队，回复可能会在课后时间，敬请谅解。</p>
+                    </div>
+                `;
+            }
             break;
             
         default:
             title = type;
-            content = '内容加载中...';
+            content = currentLang === 'en' ? 'Content loading...' : '内容加载中...';
     }
+    
+    // 获取当前主题颜色
+    let lightColor = '#f8f9fa'; // 默认白色
+    let themeColor = '#007bff'; // 默认主题颜色
+    let textColor = '#333333'; // 默认文字颜色
+    const savedSettings = localStorage.getItem('visualSettings');
+    if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme) {
+                const themes = {
+                    'A': { light: '#f8f0f6', color: '#d63384', text: '#d63384' }, // 柔和粉
+                    'B': { light: '#f0f7ff', color: '#007bff', text: '#007bff' }, // 科技蓝
+                    'C': { light: '#f0f9f0', color: '#28a745', text: '#28a745' }, // 清新绿
+                    'D': { light: '#f3f0f9', color: '#6f42c1', text: '#6f42c1' }, // 优雅紫
+                    'E': { light: '#f8f9fa', color: '#007bff', text: '#007bff' }  // 简约白
+                };
+                if (themes[settings.theme]) {
+                    lightColor = themes[settings.theme].light;
+                    themeColor = themes[settings.theme].color;
+                    textColor = themes[settings.theme].text;
+                }
+            }
+            // 优先使用用户设置的文字颜色
+            if (settings.text_color) {
+                const textColors = {
+                    dark_pink: '#8a5c73',  // 深粉色（更深）
+                    dark_blue: '#5c738a',  // 深蓝色（更深）
+                    dark_green: '#5c8a5c', // 深绿色（更深）
+                    dark_purple: '#735c8a', // 深紫色（更深）
+                    dark_gray: '#000000'   // 黑色（替换深灰色）
+                };
+                const selectedColor = textColors[settings.text_color] || textColors.dark_purple;
+                textColor = selectedColor;
+            }
+        } catch (error) {
+            console.error('解析主题设置失败:', error);
+        }
+    }
+    
+    // 获取当前body的实际背景颜色，确保模态框头部跟随系统主题背景
+    const bodyBgColor = document.body.style.backgroundColor || lightColor;
+    
+    const readButtonText = currentLang === 'en' ? 'I have read and understood' : '我已阅读并理解';
+    const printButtonText = currentLang === 'en' ? 'Print' : '打印';
     
     const modalHTML = `
         <div class="modal" id="info-modal">
-            <div class="modal-content" style="max-width: 800px; max-height: 85vh;">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
-                    <h3 style="margin: 0; color: #007bff;">${title}</h3>
-                    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; transition: color 0.3s ease;">&times;</button>
+            <div class="modal-content" style="max-width: 800px; max-height: 85vh; background: white;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid ${themeColor}; padding-bottom: 10px; background: ${bodyBgColor};">
+                    <h3 style="margin: 0; color: ${textColor};">${title}</h3>
+                    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease;">&times;</button>
                 </div>
                 
                 <div class="modal-body" style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
@@ -2739,12 +3880,12 @@ function showModal(type) {
                     </div>
                 </div>
                 
-                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: center;">
-                    <button class="btn btn-primary" onclick="closeModal()">
-                        <i class="fas fa-check"></i> 我已阅读并理解
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #0d0202ff; text-align: center;">
+                    <button class="btn btn-primary" onclick="closeModal()" style="background-color: ${themeColor}; border-color: ${themeColor};">
+                        <i class="fas fa-check"></i> ${readButtonText}
                     </button>
                     <button class="btn btn-secondary" onclick="printModalContent()" style="margin-left: 10px;">
-                        <i class="fas fa-print"></i> 打印
+                        <i class="fas fa-print"></i> ${printButtonText}
                     </button>
                 </div>
             </div>
@@ -2767,6 +3908,18 @@ function showModal(type) {
         }
         
         modal.style.display = 'flex';
+        
+        // 修改4级标题的颜色为黑色
+        const h4Elements = modal.querySelectorAll('h4');
+        h4Elements.forEach(h4 => {
+            h4.style.color = '#000000';
+        });
+        
+        // 修改5级标题的颜色为黑色
+        const h5Elements = modal.querySelectorAll('h5');
+        h5Elements.forEach(h5 => {
+            h5.style.color = '#000000';
+        });
         
         // 添加滚动条样式
         addModalScrollbarStyles();
@@ -2984,7 +4137,420 @@ function logSearchHistory(platform, keyword) {
     showNotification(`${platform} 搜索已打开`, 'success');
 }
 
-// 添加入口键支持
+// 设置AI工具栏
+function setupAIToolbar() {
+    // 检查是否已存在AI工具栏容器
+    let toolbarContainer = document.getElementById('ai-toolbar');
+    if (!toolbarContainer) {
+        toolbarContainer = document.createElement('div');
+        toolbarContainer.id = 'ai-toolbar';
+        toolbarContainer.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow: hidden;
+        `;
+        
+        toolbarContainer.innerHTML = `
+            <div class="toolbar-header" style="background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;"><i class="fas fa-robot"></i> AI 助手</h4>
+                <button id="toggle-chat" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">↑</button>
+            </div>
+            <div class="chat-container" id="chat-container" style="height: 300px; overflow-y: auto; padding: 15px; background: #f8f9fa;">
+                <div class="welcome-message" style="text-align: center; color: #666; padding: 20px;">
+                    <p>欢迎使用AI助手！</p>
+                    <p>您可以随时向我提问关于论文的问题</p>
+                </div>
+            </div>
+            <div class="chat-input-container" style="padding: 10px; border-top: 1px solid #eee;">
+                <input type="text" id="chat-input" placeholder="输入您的问题..." style="width: 250px; padding: 10px; border: 1px solid #ddd; border-radius: 20px; margin-right: 10px;">
+                <button id="send-message" style="background: #007bff; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(toolbarContainer);
+        
+        // 添加滚动条样式
+        addChatScrollbarStyles();
+    }
+    
+    // 设置事件监听
+    const toggleButton = document.getElementById('toggle-chat');
+    const chatContainer = document.getElementById('chat-container');
+    const chatInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('send-message');
+    
+    if (toggleButton) {
+        toggleButton.addEventListener('click', function() {
+            if (chatContainer.style.display === 'none') {
+                chatContainer.style.display = 'block';
+                this.textContent = '↑';
+            } else {
+                chatContainer.style.display = 'none';
+                this.textContent = '↓';
+            }
+        });
+    }
+    
+    if (sendButton) {
+        sendButton.addEventListener('click', sendAIMessage);
+    }
+    
+    if (chatInput) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendAIMessage();
+            }
+        });
+    }
+}
+
+// 添加聊天滚动条样式
+function addChatScrollbarStyles() {
+    const styleId = 'chat-scrollbar-styles';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            #chat-container::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            #chat-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 4px;
+            }
+            
+            #chat-container::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 4px;
+            }
+            
+            #chat-container::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// 发送AI消息
+function sendAIMessage() {
+    const chatInput = document.getElementById('chat-input');
+    const message = chatInput.value.trim();
+    
+    if (!message) return;
+    
+    // 显示用户消息
+    showChatMessage('user', message);
+    chatInput.value = '';
+    
+    // 发送消息到AI
+    sendChatMessageToAI(message);
+}
+
+// 显示聊天消息
+function showChatMessage(type, message) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+    
+    // 移除欢迎消息
+    const welcomeMessage = chatContainer.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${type}-message`;
+    messageDiv.style.cssText = `
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 80%;
+    `;
+    
+    if (type === 'user') {
+        messageDiv.style.cssText += `
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        `;
+        messageDiv.innerHTML = `<strong>您：</strong> ${message}`;
+    } else {
+        messageDiv.style.cssText += `
+            background: #e9ecef;
+            color: #333;
+            margin-right: auto;
+        `;
+        messageDiv.innerHTML = `<strong>AI：</strong> ${message}`;
+    }
+    
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// 发送聊天消息到AI
+function sendChatMessageToAI(message) {
+    // 显示加载状态
+    const chatContainer = document.getElementById('chat-container');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'chat-message ai-message loading';
+    loadingDiv.style.cssText = `
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 80%;
+        background: #e9ecef;
+        color: #333;
+        margin-right: auto;
+    `;
+    loadingDiv.innerHTML = `<strong>AI：</strong> <i class="fas fa-spinner fa-spin"></i> 思考中...`;
+    chatContainer.appendChild(loadingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // 发送请求到后端
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            question: message,
+            chat_history: AppState.chatHistory
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 移除加载状态
+        loadingDiv.remove();
+        
+        if (data.success) {
+            // 显示AI回复
+            showChatMessage('ai', data.answer);
+            
+            // 更新聊天历史
+            if (data.chat_item) {
+                AppState.chatHistory.push(data.chat_item);
+            }
+        } else {
+            showChatMessage('ai', '抱歉，我无法回答您的问题。请稍后重试。');
+        }
+    })
+    .catch(error => {
+        console.error('发送聊天消息错误:', error);
+        loadingDiv.remove();
+        showChatMessage('ai', '网络错误，请稍后重试。');
+    });
+}
+
+// 显示原始论文
+function renderPDFViewer(pdfUrl) {
+    const originalContent = document.getElementById('original-content');
+    if (!originalContent) return;
+    
+    // 清空查看器
+    originalContent.innerHTML = '';
+    
+    // 设置original-content的样式，确保它完全填充父容器，并保持16:9比例
+    originalContent.style.width = '100%';
+    originalContent.style.height = '56.25vw'; // 16:9比例
+    originalContent.style.padding = '0';
+    originalContent.style.margin = '0';
+    
+    // 创建PDF.js查看器容器
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.position = 'relative';
+    originalContent.appendChild(container);
+    
+    // 创建画布容器
+    const canvasContainer = document.createElement('div');
+    canvasContainer.id = 'pdf-canvas-container';
+    canvasContainer.style.width = '100%';
+    canvasContainer.style.height = '100%';
+    canvasContainer.style.overflow = 'auto';
+    container.appendChild(canvasContainer);
+    
+    // 创建工具栏
+    const toolbar = document.createElement('div');
+    toolbar.style.position = 'absolute';
+    toolbar.style.top = '0';
+    toolbar.style.left = '0';
+    toolbar.style.right = '0';
+    toolbar.style.background = 'rgba(255, 255, 255, 0.95)';
+    toolbar.style.padding = '2px 5px';
+    toolbar.style.borderBottom = '1px solid #ddd';
+    toolbar.style.zIndex = '10';
+    toolbar.style.height = '24px';
+    toolbar.style.display = 'flex';
+    toolbar.style.alignItems = 'center';
+    toolbar.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 10px;">
+            <button id="pdf-prev" style="padding: 2px 4px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                <i class="fas fa-chevron-left"></i> 上
+            </button>
+            <button id="pdf-next" style="padding: 2px 4px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                下 <i class="fas fa-chevron-right"></i>
+            </button>
+            <span id="pdf-page-info" style="margin-left: 5px; font-size: 10px;">1 / 1</span>
+            <button id="pdf-zoom-in" style="padding: 2px 4px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                <i class="fas fa-search-plus"></i>
+            </button>
+            <button id="pdf-zoom-out" style="padding: 2px 4px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                <i class="fas fa-search-minus"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(toolbar);
+    
+    let pdfDoc = null;
+    let currentPage = 1;
+    let zoom = 1.0;
+    
+    // 加载PDF
+    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+        pdfDoc = pdf;
+        document.getElementById('pdf-page-info').textContent = `页码: ${currentPage} / ${pdf.numPages}`;
+        
+        // 渲染第一页
+        renderPage(currentPage);
+        
+        // 添加事件监听器
+        document.getElementById('pdf-prev').addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        });
+        
+        document.getElementById('pdf-next').addEventListener('click', function() {
+            if (currentPage < pdfDoc.numPages) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        });
+        
+        document.getElementById('pdf-zoom-in').addEventListener('click', function() {
+            zoom += 0.1;
+            renderPage(currentPage);
+        });
+        
+        document.getElementById('pdf-zoom-out').addEventListener('click', function() {
+            if (zoom > 0.5) {
+                zoom -= 0.1;
+                renderPage(currentPage);
+            }
+        });
+        
+    }).catch(function(error) {
+        console.error('PDF加载失败:', error);
+        pdfViewer.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                <p style="color: red;">PDF加载失败: ${error.message}</p>
+            </div>
+        `;
+    });
+    
+    function renderPage(num) {
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({ scale: zoom });
+            
+            // 创建画布
+            const canvas = document.createElement('canvas');
+            canvas.style.display = 'block';
+            canvas.style.margin = '0 auto';
+            canvas.style.marginBottom = '20px';
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            // 清空容器并添加画布
+            const canvasContainer = document.getElementById('pdf-canvas-container');
+            canvasContainer.innerHTML = '';
+            canvasContainer.appendChild(canvas);
+            
+            // 渲染PDF页面
+            const context = canvas.getContext('2d');
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            page.render(renderContext).promise.then(function() {
+                document.getElementById('pdf-page-info').textContent = `页码: ${currentPage} / ${pdfDoc.numPages}`;
+            });
+        });
+    }
+}
+
+function showOriginalPaper() {
+    if (!AppState.currentPDFUrl) {
+        showNotification('当前没有可显示的论文', 'error');
+        return;
+    }
+    
+    // 在新标签页中打开PDF
+    window.open(AppState.currentPDFUrl, '_blank');
+}
+
+// 添加查看原文按钮
+function addViewOriginalButton() {
+    // 检查是否已存在查看原文按钮
+    if (document.getElementById('view-original-button')) {
+        return;
+    }
+    
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        text-align: center;
+        margin: 20px 0;
+    `;
+    
+    // 创建按钮
+    const viewButton = document.createElement('button');
+    viewButton.id = 'view-original-button';
+    viewButton.innerHTML = '<i class="fas fa-file-pdf"></i> 查看原文';
+    viewButton.style.cssText = `
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    `;
+    
+    // 添加点击事件
+    viewButton.addEventListener('click', showOriginalPaper);
+    
+    // 添加到结果区域
+    buttonContainer.appendChild(viewButton);
+    
+    // 找到合适的位置插入按钮
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        // 插入到结果区域的顶部
+        const firstChild = resultsSection.firstChild;
+        if (firstChild) {
+            resultsSection.insertBefore(buttonContainer, firstChild);
+        } else {
+            resultsSection.appendChild(buttonContainer);
+        }
+    }
+}
+
+// 完善搜索框回车键支持
 function setupSearchKeybindings() {
     // Nature 搜索框回车键支持
     const natureInput = document.getElementById('nature-search-input');
@@ -3040,10 +4606,11 @@ function autoFillSearchKeywords(keywords) {
 
 // 在 startInterpretation 函数的结果处理部分添加：
 // 在显示结果后添加
-const keywords = extractKeywordsForSearch(data.original_content);
-if (keywords) {
-    autoFillSearchKeywords(keywords);
-}
+// This code was incorrectly placed here and has been moved to the appropriate function
+// const keywords = extractKeywordsForSearch(data.original_content);
+// if (keywords) {
+//     autoFillSearchKeywords(keywords);
+// }
 
 // 在设置页面添加搜索历史查看功能
 function addSearchHistoryToSettings() {
@@ -3054,14 +4621,14 @@ function addSearchHistoryToSettings() {
         if (accountSettings) {
             const historyHTML = `
                 <div class="search-history-section" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <h5><i class="fas fa-history"></i> 最近搜索记录</h5>
+                    <h5><i class="fas fa-history"></i> <span data-i18n="recent-search-history">最近搜索记录</span></h5>
                     <div style="max-height: 200px; overflow-y: auto;">
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr style="border-bottom: 2px solid #ddd;">
-                                    <th style="padding: 8px; text-align: left;">平台</th>
-                                    <th style="padding: 8px; text-align: left;">关键词</th>
-                                    <th style="padding: 8px; text-align: left;">时间</th>
+                                    <th style="padding: 8px; text-align: left;"><span data-i18n="platform">平台</span></th>
+                                    <th style="padding: 8px; text-align: left;"><span data-i18n="keyword">关键词</span></th>
+                                    <th style="padding: 8px; text-align: left;"><span data-i18n="time">时间</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3078,7 +4645,7 @@ function addSearchHistoryToSettings() {
                         </table>
                     </div>
                     <button class="btn btn-small btn-secondary" onclick="clearSearchHistory()" style="margin-top: 10px;">
-                        <i class="fas fa-trash"></i> 清空搜索记录
+                        <i class="fas fa-trash"></i> <span data-i18n="clear-search-history">清空搜索记录</span>
                     </button>
                 </div>
             `;
@@ -3089,9 +4656,9 @@ function addSearchHistoryToSettings() {
 }
 
 function clearSearchHistory() {
-    if (confirm('确定要清空所有搜索记录吗？')) {
+    if (confirm(getTranslation('confirm-clear-history'))) {
         localStorage.removeItem('searchHistory');
-        showNotification('搜索记录已清空', 'success');
+        showNotification(getTranslation('search-history-cleared'), 'success');
         // 重新加载页面或刷新设置部分
         location.reload();
     }
@@ -3207,4 +4774,238 @@ function generateMindMapHTML(sections) {
             </div>
         </div>
     `;
+}
+
+// 添加AI对话对话框到解读页面
+function addAIConversationDialog(originalContent, interpretation) {
+    const resultsSection = document.getElementById('results-section');
+    if (!resultsSection) return;
+    
+    // 检查是否已存在AI对话框
+    let aiDialogContainer = document.getElementById('ai-conversation-dialog');
+    if (aiDialogContainer) {
+        // 如果已存在，清空内容
+        aiDialogContainer.innerHTML = '';
+    } else {
+        // 创建AI对话框容器
+        aiDialogContainer = document.createElement('div');
+        aiDialogContainer.id = 'ai-conversation-dialog';
+        aiDialogContainer.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999;
+            overflow: hidden;
+        `;
+        
+        resultsSection.appendChild(aiDialogContainer);
+    }
+    
+    // 对话框内容
+    aiDialogContainer.innerHTML = `
+        <div class="dialog-header" style="background: #007bff; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <h5 style="margin: 0;"><i class="fas fa-robot"></i> AI 对话</h5>
+            <button id="toggle-ai-dialog" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">↑</button>
+        </div>
+        <div class="dialog-body" id="ai-chat-container" style="height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa;">
+            <div class="welcome-message" style="text-align: center; color: #666; padding: 20px;">
+                <p>我是您的AI助手，可以回答关于这篇论文的问题</p>
+                <p>您可以询问论文的细节、概念解释等</p>
+            </div>
+        </div>
+        <div class="dialog-footer" style="padding: 10px; border-top: 1px solid #eee;">
+            <input type="text" id="ai-chat-input" placeholder="输入您的问题..." style="width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 15px; margin-right: 8px;">
+            <button id="ai-send-button" style="background: #007bff; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    `;
+    
+    // 添加滚动条样式
+    addAIChatScrollbarStyles();
+    
+    // 设置事件监听
+    const toggleButton = document.getElementById('toggle-ai-dialog');
+    const chatContainer = document.getElementById('ai-chat-container');
+    const chatInput = document.getElementById('ai-chat-input');
+    const sendButton = document.getElementById('ai-send-button');
+    
+    if (toggleButton) {
+        toggleButton.addEventListener('click', function() {
+            if (chatContainer.style.display === 'none') {
+                chatContainer.style.display = 'block';
+                this.textContent = '↑';
+            } else {
+                chatContainer.style.display = 'none';
+                this.textContent = '↓';
+            }
+        });
+    }
+    
+    if (sendButton) {
+        sendButton.addEventListener('click', function() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            // 显示用户消息
+            showAIChatMessage('user', message);
+            chatInput.value = '';
+            
+            // 发送消息到AI
+            sendAIChatMessageToAI(message, originalContent, interpretation);
+        });
+    }
+    
+    if (chatInput) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const message = this.value.trim();
+                if (!message) return;
+                
+                // 显示用户消息
+                showAIChatMessage('user', message);
+                this.value = '';
+                
+                // 发送消息到AI
+                sendAIChatMessageToAI(message, originalContent, interpretation);
+            }
+        });
+    }
+}
+
+// 添加AI聊天滚动条样式
+function addAIChatScrollbarStyles() {
+    const styleId = 'ai-chat-scrollbar-styles';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            #ai-chat-container::-webkit-scrollbar {
+                width: 6px;
+            }
+            
+            #ai-chat-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 3px;
+            }
+            
+            #ai-chat-container::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 3px;
+            }
+            
+            #ai-chat-container::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// 显示AI聊天消息
+function showAIChatMessage(type, message) {
+    const chatContainer = document.getElementById('ai-chat-container');
+    if (!chatContainer) return;
+    
+    // 移除欢迎消息
+    const welcomeMessage = chatContainer.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-chat-message ${type}-message`;
+    messageDiv.style.cssText = `
+        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        max-width: 80%;
+        font-size: 14px;
+    `;
+    
+    if (type === 'user') {
+        messageDiv.style.cssText += `
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        `;
+        messageDiv.innerHTML = `<strong>您：</strong> ${message}`;
+    } else {
+        messageDiv.style.cssText += `
+            background: #e9ecef;
+            color: #333;
+            margin-right: auto;
+        `;
+        messageDiv.innerHTML = `<strong>AI：</strong> ${message}`;
+    }
+    
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// 发送AI聊天消息到后端
+function sendAIChatMessageToAI(message, originalContent, interpretation) {
+    const chatContainer = document.getElementById('ai-chat-container');
+    if (!chatContainer) return;
+    
+    // 显示加载状态
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'ai-chat-message ai-message loading';
+    loadingDiv.style.cssText = `
+        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        max-width: 80%;
+        background: #e9ecef;
+        color: #333;
+        margin-right: auto;
+        font-size: 14px;
+    `;
+    loadingDiv.innerHTML = `<strong>AI：</strong> <i class="fas fa-spinner fa-spin"></i> 思考中...`;
+    chatContainer.appendChild(loadingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // 发送请求到后端
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            question: message,
+            original_content: originalContent,
+            interpretation: interpretation,
+            chat_history: AppState.chatHistory || []
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 移除加载状态
+        loadingDiv.remove();
+        
+        if (data.success) {
+            // 显示AI回复
+            showAIChatMessage('ai', data.answer);
+            
+            // 更新聊天历史
+            if (data.chat_item) {
+                if (!AppState.chatHistory) {
+                    AppState.chatHistory = [];
+                }
+                AppState.chatHistory.push(data.chat_item);
+            }
+        } else {
+            showAIChatMessage('ai', '抱歉，我无法回答您的问题。请稍后重试。');
+        }
+    })
+    .catch(error => {
+        console.error('发送聊天消息错误:', error);
+        loadingDiv.remove();
+        showAIChatMessage('ai', '网络错误，请稍后重试。');
+    });
 }
