@@ -1,6 +1,6 @@
 class LanguageManager {
     constructor() {
-        this.currentLang = localStorage.getItem('language') || 'en';
+        this.currentLang = localStorage.getItem('language') || 'zh';
         this.translations = {};
         this.init();
     }
@@ -13,7 +13,8 @@ class LanguageManager {
 
     async loadTranslations() {
         try {
-            const response = await fetch('/static/lang/translations.json');
+            // 尝试使用相对路径加载翻译文件
+            const response = await fetch('static/lang/translations.json');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -41,8 +42,29 @@ class LanguageManager {
         // 更新 HTML lang 属性
         document.documentElement.lang = lang;
         
-        // 更新所有带有 data-i18n 属性的元素
-        this.updateTextContent();
+        // 切换字体设置
+        this.switchFonts(lang);
+        
+        // 强制应用字体设置到所有元素，确保按钮、文本框等也能正确显示
+        this.forceFontApplication();
+        
+        // 强制重新加载使用说明和设置表单，确保所有内容都被翻译
+        if (typeof loadInstructions === 'function') {
+            loadInstructions();
+        }
+        // 直接调用settings.js中的函数，确保正确重新加载设置表单
+        if (typeof loadReadingSettings === 'function') {
+            loadReadingSettings();
+        }
+        if (typeof loadVisualSettings === 'function') {
+            loadVisualSettings();
+        }
+        
+        // 延迟更新文本内容，确保DOM完全更新
+        setTimeout(() => {
+            // 更新所有带有 data-i18n 属性的元素（包括新添加的元素）
+            this.updateTextContent();
+        }, 100);
         
         // 更新语言切换按钮状态
         this.updateLanguageButtons();
@@ -51,6 +73,100 @@ class LanguageManager {
         document.dispatchEvent(new CustomEvent('languageChanged', { 
             detail: { language: lang } 
         }));
+        
+        // 重新显示cookie提示（如果用户还没有同意）
+        if (!localStorage.getItem('cookieConsent')) {
+            // 移除现有的cookie提示
+            const existingBanner = document.getElementById('cookie-consent-banner');
+            if (existingBanner) {
+                existingBanner.remove();
+            }
+            // 重新显示cookie提示
+            if (typeof setupCookieConsent === 'function') {
+                setupCookieConsent();
+            }
+        }
+        
+        console.log(`Language applied: ${lang}`);
+        console.log('Number of translated elements:', document.querySelectorAll('[data-i18n]').length);
+    }
+
+    // 切换字体
+    switchFonts(lang) {
+        // 首先直接应用字体设置
+        this.applyFontSettings(lang);
+        
+        // 始终使用中文字体
+        const chineseFontRadios = document.querySelectorAll('input[name="chinese_font"]');
+        if (chineseFontRadios.length > 0) {
+            // 检查是否有已选中的中文字体
+            let selectedFont = document.querySelector('input[name="chinese_font"]:checked');
+            if (!selectedFont) {
+                // 如果没有选中的，激活第一个选项
+                selectedFont = chineseFontRadios[0];
+                selectedFont.checked = true;
+            }
+            // 强制应用选中的中文字体
+            const fontValue = selectedFont.value;
+            document.body.style.fontFamily = fontValue;
+            console.log(`Applied Chinese font: ${fontValue}`);
+        }
+    }
+    
+    // 应用字体设置
+    applyFontSettings(lang) {
+        // 获取保存的字体设置
+        const savedSettings = localStorage.getItem('visualSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                
+                // 获取字体大小
+                const fontSize = settings.font_size || '18';
+                
+                // 计算实际应用的字体大小（华文楷体大2px）
+                let actualFontSize = parseInt(fontSize);
+                if (settings.chinese_font && (settings.chinese_font.includes('STKaiti') || settings.chinese_font.includes('KaiTi'))) {
+                    actualFontSize += 2;
+                }
+                
+                // 获取行高
+                const lineHeight = settings.line_height || '1.6';
+                
+                // 获取字间距
+                const letterSpacing = settings.letter_spacing || '0px';
+                
+                // 应用字体大小、行高和字间距
+                document.body.style.fontSize = `${actualFontSize}px`;
+                document.body.style.lineHeight = lineHeight;
+                document.body.style.letterSpacing = letterSpacing;
+                
+                // 始终使用中文字体
+                if (settings.chinese_font) {
+                    document.body.style.fontFamily = settings.chinese_font;
+                } else {
+                    // 如果没有保存的中文字体设置，使用默认中文字体
+                    document.body.style.fontFamily = "'Microsoft YaHei', sans-serif";
+                }
+            } catch (error) {
+                console.error('解析字体设置失败:', error);
+                // 解析失败时，使用默认中文字体
+                this.applyDefaultFont(lang);
+            }
+        } else {
+            // 如果没有保存的字体设置，使用默认中文字体
+            this.applyDefaultFont(lang);
+        }
+    }
+
+    // 应用默认字体
+    applyDefaultFont(lang) {
+        // 始终使用默认的中文字体
+        const fontFamily = '"Microsoft YaHei", sans-serif';
+        
+        // 应用字体到整个页面
+        document.body.style.fontFamily = fontFamily;
+        console.log(`Applied default Chinese font: ${fontFamily}`);
     }
 
     updateTextContent() {
@@ -65,7 +181,12 @@ class LanguageManager {
                 } else if (element.tagName === 'OPTION') {
                     element.textContent = translation;
                 } else {
-                    element.textContent = translation;
+                    // 检查翻译内容是否包含HTML标签
+                    if (translation.includes('<') && translation.includes('>')) {
+                        element.innerHTML = translation;
+                    } else {
+                        element.textContent = translation;
+                    }
                 }
             }
         });
@@ -78,6 +199,12 @@ class LanguageManager {
     }
 
     getTranslation(key) {
+        // 首先尝试直接查找键
+        if (this.translations[this.currentLang] && key in this.translations[this.currentLang]) {
+            return this.translations[this.currentLang][key];
+        }
+        
+        // 然后尝试使用点号分割的键查找（向后兼容）
         const keys = key.split('.');
         let value = this.translations[this.currentLang];
         
@@ -104,6 +231,16 @@ class LanguageManager {
                 button.disabled = false;
             }
         });
+
+        // 更新所有语言选择按钮的显示文本
+        const labels = document.querySelectorAll('.radio-label span');
+        labels.forEach(label => {
+            if (label.textContent === '中文' || label.textContent === 'Chinese') {
+                label.textContent = '中文';
+            } else if (label.textContent === 'English' || label.textContent === '英文') {
+                label.textContent = 'English';
+            }
+        });
     }
 
     setupEventListeners() {
@@ -121,6 +258,30 @@ class LanguageManager {
         document.addEventListener('languageChanged', (e) => {
             console.log(`Language changed to: ${e.detail.language}`);
         });
+
+        // 监听语言选择变化
+        document.addEventListener('change', (e) => {
+            if (e.target.name === 'language') {
+                this.applyLanguage(e.target.value);
+            }
+        });
+
+        // 监听语言应用按钮点击
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#language-settings .btn-primary')) {
+                const selectedLang = document.querySelector('input[name="language"]:checked');
+                if (selectedLang) {
+                    this.applyLanguage(selectedLang.value);
+                }
+            }
+        });
+
+        // 为语言设置面板中的单选按钮添加点击事件
+        document.addEventListener('click', (e) => {
+            if (e.target.type === 'radio' && e.target.name === 'language') {
+                this.applyLanguage(e.target.value);
+            }
+        });
     }
 
     // 获取当前语言
@@ -132,411 +293,76 @@ class LanguageManager {
     translate(key) {
         return this.getTranslation(key) || key;
     }
+    
+    // 强制应用字体设置到所有元素
+    forceFontApplication() {
+        // 获取保存的字体设置
+        const savedSettings = localStorage.getItem('visualSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                
+                // 获取字体设置
+                const chineseFont = settings.chinese_font || '"Microsoft YaHei", sans-serif';
+                
+                // 只应用字体家族到所有元素，字体大小让子元素继承
+                const allElements = document.querySelectorAll('*');
+                allElements.forEach(element => {
+                    // 只应用字体家族
+                    element.style.fontFamily = chineseFont;
+                });
+                
+                console.log('Font family force applied to all elements');
+            } catch (error) {
+                console.error('解析字体设置失败:', error);
+            }
+        }
+    }
 }
 
 // 初始化语言管理器
 let languageManager;
 
-document.addEventListener('DOMContentLoaded', () => {
-    languageManager = new LanguageManager();
-    
-    // 添加语言切换器到页面（如果不存在）
-    if (!document.querySelector('.language-switcher')) {
-        const languageSwitcher = document.createElement('div');
-        languageSwitcher.className = 'language-switcher';
-        languageSwitcher.innerHTML = `
-            <button data-language="en" class="lang-btn ${localStorage.getItem('language') === 'en' ? 'active' : ''}">EN</button>
-            <button data-language="zh" class="lang-btn ${localStorage.getItem('language') === 'zh' ? 'active' : ''}">中文</button>
-        `;
+// 确保在main.js加载后初始化语言管理器
+function initLanguageManager() {
+    if (typeof window.languageManager === 'undefined') {
+        languageManager = new LanguageManager();
         
-        const header = document.querySelector('header');
-        if (header) {
-            header.appendChild(languageSwitcher);
-        } else {
-            document.body.insertBefore(languageSwitcher, document.body.firstChild);
-        }
-    }
-});
-
-// 导出语言管理器供其他脚本使用
-window.languageManager = languageManager;
-    
-    // 加载保存的语言设置
-    loadSavedLanguage() {
-        const saved = localStorage.getItem('userLanguage');
-        if (saved && (saved === 'zh' || saved === 'en')) {
-            this.currentLang = saved;
-        }
-        
-        // 更新语言选择按钮
-        const langRadios = document.querySelectorAll('input[name="language"]');
-        langRadios.forEach(radio => {
-            radio.checked = radio.value === this.currentLang;
-        });
-    },
-    
-    // 切换语言
-    switchLanguage(lang) {
-        if (lang !== 'zh' && lang !== 'en') return;
-        
-        this.currentLang = lang;
-        localStorage.setItem('userLanguage', lang);
-        
-        // 更新所有语言选择按钮
-        document.querySelectorAll('input[name="language"]').forEach(radio => {
-            radio.checked = radio.value === lang;
-        });
-        
-        this.applyLanguage();
-        
-        // 保存到服务器（如果已登录）
-        this.saveLanguageToServer();
-        
-        showNotification(
-            this.getTranslation('languageChanged', lang === 'zh' ? '语言已切换' : 'Language changed'),
-            'success'
-        );
-    },
-    
-    // 应用语言到界面
-    applyLanguage() {
-        // 设置HTML语言属性
-        document.documentElement.lang = this.currentLang;
-        
-        // 更新页面标题
-        document.title = this.getTranslation('appName');
-        
-        // 更新所有可翻译的元素
-        this.updateAllElements();
-        
-        // 更新语言选择按钮的文本
-        this.updateLanguageButtons();
-    },
-    
-    getTranslation(key) {
-        return translations?.[key] || key;
-    }
-    
-    // 导出函数供其他模块使用
-    window.translationService = {
-        loadTranslations,
-        getTranslation,
-        currentLang: () => currentLang
-    };
-    
-    // 更新所有界面元素
-    updateAllElements() {
-        // 1. 更新导航栏
-        this.updateNavigation();
-        
-        // 2. 更新登录/注册页面
-        this.updateAuthPages();
-        
-        // 3. 更新论文解读页面
-        this.updateInterpretationPage();
-        
-        // 4. 更新设置页面
-        this.updateSettingsPage();
-        
-        // 5. 更新页脚
-        this.updateFooter();
-        
-        // 6. 更新模态框
-        this.updateModals();
-    },
-    
-    // 更新导航栏
-    updateNavigation() {
-        // 网站标题
-        const logo = document.querySelector('.logo');
-        if (logo) logo.textContent = 'ANSAPRA';
-        
-        const tagline = document.querySelector('.tagline');
-        if (tagline) tagline.textContent = this.getTranslation('appName').split(' - ')[1] || '';
-        
-        // 导航链接
-        const navLinks = document.querySelectorAll('.nav-link');
-        const navTexts = ['websiteIntro', 'usageInstructions', 'paperInterpretation', 'userSettings'];
-        navLinks.forEach((link, index) => {
-            if (index < navTexts.length) {
-                link.textContent = this.getTranslation(navTexts[index]);
-            }
-        });
-        
-        // 用户信息
-        const logoutBtn = document.querySelector('.user-info .btn-small');
-        if (logoutBtn) logoutBtn.textContent = this.getTranslation('logout');
-    },
-    
-    // 更新登录/注册页面
-    updateAuthPages() {
-        // 标签页按钮
-        const tabBtns = document.querySelectorAll('.auth-tabs .tab-btn');
-        const tabTexts = ['login', 'register', 'guest'];
-        tabBtns.forEach((btn, index) => {
-            if (index < tabTexts.length) {
-                btn.textContent = this.getTranslation(tabTexts[index]);
-            }
-        });
-        
-        // 登录页面
-        const loginTitle = document.querySelector('#login-tab h3');
-        if (loginTitle) loginTitle.textContent = this.getTranslation('loginToAnsapra');
-        
-        const loginLabels = document.querySelectorAll('#login-form label');
-        loginLabels.forEach((label, index) => {
-            if (index === 0) label.textContent = this.getTranslation('email');
-            else if (index === 1) label.textContent = this.getTranslation('password');
-        });
-        
-        const loginBtn = document.querySelector('#login-form button');
-        if (loginBtn) loginBtn.textContent = this.getTranslation('login');
-        
-        // 注册页面
-        const registerTitle = document.querySelector('#register-tab h3');
-        if (registerTitle) registerTitle.textContent = this.getTranslation('registerAnsapraAccount');
-        
-        const registerLabels = document.querySelectorAll('#register-form label');
-        registerLabels.forEach((label, index) => {
-            const texts = ['email', 'username', 'password', 'confirmPassword'];
-            if (index < texts.length) {
-                label.textContent = this.getTranslation(texts[index]);
-            }
-        });
-        
-        const registerBtn = document.querySelector('#register-form button');
-        if (registerBtn) registerBtn.textContent = this.getTranslation('register');
-        
-        // 游客页面
-        const guestTitle = document.querySelector('#guest-tab h3');
-        if (guestTitle) guestTitle.textContent = this.getTranslation('guestExperience');
-        
-        const guestText = document.querySelector('#guest-tab p');
-        if (guestText) guestText.textContent = this.currentLang === 'zh' ? 
-            '以游客身份体验基本功能，部分功能可能受限。' : 
-            'Experience basic features as a guest, some functions may be limited.';
-        
-        const guestBtn = document.querySelector('#guest-tab button');
-        if (guestBtn) guestBtn.textContent = this.getTranslation('startExperience');
-    },
-    
-    // 更新论文解读页面
-    updateInterpretationPage() {
-        // 页面标题
-        const pageTitles = document.querySelectorAll('.page-header h2');
-        pageTitles.forEach(title => {
-            if (title.textContent.includes('论文解读')) {
-                title.textContent = this.getTranslation('paperInterpretation');
-            }
-        });
-        
-        // 上传区域
-        const uploadTitle = document.querySelector('.upload-box h3');
-        if (uploadTitle) uploadTitle.textContent = this.getTranslation('uploadPaper');
-        
-        const uploadText = document.querySelector('.upload-box p');
-        if (uploadText) {
-            uploadText.textContent = this.currentLang === 'zh' ? 
-                '支持PDF、DOCX、TXT格式，最大16MB' : 
-                'Supports PDF, DOCX, TXT formats, max 16MB';
-        }
-        
-        const uploadBtn = document.querySelector('.upload-box button');
-        if (uploadBtn) uploadBtn.textContent = this.currentLang === 'zh' ? '选择文件' : 'Choose File';
-        
-        // 文本输入区域
-        const textInputTitle = document.querySelector('.text-input-section h3');
-        if (textInputTitle) textInputTitle.textContent = this.getTranslation('orInputText');
-        
-        const textarea = document.querySelector('#paper-text');
-        if (textarea) {
-            textarea.placeholder = this.currentLang === 'zh' ? 
-                '粘贴论文摘要或关键段落...' : 
-                'Paste paper abstract or key paragraphs...';
-        }
-        
-        // 操作按钮
-        const startBtn = document.querySelector('.action-buttons .btn-large');
-        if (startBtn) {
-            startBtn.innerHTML = `<i class="fas fa-play"></i> ${this.getTranslation('startInterpretation')}`;
-        }
-        
-        const clearBtn = document.querySelector('.action-buttons .btn-secondary');
-        if (clearBtn) {
-            clearBtn.innerHTML = `<i class="fas fa-trash"></i> ${this.getTranslation('clear')}`;
-        }
-        
-        // 结果区域
-        const resultsTitle = document.querySelector('.results-header h3');
-        if (resultsTitle) resultsTitle.textContent = this.getTranslation('interpretationResults');
-        
-        const downloadBtn = document.querySelector('.result-actions button:nth-child(1)');
-        if (downloadBtn) downloadBtn.innerHTML = `<i class="fas fa-download"></i> ${this.getTranslation('download')}`;
-        
-        const saveBtn = document.querySelector('.result-actions button:nth-child(2)');
-        if (saveBtn) saveBtn.innerHTML = `<i class="fas fa-save"></i> ${this.getTranslation('save')}`;
-        
-        const originalTitle = document.querySelector('.original-paper h4');
-        if (originalTitle) originalTitle.textContent = this.getTranslation('originalContent');
-        
-        const aiTitle = document.querySelector('.interpretation-result h4');
-        if (aiTitle) aiTitle.textContent = this.getTranslation('aiInterpretation');
-        
-        const relatedTitle = document.querySelector('.recommendations-section h4');
-        if (relatedTitle) {
-            relatedTitle.innerHTML = `<i class="fas fa-book"></i> ${this.getTranslation('relatedPapers')}`;
-        }
-    },
-    
-    // 更新设置页面
-    updateSettingsPage() {
-        // 页面标题
-        const settingsTitle = document.querySelector('#settings-page .page-header h2');
-        if (settingsTitle) settingsTitle.textContent = this.getTranslation('userSettings');
-        
-        // 标签页
-        const tabBtns = document.querySelectorAll('.settings-tab');
-        const tabTexts = ['readingPreferences', 'visualSettings', 'languageSettings', 'accountSettings'];
-        tabBtns.forEach((btn, index) => {
-            if (index < tabTexts.length) {
-                btn.textContent = this.getTranslation(tabTexts[index]);
-            }
-        });
-        
-        // 语言设置页面
-        const languageLabel = document.querySelector('#language-settings label');
-        if (languageLabel) languageLabel.textContent = this.getTranslation('interfaceLanguage');
-        
-        const languageSpans = document.querySelectorAll('#language-settings .radio-label span');
-        languageSpans.forEach((span, index) => {
-            if (index === 0) span.textContent = this.getTranslation('chinese');
-            else if (index === 1) span.textContent = this.getTranslation('english');
-        });
-        
-        const applyBtn = document.querySelector('#language-settings .btn-primary');
-        if (applyBtn) {
-            applyBtn.innerHTML = `<i class="fas fa-check"></i> ${this.getTranslation('applyLanguage')}`;
-        }
-        
-        const helpText = document.querySelector('#language-settings .help-text');
-        if (helpText) {
-            helpText.textContent = this.currentLang === 'zh' ? 
-                '点击应用按钮立即切换界面语言' : 
-                'Click apply button to switch interface language immediately';
-        }
-        
-        // 保存和重置按钮
-        const saveBtn = document.querySelector('.settings-actions .btn-primary');
-        if (saveBtn) saveBtn.innerHTML = `<i class="fas fa-save"></i> ${this.getTranslation('saveSettings')}`;
-        
-        const resetBtn = document.querySelector('.settings-actions .btn-secondary');
-        if (resetBtn) resetBtn.innerHTML = `<i class="fas fa-undo"></i> ${this.getTranslation('resetToDefault')}`;
-        
-        // 账户设置
-        const deleteBtn = document.querySelector('#account-settings .btn-danger');
-        if (deleteBtn) deleteBtn.innerHTML = `<i class="fas fa-trash"></i> ${this.getTranslation('deleteAccount')}`;
-        
-        const warningText = document.querySelector('#account-settings .warning-text');
-        if (warningText) {
-            warningText.textContent = this.currentLang === 'zh' ? 
-                '注意：删除账户将永久清除所有数据，包括解读历史和个性化设置。' : 
-                'Note: Deleting account will permanently remove all data, including interpretation history and personalized settings.';
-        }
-    },
-    
-    // 更新页脚
-    updateFooter() {
-        const footerLinks = document.querySelectorAll('.footer-link');
-        const linkTexts = ['contactUs', 'copyrightNotice', 'termsOfService', 'privacyPolicy', 'cookiePolicy'];
-        footerLinks.forEach((link, index) => {
-            if (index < linkTexts.length) {
-                link.textContent = this.getTranslation(linkTexts[index]);
-            }
-        });
-        
-        const copyrightTexts = document.querySelectorAll('.footer-copyright p');
-        if (copyrightTexts.length >= 2) {
-            copyrightTexts[1].textContent = this.getTranslation('developedBy');
-        }
-    },
-    
-    // 更新模态框
-    updateModals() {
-        // 这个函数可以在模态框打开时动态更新
-        // 模态框内容通常是动态生成的，所以在这里不预先更新
-    },
-    
-    // 更新语言选择按钮
-    updateLanguageButtons() {
-        // 更新所有语言选择按钮的显示文本
-        const labels = document.querySelectorAll('.radio-label span');
-        labels.forEach(label => {
-            if (label.textContent === '中文' || label.textContent === 'Chinese') {
-                label.textContent = this.getTranslation('chinese');
-            } else if (label.textContent === 'English' || label.textContent === '英文') {
-                label.textContent = this.getTranslation('english');
-            }
-        });
-    },
-    
-    // 设置事件监听器
-    setupEventListeners() {
-        // 监听语言选择变化
-        document.addEventListener('change', (e) => {
-            if (e.target.name === 'language') {
-                this.switchLanguage(e.target.value);
-            }
-        });
-        
-        // 监听语言应用按钮点击
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#language-settings .btn-primary')) {
-                const selectedLang = document.querySelector('input[name="language"]:checked');
-                if (selectedLang) {
-                    this.switchLanguage(selectedLang.value);
+        // 添加语言切换器到页面（如果不存在）
+        if (!document.querySelector('.language-switcher')) {
+            const languageSwitcher = document.createElement('div');
+            languageSwitcher.className = 'language-switcher';
+            languageSwitcher.style.cssText = 'display: flex; gap: 10px; margin-left: 20px;';
+            languageSwitcher.innerHTML = `
+                <button data-language="en" class="lang-btn ${localStorage.getItem('language') === 'en' ? 'active' : ''}" style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer;">English</button>
+                <button data-language="zh" class="lang-btn ${localStorage.getItem('language') === 'zh' ? 'active' : ''}" style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer;">中文</button>
+            `;
+            
+            const headerContent = document.querySelector('.header-content');
+            if (headerContent) {
+                headerContent.appendChild(languageSwitcher);
+            } else {
+                const header = document.querySelector('header');
+                if (header) {
+                    header.appendChild(languageSwitcher);
+                } else {
+                    document.body.insertBefore(languageSwitcher, document.body.firstChild);
                 }
             }
-        });
-    },
-    
-    // 保存语言设置到服务器
-    async saveLanguageToServer() {
-        if (!AppState.user || AppState.user.is_guest) return;
-        
-        try {
-            // 获取当前设置
-            const response = await fetch('/api/user/settings');
-            const data = await response.json();
-            
-            if (data.success && data.settings) {
-                const newSettings = {
-                    ...data.settings,
-                    language: this.currentLang
-                };
-                
-                // 保存到服务器
-                await fetch('/api/user/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ settings: newSettings })
-                });
-            }
-        } catch (error) {
-            console.error('Failed to save language to server:', error);
         }
+        
+        // 导出语言管理器供其他脚本使用
+        window.languageManager = languageManager;
+        console.log('Language manager initialized');
     }
-};
+}
 
-// 初始化语言管理器
-document.addEventListener('DOMContentLoaded', async () => {
-    // 从 localStorage 或浏览器设置获取首选语言
-    const savedLang = localStorage.getItem('preferredLanguage');
-    const browserLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
-    const initialLang = savedLang || browserLang;
-    
-    await loadTranslations(initialLang);
-    
-    // 设置语言切换按钮事件
-    document.getElementById('lang-en')?.addEventListener('click', () => loadTranslations('en'));
-    document.getElementById('lang-zh')?.addEventListener('click', () => loadTranslations('zh'));
-});
+// 当DOM加载完成后初始化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLanguageManager);
+} else {
+    initLanguageManager();
+}
+
+// 导出初始化函数供其他脚本调用
+window.initLanguageManager = initLanguageManager;
