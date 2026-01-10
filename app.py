@@ -1,6 +1,7 @@
 import os
 import json
 import tempfile
+import traceback
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_cors import CORS
@@ -11,7 +12,6 @@ import uuid
 import logging
 import time
 import io
-from functools import wraps
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -32,15 +32,6 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 # 用户数据文件路径
 USERS_FILE = 'data/users.json'
-
-def require_login(f):
-    """登录验证装饰器"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_email' not in session:
-            return jsonify({'success': False, 'message': '请先登录'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
 
 def load_users():
     """加载用户数据"""
@@ -81,7 +72,7 @@ def create_user(email, username, password, questionnaire=None):
                 'time': 'B',
                 'style': 'C',
                 'depth': 'B',
-                'test_type': 'B',
+                'test_type': ['B'],
                 'chart_types': ['A']
             },
             'visual': {
@@ -100,84 +91,6 @@ def create_user(email, username, password, questionnaire=None):
     users[email] = user_data
     save_users(users)
     return True, user_data
-
-@app.route('/api/user/profile', methods=['GET'])
-@require_login
-def get_user_profile():
-    """获取用户完整信息，包括问卷数据"""
-    try:
-        user_email = session.get('user_email')
-        if not user_email:
-            return jsonify({'success': False, 'message': '用户未登录'}), 401
-        
-        users = load_users()
-        if user_email in users:
-            user = users[user_email]
-            return jsonify({
-                'success': True,
-                'user': {
-                    'email': user['email'],
-                    'username': user['username'],
-                    'settings': user.get('settings', {}),
-                    'questionnaire': user.get('questionnaire', {})
-                }
-            })
-        else:
-            return jsonify({'success': False, 'message': '用户不存在'}), 404
-            
-    except Exception as e:
-        logger.error(f"获取用户信息失败: {e}")
-        return jsonify({'success': False, 'message': '获取用户信息失败'}), 500
-
-@app.route('/api/user/reading-settings', methods=['GET'])
-@require_login
-def get_reading_settings():
-    """获取用户阅读设置"""
-    try:
-        user_email = session.get('user_email')
-        users = load_users()
-        
-        if user_email in users:
-            settings = users[user_email].get('settings', {})
-            reading_settings = settings.get('reading', {})
-            
-            return jsonify({
-                'success': True,
-                'settings': {
-                    'reading': reading_settings
-                }
-            })
-        else:
-            return jsonify({'success': False, 'message': '用户不存在'}), 404
-            
-    except Exception as e:
-        logger.error(f"获取阅读设置失败: {e}")
-        return jsonify({'success': False, 'message': '获取设置失败'}), 500
-
-@app.route('/api/user/visual-settings', methods=['GET'])
-@require_login
-def get_visual_settings():
-    """获取用户视觉设置"""
-    try:
-        user_email = session.get('user_email')
-        users = load_users()
-        
-        if user_email in users:
-            settings = users[user_email].get('settings', {})
-            visual_settings = settings.get('visual', {})
-            
-            return jsonify({
-                'success': True,
-                'settings': {
-                    'visual': visual_settings
-                }
-            })
-        else:
-            return jsonify({'success': False, 'message': '用户不存在'}), 404
-            
-    except Exception as e:
-        logger.error(f"获取视觉设置失败: {e}")
-        return jsonify({'success': False, 'message': '获取设置失败'}), 500
 
 def update_user_settings(email, settings):
     """更新用户设置"""
@@ -245,8 +158,14 @@ def extract_text_from_pdf_advanced(file_bytes):
                     if page_text and page_text.strip():
                         # 检查提取的文本是否包含可读字符（非乱码）
                         readable_chars = sum(1 for c in page_text if c.isprintable() or c.isspace())
-                        if readable_chars / len(page_text) > 0.7:  # 70%以上是可读字符
-                            text_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                        if readable_chars / len(page_text) > 0.3:  # 降低阈值，从0.7改为0.3
+                            # 过滤可能的元数据
+                            filtered_text = filter_pdf_metadata(page_text)
+                            if filtered_text and filtered_text.strip():
+                                text_content += f"第{page_num+1}页:\n{filtered_text}\n\n"
+                            # 如果过滤后为空，使用原始文本
+                            elif page_text.strip():
+                                text_content += f"第{page_num+1}页:\n{page_text}\n\n"
                 except Exception as page_error:
                     continue
             
@@ -273,7 +192,13 @@ def extract_text_from_pdf_advanced(file_bytes):
                         page_text = page.extract_text()
                         
                         if page_text and page_text.strip():
-                            text_content += f"第{page_num+1}页:\n{page_text}\n\n"
+                            # 过滤可能的元数据
+                            filtered_text = filter_pdf_metadata(page_text)
+                            if filtered_text and filtered_text.strip():
+                                text_content += f"第{page_num+1}页:\n{filtered_text}\n\n"
+                            # 如果过滤后为空，使用原始文本
+                            elif page_text.strip():
+                                text_content += f"第{page_num+1}页:\n{page_text}\n\n"
                     except:
                         continue
             
@@ -294,6 +219,11 @@ def extract_text_from_pdf_advanced(file_bytes):
             
             try:
                 text_content = pdfminer_extract_text(pdf_file)
+                # 过滤可能的元数据
+                filtered_text = filter_pdf_metadata(text_content)
+                if filtered_text and filtered_text.strip():
+                    text_content = filtered_text
+                # 如果过滤后为空，使用原始文本
             except PDFSyntaxError:
                 # 可能不是标准PDF，尝试其他方法
                 text_content = ""
@@ -325,6 +255,86 @@ PDF文件解析失败，可能是以下原因：
     except Exception as e:
         logger.error(f"PDF解析过程中发生未知错误: {e}")
         return False, f"PDF解析失败: {str(e)}"
+
+def filter_pdf_metadata(text):
+    """
+    过滤PDF中的元数据和无用信息
+    返回：过滤后的纯文本内容
+    """
+    if not text:
+        return ""
+    
+    # 扩展元数据关键词列表
+    metadata_keywords = [
+        'Metadata', 'Creator', 'Producer', 'CreationDate', 'ModDate',
+        'Author', 'Title', 'Subject', 'Keywords', 'PDF', 'Version',
+        'Page', 'Pages', 'Document', 'File', 'Software',
+        'Generated by', 'Created by', 'Produced by', 'Written by',
+        'File:', 'Title:', 'Subject:', 'Keywords:', 'Author:',
+        'Creator:', 'Producer:', 'CreationDate:', 'ModDate:',
+        'PDF-', 'xref', 'trailer', 'startxref', 'obj', 'endobj',
+        'stream', 'endstream', 'xref', 'catalog', 'pages', 'page',
+        'font', 'fonts', 'xref', 'trailer', 'startxref', 'obj', 'endobj',
+        'stream', 'endstream', 'xref', 'catalog', 'pages', 'page',
+        'font', 'fonts', 'xref', 'trailer', 'startxref', 'obj', 'endobj'
+    ]
+    
+    # 分割文本为行
+    lines = text.split('\n')
+    filtered_lines = []
+    
+    for line in lines:
+        stripped_line = line.strip()
+        
+        # 跳过空行
+        if not stripped_line:
+            continue
+        
+        # 跳过元数据行
+        is_metadata = False
+        for keyword in metadata_keywords:
+            if keyword.lower() in stripped_line.lower():
+                # 对于某些关键词，即使长度超过100也可能是元数据
+                if len(stripped_line) < 200 or keyword in ['PDF-', 'xref', 'trailer', 'startxref', 'obj', 'endobj', 'stream', 'endstream']:
+                    is_metadata = True
+                    break
+        
+        if is_metadata:
+            continue
+        
+        # 跳过看起来像页码的行
+        if stripped_line.isdigit() and len(stripped_line) <= 3:
+            continue
+        
+        # 跳过包含过多特殊字符的行（可能是乱码）
+        special_chars = sum(1 for c in stripped_line if not c.isalnum() and not c.isspace() and c not in ',.!?;:()[]{}<>"\'')
+        if special_chars / len(stripped_line) > 0.5:
+            continue
+        
+        # 跳过看起来像PDF内部结构的行
+        if stripped_line.startswith('%') and len(stripped_line) < 50:
+            continue
+        
+        # 保留有用的文本行
+        filtered_lines.append(line)
+    
+    # 重新组合文本
+    filtered_text = '\n'.join(filtered_lines)
+    
+    # 进一步清理：移除重复的空白行
+    while '\n\n\n' in filtered_text:
+        filtered_text = filtered_text.replace('\n\n\n', '\n\n')
+    
+    # 清理首尾空白
+    filtered_text = filtered_text.strip()
+    
+    # 如果过滤后文本太短，可能是过滤过度，返回原始文本
+    if len(filtered_text) < 100 and len(text) > 100:
+        logger.warning("过滤后文本过短，可能是过滤过度")
+        # 尝试更宽松的过滤
+        return text.strip()
+    
+    return filtered_text
 
 def is_pdf_scanned(file_bytes):
     """简单判断PDF是否为扫描件"""
@@ -363,15 +373,11 @@ def is_pdf_scanned(file_bytes):
     except Exception as e:
         return True, f"PDF检查失败: {str(e)}"
 
-def call_deepseek_api(user_data, paper_content, user_settings, history, questionnaire=None, chat_history=None):
+def call_deepseek_api(user_data, paper_content, user_settings, history, questionnaire=None, chat_history=None, language='zh'):
     """调用DeepSeek API，根据用户画像、历史记录和问卷数据生成个性化解读"""
     if not DEEPSEEK_API_KEY:
         raise ValueError("DeepSeek API Key not configured")
     
-    # 限制paper_content长度，防止API超时
-    max_content_length = 5000
-    if len(paper_content) > max_content_length:
-        paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
     
     # 获取用户问卷数据
     if questionnaire is None and user_data:
@@ -381,12 +387,14 @@ def call_deepseek_api(user_data, paper_content, user_settings, history, question
     profile_analysis = analyze_user_profile(user_data) if user_data else {}
     
     # 构建详细提示词
-    language = user_settings.get('language', 'zh') if user_settings else 'zh'
+    # 优先使用传入的language参数，如果没有则从user_settings中获取
+    if not language:
+        language = user_settings.get('language', 'zh') if user_settings else 'zh'
     
     if language == 'en':
-        system_prompt = """You are a professional natural science paper interpretation assistant, specially designed to help high school students understand academic papers. Please generate paper interpretations according to the user's personalized needs."""
+        system_prompt = """You are a professional natural science paper interpretation assistant, specially designed to help high school students understand academic papers. Please generate paper interpretations according to the user's personalized needs. If the uploaded content cannot be interpreted (e.g., PDF parsing error), please output 'PDF解析出错，请换一篇论文哦'."""
     else:
-        system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化需求生成论文解读。"""
+        system_prompt = """你是一位专业的自然科学论文解读助手，专门帮助高中生理解学术论文。请根据用户的个性化需求生成论文解读。如果上传内容无法解读（例如PDF解析错误），请输出'PDF解析出错，请换一篇论文哦'。"""
     
     # 获取阅读习惯设置
     reading_settings = user_settings.get('reading', {}) if user_settings else {}
@@ -404,85 +412,115 @@ Reading Habits Settings:
    - Effect: Higher preparation level → remove basic term explanations, only explain difficult terms
 
 2. Reading Purpose: {reading_settings.get('purpose', 'B')}
-   - A: Goal-oriented (task completion) → focus on core concepts and key points
-   - B: Knowledge explorer (interest-driven) → connect with related knowledge and practical examples
-   - C: Deep learner (in-depth understanding) → focus on cutting-edge technology and detailed analysis
-   - D: Scientific literacy builder → focus on scientific literacy and perception development
+   - A: Goal-oriented: Reading for specific tasks (homework, competitions), pursuing efficiency and directness
+     * Focus on article concepts and core knowledge points in interpretation
+   - B: Knowledge explorer: Driven by subject interest, wants to broaden knowledge, not急于求成, not pursuing in-depth understanding
+     * Connect with related knowledge within the discipline and practical application examples in interpretation
+   - C: Deep learner: For in-depth understanding and research in a field, values research methods and applications beyond paper knowledge
+     * Focus on the most cutting-edge technology parts of the paper, interpret thoroughly and in detail
+   - D: Scientific literacy builder: Hopes to improve personal scientific literacy and overall scientific perception through paper interpretation
+     * Focus on cultivating user's scientific literacy and scientific perception ability in interpretation
 
 3. Reading Time Preference: {reading_settings.get('time', 'B')}
-   - A: Within 10 minutes → shorter, concise interpretation
-   - B: 10-30 minutes → moderate length and detail
-   - C: 30+ minutes → longer, more detailed interpretation
+   - A: Within 10 minutes
+     * Shorter, more concise interpretation
+   - B: 10-30 minutes
+     * Moderate length and detail
+   - C: 30 minutes or more
+     * Longer, more detailed interpretation
 
-4. Interpretation Style: {reading_settings.get('style', 'C')}
-   - A: Vivid and figurative, using everyday language and analogies
-   - B: Quantitative interpretation, emphasizing data and formulas
-   - C: Professional interpretation, formal and rigorous language
-   - D: Authentic style, preserving original academic expression
-   - E: Step-by-step derivation, teaching through questions and interaction
+4. Preferred Interpretation Style: {reading_settings.get('style', 'C')}
+   - A: Vivid and figurative, language is colloquial, can connect with the simplest examples and analogies in life to interpret papers
+     * Focus on colloquial expression and examples, analogies in interpretation
+   - B: Quantitative interpretation, try to interpret papers through data and formulas
+     * Connect more with formulas and data in the article in interpretation
+   - C: Professional interpretation, interpret papers through more formal language and professional rigorous expression, make slight adjustments to paper content
+     * Use rigorous expression in interpretation
+   - D: Authentic style, retain the original expression style and expression method of the original text, accept long and difficult sentences, professional terminology interpretation method
+     * Use high difficulty, high academic style similar to professional academic papers in interpretation
+   - E: Step-by-step derivation, through problem introduction, similar to classroom teaching method to gradually introduce knowledge, emphasize interactivity
+     * Use question method in interpretation, guide users like classroom teaching
 
-5. Interpretation Depth: {reading_settings.get('depth', 'B')}
-   - A: Concise summary (~1000 words for overview)
-   - B: Balanced detailed (~2000 words for overview)
-   - C: Detailed in-depth (~3000 words for overview)
+5. Preferred Interpretation Depth: {reading_settings.get('depth', 'B')}
+   - A: Concise summary
+     * Use about 1000 words for paper overview section
+   - B: Balanced detailed
+     * Use about 2000 words for paper overview section
+   - C: Detailed in-depth
+     * Use about 3000 words for paper overview section
 
-6. Post-reading Test Types: {reading_settings.get('test_type', ['A'])}
-   - A: Fill-in-the-blank questions for definitions
-   - B: Multiple-choice questions for error-prone concepts
-   - C: Formula and logic memorization questions
+6. Preferred Post-reading Test Content: {reading_settings.get('test_type', ['A'])}
+   - A: Related definition fill-in-the-blank questions
+   - B: Error-prone multiple-choice questions
+   - C: Formula logic dictation questions
 
-7. Preferred Chart Types: {reading_settings.get('chart_types', ['A'])}
+7. Preferred Chart Formats: {reading_settings.get('chart_types', ['A'])}
    - A: Mind maps (tree structure)
    - B: Flowcharts and logic diagrams
    - C: Tables
    - D: Statistical charts (line charts, bar charts, etc.)
 
-Please adjust your interpretation according to these settings.
+Please strictly adjust your interpretation according to these settings, especially the specific requirements for each option.
 """
         else:
             reading_habits_context = f"""
 阅读习惯设置：
-1. 准备程度：{reading_settings.get('preparation', 'B')}
+1. 阅读一篇专业自然科学论文之前，您会在论文所在领域知识方面做什么程度的准备？ {reading_settings.get('preparation', 'B')}
    - A：几乎不做准备
    - B：做一些准备
    - C：做较为深入的准备
    - 效果：准备程度越高 → 去除基础术语解释，只解释高难度术语
 
-2. 阅读原因：{reading_settings.get('purpose', 'B')}
-   - A：目标驱动者（完成任务）→ 专注于文章概念和核心知识点
-   - B：知识探索者（兴趣驱动）→ 多联系学科内部相关知识和实际应用举例
-   - C：深度学习者（深入理解）→ 侧重于最前沿最尖端的技术部分，解读透彻详细
-   - D：科学了解者（提升素养）→ 注重科学素养和科学感知能力的培养
+2. 您阅读自然科学论文的原因是？ {reading_settings.get('purpose', 'B')}
+   - A：目标驱动者: 为完成特定任务（如作业、比赛）而阅读，追求高效和直接
+     * 在论文解读过程中，专注于文章概念和核心知识点的解释
+   - B：知识探索者: 受学科兴趣驱动，希望拓宽知识面，不急于求成，不追求深入理解
+     * 在论文解读部分应多联系学科内部相关知识和实际应用举例
+   - C：深度学习者: 为了深入理解并研究某一领域知识，论文知识之外，同时重视研究方法和应用
+     * 在论文解读部分应当侧重于论文最前沿最尖端的技术部分，对论文解读透彻而详细
+   - D：科学了解者：希望通过论文解读提升个人科学素养和整体科学感知能力
+     * 在论文解读部分注重用户科学素养和科学感知能力的培养，解读内容侧重该部分
 
-3. 阅读时长偏好：{reading_settings.get('time', 'B')}
-   - A：10分钟内 → 解读简短、精炼
-   - B：10-30分钟内 → 长度适中、细节适当
-   - C：30分钟及以上 → 解读详细、内容全面
+3. 您愿意在多长时间内解读一篇自然科学论文？ {reading_settings.get('time', 'B')}
+   - A：10分钟内
+     * 解读简短、精炼
+   - B：10-30分钟内
+     * 长度适中、细节适当
+   - C：30分钟及以上
+     * 解读详细、内容全面
 
-4. 解读风格偏好：{reading_settings.get('style', 'C')}
-   - A：生动形象，语言偏口语化，联系生活中简单例子和类比
-   - B：量化解读，通过数据和公式解读论文
-   - C：专业解读，使用正式语言和专业严谨的表达
-   - D：原汁原味，保留原文的表达风格和表述方式
-   - E：逐步推导，通过问题引入，像课堂教学一样引导
+4. 您喜好的自然科学论文解读风格与方式是？ {reading_settings.get('style', 'C')}
+   - A：生动形象，语言偏口语化，能联系生活中最简单的例子和类比解读论文
+     * 在论文解读过程中，专注于口语化表达和举例、类比
+   - B：量化解读，尽量通过数据和公式解读论文
+     * 在论文解读部分应多联系文章中的公式和数据
+   - C：专业解读，通过较为正式的语言和专业严谨的表达解读论文，对论文内容稍作调整
+     * 采用严谨的表达
+   - D：原汁原味，保留原文的表达风格和表述方式，接受长难句、专业术语解读方式
+     * 在论文解读部分采用高难度、高学术性，类似于专业学术论文的风格进行解读
+   - E：逐步推导，通过问题引入的方式，类似于课堂教学的方式逐步介绍知识，强调互动性
+     * 在论文解读部分多采用疑问的方式，通过问题，像课堂一样引导教导用户
 
-5. 解读深度偏好：{reading_settings.get('depth', 'B')}
-   - A：简洁概括 → 论文概述部分约1000字
-   - B：平衡详细 → 论文概述部分约2000字
-   - C：详细深入 → 论文概述部分约3000字
+5. 您喜好的自然科学论文解读深度是？ {reading_settings.get('depth', 'B')}
+   - A：简洁概括
+     * 在论文解读的论文概述部分中，使用1000字左右概括
+   - B：平衡详细
+     * 在论文解读的论文概述部分中，使用2000字左右概括
+   - C：详细深入
+     * 在论文解读的论文概述部分中，使用3000字左右概括
 
-6. 读后自测类型：{reading_settings.get('test_type', ['A'])}
+6. 您希望读后自测部分包含哪些内容？（可多选） {reading_settings.get('test_type', ['A'])}
    - A：相关定义填空题
    - B：易错易混选择题
    - C：公式逻辑默写题
 
-7. 图表形式偏好：{reading_settings.get('chart_types', ['A'])}
+7. 您偏好的图表形式是？（可多选） {reading_settings.get('chart_types', ['A'])}
    - A：思维导图（树状）
    - B：流程图与逻辑图
    - C：表格
    - D：统计图（折线图、柱状图等）
 
-请根据以上设置调整您的解读。
+请严格根据以上设置调整您的解读，特别是每个选项的具体要求。确保解读内容与用户的阅读习惯设置完全匹配，以提供个性化的论文解读体验。
 """
     
     # 构建用户画像和历史记录描述
@@ -526,15 +564,16 @@ User Profile Analysis:
     # 构建完整的用户提示
     if language == 'en':
         user_prompt = f"""
-a) The user is a high school student who needs to interpret a natural science academic paper.
+a) The user is a high school student who needs to interpret a natural science academic paper
 b) The specific personalized interpretation settings, past reading data, personal natural science knowledge framework questionnaire, and the paper file for this interpretation have been transmitted. Please generate an interpretation that meets all personalized needs based on the user's input paper.
-c) To help improve the user's knowledge framework, focus on the weak points of the user's knowledge framework during interpretation, leverage the user's strengths in natural sciences, and focus on cultivating the user's interest in natural sciences.
+c) To help improve the user's knowledge framework, focus on the weak points of the user's knowledge framework during interpretation, leverage the user's strengths in natural sciences, and focus on cultivating the user's interest in natural sciences
 d) The user's past reading history, especially the subjects and keywords of papers, can help illustrate the user's reading interests and preferences.
-e) When interpreting, sentences should not be lengthy; they should be short and clear.
-f) Divide the interpretation content into logical sections with clear subtitles. The final output should be divided into: Paper Core Overview (Research Background and Purpose, Research Methods and Theory, Research Findings and Significance), Terminology Interpretation Section (adjust term explanation based on preparation level), Self-Assessment Questions (use specified test types), and Post-Reading Thinking Questions.
-g) Only interpret the paper content; no additional content needs to be generated.
-h) The generated interpretation must be in English.
-i) The interpretation must end with the reference: "Interpretation content generated by DeepSeek AI, for reference only."
+e) When interpreting, sentences should not be lengthy; they should be short and clear
+f) At the beginning of the interpretation content, please provide three paper-related keywords with both Chinese and English output.
+g) Divide the interpretation content into logical sections with clear subtitles. The final output should be divided into: Paper Core Overview (Research Background and Purpose, Research Methods and Theory, Research Findings and Significance), Terminology Interpretation Section (not brief, explain more high-difficulty terms), Self-Assessment Questions, and Post-Reading Thinking Questions
+h) Only interpret the paper content; no additional content needs to be generated
+i) The generated interpretation must be in English. (If the user's web language is set to Chinese, the interpretation output should be in Chinese)
+j) The interpretation must end with the reference: "Interpretation content generated by DeepSeek AI, for reference only."
 
 User Reading Habits:
 {reading_habits_context}
@@ -551,15 +590,16 @@ Please generate the interpretation:
 """
     else:
         user_prompt = f"""
-a) 用户是一位高中生，需要解读一篇自然科学学术论文。
+a) 用户是一位高中生，需要解读一篇自然科学学术论文
 b) 其具体个性化解读方式设置数据、过往阅读数据、个人自然科学知识框架问卷、本次解读的论文文件已经传送，请根据用户输入的论文，生成一篇符合所有个性化需求的解读内容。
-c) 为了帮助完善用户的知识框架，可以在解读时注重用户知识框架的薄弱点，并发挥用户在自然科学方面的长处，着重引导培养用户在自然科学方面的兴趣。
+c) 为了帮助完善用户的知识框架，可以在解读时注重用户知识框架的薄弱点，并发挥用户在自然科学方面的长处，着重引导培养用户在自然科学方面的兴趣
 d) 用户的过往阅读历史，尤其是论文的科目和关键词，可以帮助说明用户的阅读兴趣和阅读类型偏好。
-e) 解读时，句子不能冗长，要求简短、清晰。
-f) 尽可能逻辑清晰地分出小标题，有条理地分开解读内容的各部分。最终输出的内容要分为论文核心概述（研究背景与目的、研究方法与理论、研究发现与意义）、术语解读部分（根据准备程度调整术语解释难度）、自测小问题（使用指定的测试类型）、读后思考问题。
-g) 只进行论文内容的解读，不需要额外生成其他内容。
-h) 生成的解读内容需要是中文。
-i) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅供参考。
+e) 解读时，句子不能冗长， 要求简短、清晰
+f) 请在解读内容的开头提供三个论文相关的关键词，中英双语输出这些关键词。
+g) 尽可能逻辑清晰地分出小标题，有条理地分开解读内容的各部分。最终输出的内容要分为论文核心概述（研究背景与目的、研究方法与理论、研究发现与意义）、术语解读部分（不要简短，多解释一些高难度术语）、自测小问题、读后思考问题
+h) 只进行论文内容的解读，不需要额外生成其他内容
+i) 生成的解读内容需要是中文。（如果用户网页语言设置为英文，解读输出为英文）
+j) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅供参考
 
 用户阅读习惯：
 {reading_habits_context}
@@ -896,6 +936,7 @@ def interpret():
 
     file = request.files.get('file')
     text = request.form.get('text', '')
+    language = request.form.get('language', 'zh')  # 添加语言参数，默认为中文
 
     if not file and not text.strip():
         return jsonify({'success': False, 'message': '请上传文件或输入文本'}), 400
@@ -938,6 +979,8 @@ def interpret():
                 if success:
                     paper_content = result
                     logger.info(f"PDF解析成功，提取文本长度: {len(paper_content)}")
+                    # 记录提取的文本内容（前100个字符）
+                    logger.info(f"提取的文本内容（前100字符）: {paper_content[:100]}...")
                 else:
                     # 解析失败
                     logger.error(f"PDF解析失败: {result}")
@@ -1011,6 +1054,9 @@ def interpret():
         
         else:
             paper_content = text
+            logger.info(f"使用文本输入，长度: {len(paper_content)}")
+            # 记录输入的文本内容（前100个字符）
+            logger.info(f"输入的文本内容（前100字符）: {paper_content[:100]}...")
 
         # 记录文件信息
         if file_info:
@@ -1021,7 +1067,7 @@ def interpret():
             logger.warning(f"文件处理失败: {paper_content[:100]}")
             return jsonify({
                 'success': False, 
-                'message': paper_content,
+                'message': 'PDF解析出错，请换一篇论文哦',
                 'file_info': file_info,
                 'is_scanned': is_scanned_pdf
             }), 400
@@ -1030,16 +1076,12 @@ def interpret():
         if "扫描件PDF无法直接提取文字" in paper_content or "检测到可能是扫描件" in paper_content:
             return jsonify({
                 'success': False,
-                'message': paper_content,
+                'message': 'PDF解析出错，请换一篇论文哦',
                 'file_info': file_info,
                 'is_scanned': True,
                 'suggestion': '请上传可编辑的PDF或使用OCR工具转换扫描件'
             }), 400
 
-        # 限制文本长度，防止过长的请求
-        max_text_length = 5000  # 减少到5000字
-        if len(paper_content) > max_text_length:
-            paper_content = paper_content[:max_text_length] + "\n\n[注：文本过长，已截断部分内容]"
 
         if not paper_content or paper_content.strip() == "":
             return jsonify({
@@ -1053,18 +1095,23 @@ def interpret():
         history = user.get('reading_history', [])
 
         # 调用DeepSeek API
-        # 调用DeepSeek API
         try:
             start_time = time.time()
+            # 记录传递给API的内容
+            logger.info(f"准备调用DeepSeek API，paper_content长度: {len(paper_content)}")
+            logger.info(f"paper_content前100字符: {paper_content[:100]}...")
             # 传递问卷数据和用户设置
             interpretation = call_deepseek_api(
                 user, 
                 paper_content, 
                 user_settings, 
                 history,
-                questionnaire=user.get('questionnaire', {})
+                questionnaire=user.get('questionnaire', {}),
+                language=language  # 传递语言参数
             )
             logger.info(f"DeepSeek API调用完成，耗时: {time.time() - start_time:.2f}秒")
+            # 记录API返回的解读内容（前100个字符）
+            logger.info(f"API返回的解读内容（前100字符）: {interpretation[:100]}...")
         except Exception as api_error:
             logger.error(f"DeepSeek API调用失败: {api_error}")
             return jsonify({'success': False, 'message': f'AI处理失败: {str(api_error)}'}), 500
@@ -1113,6 +1160,8 @@ def chat_with_ai():
     data = request.json
     question = data.get('question', '').strip()
     chat_history = data.get('chat_history', [])
+    original_content = data.get('original_content', '')
+    interpretation = data.get('interpretation', '')
     
     if not question:
         return jsonify({'success': False, 'message': '问题不能为空'}), 400
@@ -1128,11 +1177,27 @@ def chat_with_ai():
         
         # 构建系统提示
         if language == 'en':
-            system_prompt = "You are a helpful assistant for high school students learning natural sciences. Answer questions clearly and concisely."
-            user_prompt = f"Question: {question}\n\nPlease provide a clear and helpful answer:"
+            system_prompt = "You are a helpful assistant for high school students learning natural sciences. Answer questions clearly and concisely. If the user is asking about a specific paper, use the provided paper content and interpretation to answer accurately."
+            if original_content or interpretation:
+                user_prompt = f"The user has uploaded a scientific paper and is asking questions about it.\n\n"
+                if original_content:
+                    user_prompt += f"Original paper content: {original_content[:1000]}...\n\n"
+                if interpretation:
+                    user_prompt += f"Paper interpretation: {interpretation[:1000]}...\n\n"
+                user_prompt += f"Question: {question}\n\nPlease provide a clear and helpful answer based on the paper content:"
+            else:
+                user_prompt = f"Question: {question}\n\nPlease provide a clear and helpful answer:"
         else:
-            system_prompt = "你是帮助高中生学习自然科学的助手。请清晰简洁地回答用户的问题。"
-            user_prompt = f"问题：{question}\n\n请提供清晰有用的回答："
+            system_prompt = "你是帮助高中生学习自然科学的助手。请清晰简洁地回答用户的问题。如果用户是在询问特定论文的问题，请使用提供的论文内容和解读来准确回答。"
+            if original_content or interpretation:
+                user_prompt = f"用户上传了一篇科学论文，并针对论文提出问题。\n\n"
+                if original_content:
+                    user_prompt += f"论文原文内容：{original_content[:1000]}...\n\n"
+                if interpretation:
+                    user_prompt += f"论文解读内容：{interpretation[:1000]}...\n\n"
+                user_prompt += f"问题：{question}\n\n请根据论文内容提供清晰有用的回答："
+            else:
+                user_prompt = f"问题：{question}\n\n请提供清晰有用的回答："
         
         # 构建消息
         messages = [{"role": "system", "content": system_prompt}]
@@ -1216,6 +1281,44 @@ def get_chat_history():
     
     return jsonify({'success': False, 'message': '用户不存在'}), 404
 
+@app.route('/api/user/questionnaire', methods=['GET', 'PUT'])
+def user_questionnaire():
+    """获取或更新用户问卷数据"""
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    email = session['user_email']
+    users = load_users()
+    
+    if request.method == 'GET':
+        # 获取问卷数据
+        if email in users:
+            questionnaire = users[email].get('questionnaire', {})
+            return jsonify({
+                'success': True,
+                'questionnaire': questionnaire
+            })
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    
+    elif request.method == 'PUT':
+        # 更新问卷数据
+        data = request.json
+        questionnaire = data.get('questionnaire', {})
+        
+        if email in users:
+            users[email]['questionnaire'] = questionnaire
+            save_users(users)
+            
+            # 重新分析用户画像
+            user_data = users[email]
+            profile_analysis = analyze_user_profile(user_data)
+            
+            return jsonify({
+                'success': True,
+                'message': '问卷更新成功',
+                'profile_analysis': profile_analysis
+            })
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
 
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
@@ -1253,6 +1356,22 @@ def check_auth():
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api/user/update-questionnaire', methods=['POST'])
+def update_questionnaire():
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
+    
+    data = request.json
+    questionnaire = data.get('questionnaire', {})
+    users = load_users()
+    
+    if session['user_email'] in users:
+        users[session['user_email']]['questionnaire'] = questionnaire
+        save_users(users)
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False, 'message': '用户不存在'}), 404
+
 @app.route('/api/user/profile', methods=['GET'])
 def get_user_profile():
     if 'user_email' not in session:
@@ -1287,62 +1406,192 @@ def get_translations():
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
 
-# 在 app.py 中添加缺失的路由
+@app.route('/api/generate-charts', methods=['POST'])
+def generate_charts():
+    """生成论文相关图表"""
+    if 'user_email' not in session:
+        return jsonify({'success': False, 'message': '未登录'}), 401
 
-@app.route('/api/get-questionnaire-template', methods=['GET'])
-def get_questionnaire_template():
-    """获取问卷模板"""
+    data = request.json
+    paper_content = data.get('paper_content', '')
+    chart_types = data.get('chart_types', ['A'])
+    language = data.get('language', 'zh')
+
+    if not paper_content:
+        return jsonify({'success': False, 'message': '请提供论文内容'}), 400
+
+    user = get_user_by_email(session['user_email'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+
     try:
-        # 这里可以返回问卷的HTML模板
-        # 或者从文件加载
+        # 获取用户设置
+        user_settings = user.get('settings', {})
+        
+        # 限制paper_content长度
+        max_content_length = 3000
+        if len(paper_content) > max_content_length:
+            paper_content = paper_content[:max_content_length] + "\n\n[注：内容过长，已截断部分内容]"
+        
+        # 为每种图表类型生成图表
+        charts = {}
+        
+        for chart_type in chart_types:
+            # 构建图表生成提示词
+            if language == 'en':
+                if chart_type == 'A':
+                    chart_prompt = f"""
+Based on the following paper content, generate a detailed mind map (tree structure) that organizes the main ideas, key concepts, and relationships in the paper.
+
+Paper content:
+{paper_content}
+
+Please generate markdown syntax code using mermaid syntax renderer for the mind map.
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+Please output only the markdown code with mermaid syntax, no other content.
+                    """
+                elif chart_type == 'B':
+                    chart_prompt = f"""
+Based on the following paper content, generate a detailed flowchart and logic diagram that shows the research process, methodology, and logical relationships in the paper.
+
+Paper content:
+{paper_content}
+
+Please generate markdown syntax code using mermaid syntax renderer for the flowchart and logic diagram.
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+Please output only the markdown code with mermaid syntax, no other content.
+                    """
+                elif chart_type == 'C':
+                    chart_prompt = f"""
+Based on the following paper content, generate a detailed table that summarizes the key data, results, and findings in the paper.
+
+Paper content:
+{paper_content}
+
+Please generate markdown syntax code for the table.
+要求生成markdown语法代码并返回。论文相关图表生成部分，请直接生成返回的markdown代码运行后的表格。
+
+Please output only the markdown table code, no other content.
+                    """
+                elif chart_type == 'D':
+                    chart_prompt = f"""
+Based on the following paper content, generate a detailed statistical chart data (such as line charts, bar charts, etc.) that visualizes the key data and results in the paper.
+
+Paper content:
+{paper_content}
+
+Please generate markdown syntax code using mermaid syntax renderer for the statistical charts.
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+Please output only the markdown code with mermaid syntax, no other content.
+                    """
+            else:
+                if chart_type == 'A':
+                    chart_prompt = f"""
+基于以下论文内容，生成一个详细的思维导图（树状结构），组织论文中的主要思想、关键概念和关系。
+
+论文内容：
+{paper_content}
+
+请生成使用mermaid语法渲染器的markdown语法代码来表示思维导图。
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+请仅输出带有mermaid语法的markdown代码，不要输出其他内容。
+                    """
+                elif chart_type == 'B':
+                    chart_prompt = f"""
+基于以下论文内容，生成一个详细的流程图和逻辑图，展示论文中的研究过程、方法论和逻辑关系。
+
+论文内容：
+{paper_content}
+
+请生成使用mermaid语法渲染器的markdown语法代码来表示流程图和逻辑图。
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+请仅输出带有mermaid语法的markdown代码，不要输出其他内容。
+                    """
+                elif chart_type == 'C':
+                    chart_prompt = f"""
+基于以下论文内容，生成一个详细的表格，总结论文中的关键数据、结果和发现。
+
+论文内容：
+{paper_content}
+
+请生成markdown语法代码来表示表格。
+要求生成markdown语法代码并返回。论文相关图表生成部分，请直接生成返回的markdown代码运行后的表格。
+
+请仅输出markdown表格代码，不要输出其他内容。
+                    """
+                elif chart_type == 'D':
+                    chart_prompt = f"""
+基于以下论文内容，生成详细的统计图表数据（如折线图、柱状图等），可视化论文中的关键数据和结果。
+
+论文内容：
+{paper_content}
+
+请生成使用mermaid语法渲染器的markdown语法代码来表示统计图表。
+要求生成markdown语法代码并返回。论文相关图表生成部分，请变成mermaid语法渲染器，直接生成返回的markdown代码运行后的图表。
+
+请仅输出带有mermaid语法的markdown代码，不要输出其他内容。
+                    """
+            
+            # 调用DeepSeek API生成图表数据
+            chart_data = call_deepseek_api_for_chart(chart_prompt, language)
+            charts[chart_type] = chart_data
+        
         return jsonify({
             'success': True,
-            'html': '问卷HTML内容'
+            'charts': charts
         })
-    except Exception as e:
-        logger.error(f"获取问卷模板失败: {e}")
-        return jsonify({'success': False, 'message': '获取问卷模板失败'}), 500
 
-@app.route('/api/user/update-questionnaire', methods=['POST'])
-@require_login
-def update_user_questionnaire():
-    """更新用户问卷数据"""
-    try:
-        user_email = session.get('user_email')
-        if not user_email:
-            return jsonify({'success': False, 'message': '用户未登录'}), 401
-        
-        data = request.get_json()
-        questionnaire = data.get('questionnaire', {})
-        
-        if not questionnaire:
-            return jsonify({'success': False, 'message': '问卷数据为空'}), 400
-        
-        # 验证问卷数据
-        required_fields = ['grade', 'education_system', 'learning_frequency']
-        for field in required_fields:
-            if field not in questionnaire:
-                return jsonify({'success': False, 'message': f'缺少必填字段: {field}'}), 400
-        
-        users = load_users()
-        if user_email in users:
-            users[user_email]['questionnaire'] = questionnaire
-            save_users(users)
-            
-            # 更新session中的用户数据
-            session['user_questionnaire'] = questionnaire
-            
-            return jsonify({
-                'success': True,
-                'message': '问卷更新成功'
-            })
-        else:
-            return jsonify({'success': False, 'message': '用户不存在'}), 404
-            
     except Exception as e:
-        logger.error(f"更新用户问卷失败: {e}")
-        return jsonify({'success': False, 'message': '更新失败'}), 500
+        logger.error(f"图表生成过程中发生错误: {str(e)}")
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': '图表生成过程中发生错误，请稍后重试'}), 500
 
+def call_deepseek_api_for_chart(prompt, language='zh'):
+    """调用DeepSeek API生成图表数据"""
+    if not DEEPSEEK_API_KEY:
+        raise ValueError("DeepSeek API Key not configured")
+    
+    if language == 'en':
+        system_prompt = """You are a professional chart generation assistant. Please generate clear, structured chart data based on the provided paper content."""
+    else:
+        system_prompt = """你是一位专业的图表生成助手。请根据提供的论文内容生成清晰、结构化的图表数据。"""
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
+    }
+    
+    data = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 2000,
+        "temperature": 0.3,
+        "top_p": 0.9
+    }
+    
+    response = requests.post(
+        DEEPSEEK_API_URL,
+        headers=headers,
+        json=data,
+        timeout=60
+    )
+    
+    if response.status_code != 200:
+        raise Exception(f"API request failed with status code {response.status_code}: {response.text}")
+    
+    result = response.json()
+    if not result.get('choices') or not result['choices'][0].get('message'):
+        raise Exception("Invalid API response format")
+    
+    return result['choices'][0]['message']['content']
 
 # 调试端点：详细分析PDF
 @app.route('/api/debug/pdf', methods=['POST'])
