@@ -148,6 +148,14 @@ class LanguageManager {
                     // 如果没有保存的中文字体设置，使用默认中文字体
                     document.body.style.fontFamily = "'Microsoft YaHei', sans-serif";
                 }
+                
+                // 应用自定义背景图片
+                if (settings.custom_background) {
+                    document.body.style.backgroundImage = `url(${settings.custom_background})`;
+                    document.body.style.backgroundSize = 'cover';
+                    document.body.style.backgroundAttachment = 'fixed';
+                    document.body.style.backgroundPosition = 'center';
+                }
             } catch (error) {
                 console.error('解析字体设置失败:', error);
                 // 解析失败时，使用默认中文字体
