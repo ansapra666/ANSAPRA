@@ -793,6 +793,18 @@ function loadSavedVisualSettings() {
     } else if (window.AppState && window.AppState.user && window.AppState.user.settings?.visual) {
         applyVisualSettings(window.AppState.user.settings.visual);
     }
+    
+    // 立即应用字体大小设置
+    const fontSize = document.getElementById('font-size-slider')?.value || '18';
+    const chineseFont = document.querySelector('input[name="chinese_font"]:checked')?.value || "'Microsoft YaHei', sans-serif";
+    
+    // 计算实际应用的字体大小（华文楷体大2px）
+    let actualFontSize = parseInt(fontSize);
+    if (chineseFont.includes('STKaiti') || chineseFont.includes('KaiTi')) {
+        actualFontSize += 2;
+    }
+    
+    document.body.style.fontSize = `${actualFontSize}px`;
 }
 
 // 应用视觉设置
@@ -1135,19 +1147,21 @@ async function saveSettings() {
             const message = window.languageManager ? window.languageManager.translate('settings.updated') : '设置保存成功';
             showNotification(message, 'success');
             
+            // 保存到本地存储
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+            
             // 应用新设置
             applySettings(settings);
             
-            // 重新加载设置，确保显示最新保存的选项
-            setTimeout(() => {
-                loadCurrentReadingSettings();
-                loadSavedVisualSettings();
-            }, 500);
+            // 直接更新表单元素，确保显示最新保存的选项
+            updateFormElementsWithSavedSettings(settings);
             
             // 显示设置应用效果说明
             showSettingsAppliedNotice(settings.reading);
         } else {
-            showNotification(data.message || '保存失败', 'error');
+            // 即使服务器保存失败，也保存到本地存储
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+            showNotification('设置已保存到本地', 'info');
         }
     } catch (error) {
         console.error('保存设置错误:', error);
@@ -1216,21 +1230,10 @@ async function updateQuestionnaire() {
 function showQuestionnaireModal() {
     const modalHTML = `
         <div class="modal" id="questionnaire-modal">
-            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3><i class="fas fa-clipboard-list"></i> 更新知识框架问卷</h3>
-                    <button onclick="closeQuestionnaireModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease;">&times;</button>
-                </div>
-                <div id="modal-questionnaire-container" style="max-height: 70vh; overflow-y: auto;">
+            <div class="modal-content" style="max-width: 95vw; max-height: 95vh; padding: 10px;">
+                <button onclick="closeQuestionnaireModal()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease; z-index: 10;">&times;</button>
+                <div id="modal-questionnaire-container" style="height: 90vh; overflow-y: auto;">
                     加载中...
-                </div>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" onclick="submitUpdatedQuestionnaire()">
-                        <i class="fas fa-save"></i> 保存更新
-                    </button>
-                    <button class="btn btn-secondary" onclick="closeQuestionnaireModal()" style="margin-left: 10px;">
-                        取消
-                    </button>
                 </div>
             </div>
         </div>
@@ -1250,6 +1253,21 @@ function loadQuestionnaireToModal() {
     if (container) {
         // 使用main.js中已经定义的loadFullQuestionnaire函数来加载问卷
         loadFullQuestionnaire(container);
+        
+        // 修改保存按钮的行为，使其调用submitUpdatedQuestionnaire函数
+        setTimeout(() => {
+            const saveButton = container.querySelector('.questionnaire-buttons .btn-primary');
+            if (saveButton) {
+                saveButton.onclick = submitUpdatedQuestionnaire;
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save Questionnaire';
+            }
+            
+            // 修改取消按钮的行为，使其调用closeQuestionnaireModal函数
+            const cancelButton = container.querySelector('.questionnaire-buttons .btn-secondary');
+            if (cancelButton) {
+                cancelButton.onclick = closeQuestionnaireModal;
+            }
+        }, 500);
     }
 }
 
@@ -1464,8 +1482,62 @@ document.addEventListener('DOMContentLoaded', function() {
       if (langRadio) langRadio.checked = true;
   }
 });
+// 直接更新表单元素，确保显示最新保存的设置
+function updateFormElementsWithSavedSettings(settings) {
+    if (!settings) return;
+    
+    // 更新阅读习惯设置
+    if (settings.reading) {
+        const readingForm = document.getElementById('reading-settings-form');
+        if (readingForm) {
+            // 更新单选按钮
+            const radioFields = ['preparation', 'purpose', 'time', 'style', 'depth'];
+            radioFields.forEach(field => {
+                const value = settings.reading[field];
+                if (value) {
+                    const radio = readingForm.querySelector(`input[name="${field}"][value="${value}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        console.log(`更新单选按钮 ${field} 为 ${value}`);
+                    }
+                }
+            });
+            
+            // 更新多选框
+            const checkboxFields = ['test_type', 'chart_types'];
+            checkboxFields.forEach(field => {
+                const values = settings.reading[field];
+                if (values && Array.isArray(values)) {
+                    const checkboxes = readingForm.querySelectorAll(`input[name="${field}"]`);
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = values.includes(checkbox.value);
+                        console.log(`更新复选框 ${field}[${checkbox.value}] 为 ${values.includes(checkbox.value)}`);
+                    });
+                }
+            });
+        }
+    }
+    
+    // 更新视觉设置
+    if (settings.visual) {
+        // 视觉设置已经有loadSavedVisualSettings函数处理
+        loadSavedVisualSettings();
+    }
+    
+    // 更新语言设置
+    if (settings.language) {
+        const languageRadios = document.querySelectorAll('input[name="language"]');
+        languageRadios.forEach(radio => {
+            if (radio.value === settings.language) {
+                radio.checked = true;
+            }
+        });
+    }
+}
+
 // 暴露函数到全局作用域
 window.saveSettings = saveSettings;
 window.resetSettings = resetSettings;
 window.deleteAccount = deleteAccount;
 window.removeBackground = removeBackground;
+window.updateFormElementsWithSavedSettings = updateFormElementsWithSavedSettings;
