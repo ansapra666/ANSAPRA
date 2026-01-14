@@ -6,11 +6,288 @@ const AppState = {
     language: 'zh',
     translations: {},
     chatHistory: [], // 新增：聊天历史
-    currentPDFUrl: null // 新增：当前PDF的URL
+    currentPDFUrl: null, // 新增：当前PDF的URL
+    currentInterpretation: null, // 新增：当前解读内容
+    currentChartsData: null, // 新增：当前图表数据
+    currentOriginalContent: null // 新增：当前原文内容
 };
 
 // DOM 元素
 let DOM = {};
+
+// 保存页面状态
+function savePageState(originalContent, interpretation, chartsData) {
+    try {
+        // 更新全局状态
+        AppState.currentOriginalContent = originalContent;
+        AppState.currentInterpretation = interpretation;
+        AppState.currentChartsData = chartsData;
+        
+        // 保存到localStorage
+        const pageState = {
+            originalContent: originalContent,
+            interpretation: interpretation,
+            chartsData: chartsData,
+            currentPDFUrl: AppState.currentPDFUrl,
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem('pageState', JSON.stringify(pageState));
+        console.log('页面状态已保存');
+    } catch (error) {
+        console.error('保存页面状态失败:', error);
+    }
+}
+
+// 加载页面状态
+function loadPageState() {
+    try {
+        const savedState = localStorage.getItem('pageState');
+        if (savedState) {
+            const pageState = JSON.parse(savedState);
+            
+            // 恢复全局状态
+            AppState.currentOriginalContent = pageState.originalContent;
+            AppState.currentInterpretation = pageState.interpretation;
+            AppState.currentChartsData = pageState.chartsData;
+            AppState.currentPDFUrl = pageState.currentPDFUrl;
+            
+            console.log('页面状态已加载');
+            return pageState;
+        }
+    } catch (error) {
+        console.error('加载页面状态失败:', error);
+    }
+    return null;
+}
+
+// 显示保存的页面状态
+function displaySavedPageState() {
+    try {
+        // 检查是否有保存的页面状态
+        if (AppState.currentOriginalContent && AppState.currentInterpretation) {
+            console.log('显示保存的页面状态');
+            
+            // 切换到解读页面
+            switchPage('interpretation');
+            
+            // 显示结果区域
+            DOM.resultsSection.style.display = 'block';
+            
+            // 填充原文内容
+            if (DOM.originalContent) {
+                DOM.originalContent.textContent = AppState.currentOriginalContent;
+            }
+            
+            // 填充解读内容
+            if (DOM.interpretationContent) {
+                DOM.interpretationContent.innerHTML = formatInterpretation(AppState.currentInterpretation);
+            }
+            
+            // 添加查看原文按钮（如果是PDF文件）
+            if (AppState.currentPDFUrl) {
+                addViewOriginalButton();
+            }
+            
+            // 添加全屏解读按钮
+            addFullScreenButton(AppState.currentOriginalContent, AppState.currentInterpretation);
+            
+            // 显示推荐论文搜索框
+            const recommendationsSection = document.querySelector('.recommendations-section');
+            if (recommendationsSection) {
+                recommendationsSection.style.display = 'block';
+            }
+            
+            // 显示保存的图表数据
+            const mindmapContainer = document.getElementById('mindmap-container');
+            if (mindmapContainer && AppState.currentChartsData) {
+                console.log('显示保存的图表数据');
+                // 清空容器
+                mindmapContainer.innerHTML = '';
+                
+                // 创建图表容器
+                const chartsContainer = document.createElement('div');
+                chartsContainer.style.cssText = `
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 20px;
+                    margin-top: 20px;
+                `;
+                
+                // 显示思维导图
+                if (AppState.currentChartsData.A) {
+                    const mindmapSection = document.createElement('div');
+                    mindmapSection.style.cssText = `
+                        flex: 1;
+                        min-width: 300px;
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                    `;
+                    mindmapSection.innerHTML = `
+                        <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+                        <div id="chart-container-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                            <p style="text-align: center; color: #666;">思维导图加载中...</p>
+                        </div>
+                    `;
+                    chartsContainer.appendChild(mindmapSection);
+                }
+                
+                // 显示流程图
+                if (AppState.currentChartsData.B) {
+                    const flowchartSection = document.createElement('div');
+                    flowchartSection.style.cssText = `
+                        flex: 1;
+                        min-width: 300px;
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                    `;
+                    flowchartSection.innerHTML = `
+                        <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+                        <div id="chart-container-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                            <p style="text-align: center; color: #666;">流程图加载中...</p>
+                        </div>
+                    `;
+                    chartsContainer.appendChild(flowchartSection);
+                }
+                
+                // 显示表格
+                if (AppState.currentChartsData.C) {
+                    const tableSection = document.createElement('div');
+                    tableSection.style.cssText = `
+                        flex: 1;
+                        min-width: 300px;
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                    `;
+                    tableSection.innerHTML = `
+                        <h5><i class="fas fa-table"></i> 核心内容表格</h5>
+                        <div id="chart-container-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                            <p style="text-align: center; color: #666;">表格加载中...</p>
+                        </div>
+                    `;
+                    chartsContainer.appendChild(tableSection);
+                }
+                
+                // 显示概念图
+                if (AppState.currentChartsData.D) {
+                    const conceptmapSection = document.createElement('div');
+                    conceptmapSection.style.cssText = `
+                        flex: 1;
+                        min-width: 300px;
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                    `;
+                    conceptmapSection.innerHTML = `
+                        <h5><i class="fas fa-connectdevelop"></i> 概念关系图</h5>
+                        <div id="chart-container-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                            <p style="text-align: center; color: #666;">概念图加载中...</p>
+                        </div>
+                    `;
+                    chartsContainer.appendChild(conceptmapSection);
+                }
+                
+                mindmapContainer.appendChild(chartsContainer);
+                
+                // 执行图表代码
+                if (AppState.currentChartsData) {
+                    for (const [chartType, chartCode] of Object.entries(AppState.currentChartsData)) {
+                        const container = document.getElementById(`chart-container-${chartType}`);
+                        if (container) {
+                            try {
+                                container.innerHTML = '';
+                                if (chartType === 'C') {
+                                    // 表格类型，直接显示
+                                    const contentContainer = document.createElement('div');
+                                    contentContainer.style.cssText = `
+                                        padding: 15px;
+                                        background: #f9f9f9;
+                                        border-radius: 5px;
+                                        font-size: 14px;
+                                        line-height: 1.5;
+                                        overflow-x: auto;
+                                    `;
+                                    // 简单的表格转换
+                                    let htmlContent = chartCode;
+                                    htmlContent = htmlContent.replace(/\|(.*?)\|\n\|(.*?)\|\n((?:\|.*?\|\n)*)/g, (match, headers, separator, rows) => {
+                                        const headerCells = headers.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        const rowCells = rows.split('\n').map(row => {
+                                            return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        }).filter(cells => cells.length > 0);
+                                        
+                                        let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                                        
+                                        // 表头
+                                        tableHtml += '<thead><tr>';
+                                        headerCells.forEach(cell => {
+                                            tableHtml += `<th style="border: 1px solid #ddd; padding: 8px; text-align: left; background: #f2f2f2;">${cell}</th>`;
+                                        });
+                                        tableHtml += '</tr></thead>';
+                                        
+                                        // 表格内容
+                                        tableHtml += '<tbody>';
+                                        rowCells.forEach(row => {
+                                            tableHtml += '<tr>';
+                                            row.forEach(cell => {
+                                                tableHtml += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
+                                            });
+                                            tableHtml += '</tr>';
+                                        });
+                                        tableHtml += '</tbody></table>';
+                                        
+                                        return tableHtml;
+                                    });
+                                    contentContainer.innerHTML = htmlContent;
+                                    container.appendChild(contentContainer);
+                                } else {
+                                    // 其他图表类型，使用mermaid
+                                    const mermaidDiv = document.createElement('div');
+                                    mermaidDiv.className = 'mermaid';
+                                    // 处理markdown格式的mermaid代码块
+                                    let mermaidCode = chartCode;
+                                    const mermaidMatch = chartCode.match(/```mermaid[\s\S]*?```/);
+                                    if (mermaidMatch) {
+                                        mermaidCode = mermaidMatch[0].replace(/```mermaid\n?/, '').replace(/```$/, '').trim();
+                                    }
+                                    mermaidDiv.textContent = mermaidCode;
+                                    container.appendChild(mermaidDiv);
+                                    
+                                    // 尝试渲染mermaid图表
+                                    if (window.mermaid) {
+                                        try {
+                                            window.mermaid.init(undefined, mermaidDiv);
+                                        } catch (err) {
+                                            console.error(`渲染图表 ${chartType} 失败:`, err);
+                                            container.innerHTML = `<p style="color: #dc3545; text-align: center;">图表渲染失败</p>`;
+                                        }
+                                    } else {
+                                        console.error('mermaid库未加载');
+                                        container.innerHTML = `<p style="color: #dc3545; text-align: center;">mermaid库未加载</p>`;
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(`执行图表 ${chartType} 代码失败:`, err);
+                                container.innerHTML = `<p style="color: #dc3545; text-align: center;">图表加载失败</p>`;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 滚动到结果区域
+            DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
+            
+            console.log('保存的页面状态已显示');
+        } else {
+            console.log('没有保存的页面状态');
+        }
+    } catch (error) {
+        console.error('显示保存的页面状态失败:', error);
+    }
+}
 
 // 在DOM加载完成后添加
 document.addEventListener('DOMContentLoaded', function() {
@@ -37,7 +314,13 @@ document.addEventListener('DOMContentLoaded', function() {
         loadChatHistory();
     }
     
-
+    // 加载页面状态
+    loadPageState();
+    
+    // 显示保存的页面状态
+    setTimeout(() => {
+        displaySavedPageState();
+    }, 500);
     
     // 检查是否有已保存的问卷
     const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
@@ -72,6 +355,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // 加载本地存储中的设置（无论用户是否已登录）
+    try {
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            console.log('从本地存储加载用户设置（页面加载时）');
+            applySettings(settings);
+            
+            // 延迟更新表单元素，确保表单已加载
+            setTimeout(() => {
+                updateFormElementsWithSavedSettings(settings);
+            }, 100);
+        }
+    } catch (error) {
+        console.error('从本地存储加载设置失败:', error);
+    }
+    
     // 设置Cookie同意功能
     setupCookieConsent();
 });
@@ -102,7 +402,9 @@ function initializeDOM() {
 // 认证相关
 async function checkAuthentication() {
     try {
-        const response = await fetch('/api/check-auth');
+        const response = await fetch('/api/check-auth', {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (data.success && data.user) {
@@ -148,6 +450,11 @@ function showApp() {
                 window.languageManager.applyLanguage(savedLang);
             }
         }, 100);
+        
+        // 显示保存的页面状态
+        setTimeout(() => {
+            displaySavedPageState();
+        }, 1000);
     }
 }
 
@@ -194,6 +501,10 @@ function setupEventListeners() {
         loadInstructions();
         // 重新加载设置表单，确保设置页面的元素也能被翻译
         loadSettingsForms();
+        // 更新注册表单中的问卷信息框
+        if (window.currentQuestionnaire) {
+            updateRegisterFormQuestionnaire();
+        }
     });
     
     // 文件上传事件
@@ -240,7 +551,9 @@ async function loadChatHistory() {
     if (!AppState.user || AppState.user.is_guest) return;
     
     try {
-        const response = await fetch('/api/chat/history');
+        const response = await fetch('/api/chat/history', {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -261,12 +574,16 @@ async function sendChatMessage() {
     const question = chatInput.value.trim();
     if (!question) return;
     
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    
     // 显示用户消息
     const userMessage = document.createElement('div');
     userMessage.className = 'chat-message user-message';
+    const youText = currentLang === 'en' ? 'You: ' : '您：';
     userMessage.innerHTML = `
         <div class="message-content">
-            <strong>您：</strong> ${question}
+            <strong>${youText}</strong> ${question}
         </div>
     `;
     chatContainer.appendChild(userMessage);
@@ -274,9 +591,11 @@ async function sendChatMessage() {
     // 显示加载指示器
     const loadingMessage = document.createElement('div');
     loadingMessage.className = 'chat-message ai-message loading';
+    const aiText = currentLang === 'en' ? 'AI: ' : 'AI：';
+    const thinkingText = currentLang === 'en' ? 'Thinking...' : '思考中...';
     loadingMessage.innerHTML = `
         <div class="message-content">
-            <strong>AI：</strong> <i class="fas fa-spinner fa-spin"></i> 思考中...
+            <strong>${aiText}</strong> <i class="fas fa-spinner fa-spin"></i> ${thinkingText}
         </div>
     `;
     chatContainer.appendChild(loadingMessage);
@@ -291,6 +610,7 @@ async function sendChatMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
                 question: question,
                 chat_history: AppState.chatHistory
@@ -306,9 +626,10 @@ async function sendChatMessage() {
             // 显示AI回复
             const aiMessage = document.createElement('div');
             aiMessage.className = 'chat-message ai-message';
+            const aiTextResponse = currentLang === 'en' ? 'AI: ' : 'AI：';
             aiMessage.innerHTML = `
                 <div class="message-content">
-                    <strong>AI：</strong> ${data.answer}
+                    <strong>${aiTextResponse}</strong> ${data.answer}
                 </div>
             `;
             chatContainer.appendChild(aiMessage);
@@ -406,7 +727,11 @@ function handleFileSelect(e) {
         AppState.currentPDFUrl = null;
     }
     
-    DOM.fileInfo.textContent = `已选择: ${file.name} (${fileSize.toFixed(2)} MB)`;
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    // 根据语言显示不同的提示文本
+    const selectedText = currentLang === 'en' ? 'Selected: ' : '已选择: ';
+    DOM.fileInfo.textContent = `${selectedText}${file.name} (${fileSize.toFixed(2)} MB)`;
     DOM.fileInfo.style.color = '#28a745';
     
     // 记录最近阅读记录
@@ -515,6 +840,7 @@ async function handleLogin() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({ email, password })
         });
         
@@ -571,8 +897,8 @@ function loadFullQuestionnaire(container) {
         // 英文问卷模板
         questionnaireHTML = `
             <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
-                <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
-                    <h3 style="color: #007bff; margin-bottom: 10px;">Knowledge Framework Questionnaire</h3>
+                <div class="questionnaire-header" style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="color: #007bff; margin: 0 0 10px 0; font-size: 24px;">Knowledge Framework Questionnaire</h3>
                     <p style="color: #666; font-size: 16px;">Please fill out the following questionnaire to help us better provide personalized interpretations for you</p>
                 </div>
                 
@@ -875,7 +1201,434 @@ function loadFullQuestionnaire(container) {
                     </div>
                 </div>
                 
+                <!-- Exoplanet Question -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. Suppose we can observe an exoplanet orbiting a Sun-like star. By measuring the Doppler shift of the star's spectrum, we obtain a periodic curve of the star's radial velocity changing over time. Based solely on this curve, which parameter of the exoplanet can we most reliably determine?</label>
+                    <div class="radio-group">
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="astronomy_question" value="A" required style="margin-right: 10px;">
+                                <span>A. The exact mass of the planet</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="astronomy_question" value="B" style="margin-right: 10px;">
+                                <span>B. The minimum mass of the planet (M sin i) based on its orbital period</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="astronomy_question" value="C" style="margin-right: 10px;">
+                                <span>C. The radius of the planet</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="astronomy_question" value="D" style="margin-right: 10px;">
+                                <span>D. The composition of the planet's atmosphere</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
                 
+                <!-- Sediment Core Question -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. When analyzing the sedimentary core of a river delta, scientists found that the average particle size of sediments showed a vertical variation sequence of "coarse → fine → coarse" from the bottom layer to the top layer. This most likely indicates that the area experienced during the sedimentary period:</label>
+                    <div class="radio-group">
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="geology_question" value="A" required style="margin-right: 10px;">
+                                <span>A. Sustained sea-level rise</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="geology_question" value="B" style="margin-right: 10px;">
+                                <span>B. A sea-level drop followed by a rise</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="geology_question" value="C" style="margin-right: 10px;">
+                                <span>C. A sea-level rise followed by a drop (a complete transgression-regression cycle)</span>
+                            </label>
+                        </div>
+                        <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <label style="display: block; cursor: pointer; margin: 0;">
+                                <input type="radio" name="geology_question" value="D" style="margin-right: 10px;">
+                                <span>D. Sustained tectonic uplift</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-group" style="margin-bottom: 40px; padding-bottom: 30px; border-bottom: 2px solid #eee;">
+                    <h4 style="color: #28a745; margin-bottom: 20px;">II. Scientific Perception</h4>
+                    
+                    <!-- Learning Methods Preference -->
+                    <div class="form-group" style="margin-bottom: 30px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">1. What is your preference and habit level for the following learning methods? [Rating] * Rated on a scale of 1 to 5, where 1 means extremely dislike/unaccustomed and 5 means extremely like/accustomed</label>
+                        
+                        <div class="rating-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                            <!-- Quantitative Learning -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">A. Quantitative learning: Numbers and formulas can better explain specific knowledge points</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_quantitative" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                           style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>Dislike</span>
+                                        <span>Neutral</span>
+                                        <span>Like</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Textual Comprehension -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">B. Textual comprehension: Understanding knowledge points through clear and detailed language expressions</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_textual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                           style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>Dislike</span>
+                                        <span>Neutral</span>
+                                        <span>Like</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Visual Learning -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">C. Visual learning: Accustomed to using charts or even three-dimensional models to present specific knowledge points</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_visual" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                           style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>Dislike</span>
+                                        <span>Neutral</span>
+                                        <span>Like</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Interactive Learning -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">D. Interactive learning: Relying on question-guided teaching, classroom interaction, or audio-visual teaching methods such as videos</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_interactive" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                           style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>Dislike</span>
+                                        <span>Neutral</span>
+                                        <span>Like</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Practical Learning -->
+                            <div class="rating-item" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                <label style="font-weight: 500; margin-bottom: 15px; display: block; color: #333;">E. Practical learning: Accustomed to understanding knowledge points through hands-on practice and rigorous experimental processes</label>
+                                <div class="rating-control">
+                                    <input type="range" name="learning_style_practical" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                           style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                                    <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                        <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                            <span class="star" data-value="1">☆</span>
+                                            <span class="star" data-value="2">☆</span>
+                                            <span class="star active" data-value="3">☆</span>
+                                            <span class="star" data-value="4">☆</span>
+                                            <span class="star" data-value="5">☆</span>
+                                        </div>
+                                    </div>
+                                    <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                        <span>Dislike</span>
+                                        <span>Neutral</span>
+                                        <span>Like</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Natural Science Knowledge State -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">2. Which of the following descriptions do you think best reflects the state of natural science knowledge (astronomy, biology, etc.) in your mind?</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_state" value="A" required style="margin-right: 10px;">
+                                    <span>A. A thick textbook, progressing from the elementary to the advanced</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_state" value="B" style="margin-right: 10px;">
+                                    <span>B. A complete spider web, with all parts interconnected and mutually supportive</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_state" value="C" style="margin-right: 10px;">
+                                    <span>C. Independent databases, where each discipline is a unique storage unit</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="knowledge_state" value="D" style="margin-right: 10px;">
+                                    <span>D. An all-purpose but unorganized toolbox</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Scientific Thinking Ability -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">3. How would you rate your scientific thinking ability (the ability to think about problems using natural science methods)? (Rate from 1 to 5)</label>
+                        <div class="rating-control">
+                            <input type="range" name="scientific_thinking" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                   style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>Low</span>
+                                <span>Average</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Scientific Insight Ability -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">4. How would you rate your scientific insight ability (the ability to grasp the essence from phenomena)? (Rate from 1 to 5)</label>
+                        <div class="rating-control">
+                            <input type="range" name="scientific_insight" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                   style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>Low</span>
+                                <span>Average</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sensitivity to Scientific Phenomena -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">5. How would you rate your sensitivity to scientific phenomena (the ability to discover scientific problems in daily life)? (Rate from 1 to 5)</label>
+                        <div class="rating-control">
+                            <input type="range" name="scientific_sensitivity" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                   style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>Low</span>
+                                <span>Average</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Interdisciplinary Connection Ability -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">6. How would you rate your interdisciplinary connection ability (the ability to connect knowledge from multiple disciplines to explain specific phenomena)? (Rate from 1 to 5)</label>
+                        <div class="rating-control">
+                            <input type="range" name="interdisciplinary_ability" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                   style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>Low</span>
+                                <span>Average</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Academic Rigor and Logic Rating -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 15px; color: #333;">7. Please read the following scientific excerpt and answer the question. You can search for materials, but you are not allowed to consult AI:</label>
+                        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                            <p style="line-height: 1.6;">This study used advanced quantum coherent spectroscopy technology and found that water molecules treated with sound waves of a specific frequency (528Hz) form a stable "resonant memory structure". When volunteers drank this structured water, the intensity of their biophoton emission increased by an average of 47.3% (p<0.05), and the mitochondrial ATP synthesis efficiency was significantly improved. The experiment adopted a double-blind design, with 30 volunteers randomly divided into two groups: the experimental group drank structured water, and the control group drank ordinary distilled water. After one week, the scores of the experimental group on the Satisfaction with Life Scale (SWLS) were 62% higher than those of the control group, and the average length of their DNA telomeres was extended by 0.4 base pairs as detected by PCR. These results indicate that water molecules can directly optimize the quantum biological field of human cells through the mechanism of frequency information storage and transmission, opening up new avenues for energy medicine.</p>
+                        </div>
+                        <p style="margin-bottom: 10px;">Please rate this paper excerpt in terms of academic rigor and academic logic (Rate from 1 to 5). 1 = very poor, 5 = very good.</p>
+                        <div class="rating-control">
+                            <input type="range" name="paper_evaluation_score" min="1" max="5" value="3" step="1" class="rating-slider" data-rating="3" required 
+                                   style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0); border-radius: 4px; outline: none; margin: 15px 0;">
+                            <div class="rating-display" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <span class="rating-value" style="font-size: 24px; font-weight: bold; color: #007bff;">3</span>
+                                <div class="rating-stars" style="display: flex; gap: 8px; font-size: 28px; cursor: pointer;">
+                                    <span class="star" data-value="1">☆</span>
+                                    <span class="star" data-value="2">☆</span>
+                                    <span class="star active" data-value="3">☆</span>
+                                    <span class="star" data-value="4">☆</span>
+                                    <span class="star" data-value="5">☆</span>
+                                </div>
+                            </div>
+                            <div class="rating-labels" style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                                <span>Very poor</span>
+                                <span>Average</span>
+                                <span>Very good</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rating Basis -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">8. On what basis did you make the rating judgment on the academic rigor and logic of the excerpt?</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="A" style="margin-right: 10px;">
+                                    <span>A. The use of academic language in describing phenomena in the excerpt</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="B" style="margin-right: 10px;">
+                                    <span>B. The scientific technologies mentioned in the excerpt for analyzing problems and conducting measurements</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="C" style="margin-right: 10px;">
+                                    <span>C. The experimental data mentioned in the excerpt</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="D" style="margin-right: 10px;">
+                                    <span>D. The scientific theories involved in the excerpt (phenomena and essence)</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="evaluation_criteria" value="E" style="margin-right: 10px;">
+                                    <span>E. Rated purely based on feeling</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Global Warming Question -->
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">9. When it comes to global warming and the greenhouse effect, what question are you most eager to explore?</label>
+                        <div class="radio-group">
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="A" required style="margin-right: 10px;">
+                                    <span>A. What direct or indirect consequences can global warming lead to?</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="B" style="margin-right: 10px;">
+                                    <span>B. What is the greenhouse effect? What are greenhouse gases? How do they cause global warming?</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="C" style="margin-right: 10px;">
+                                    <span>C. What related technologies can mitigate the greenhouse effect? What can we do to mitigate it?</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="D" style="margin-right: 10px;">
+                                    <span>D. What are the disciplinary fields behind the greenhouse effect? Which disciplines can help understand or mitigate the greenhouse effect?</span>
+                                </label>
+                            </div>
+                            <div class="option-item" style="margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                <label style="display: block; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="climate_question" value="E" style="margin-right: 10px;">
+                                    <span>E. Besides the greenhouse effect, what other factors can cause global warming?</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+                    <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
+                            style="padding: 8px 16px; background: rgba(108, 117, 125, 0.9); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background-color 0.3s;">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
                 <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
                     <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
                             style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
@@ -892,8 +1645,8 @@ function loadFullQuestionnaire(container) {
         // 中文问卷模板
         questionnaireHTML = `
             <div class="questionnaire-section" style="max-width: 900px; margin: 0 auto; padding: 20px;">
-                <div class="questionnaire-header" style="text-align: center; margin-bottom: 30px;">
-                    <h3 style="color: #007bff; margin-bottom: 10px;">知识框架调查问卷</h3>
+                <div class="questionnaire-header" style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="color: #007bff; margin: 0 0 10px 0; font-size: 24px;">知识框架调查问卷</h3>
                     <p style="color: #666; font-size: 16px;">请填写以下问卷以帮助我们更好地为您提供个性化解读</p>
                 </div>
                 
@@ -1691,7 +2444,9 @@ function loadQuestionnaireSummary() {
         return;
     }
     
-    fetch('/api/user/questionnaire')
+    fetch('/api/user/questionnaire', {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -1776,6 +2531,7 @@ function submitUpdatedQuestionnaire() {
         headers: {
             'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(questionnaire)
     })
     .then(response => response.json())
@@ -1817,20 +2573,39 @@ function updateRegisterFormQuestionnaire() {
             }
         }
         
-        const gradeMap = { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
-        const systemMap = { A: '国际体系', B: '普高体系' };
-        const grade = gradeMap[window.currentQuestionnaire.grade] || '未知';
-        const system = systemMap[window.currentQuestionnaire.education_system] || '未知';
+        // 获取当前语言
+        const currentLanguage = window.languageManager ? window.languageManager.getCurrentLanguage() : 'zh';
+        
+        // 根据语言选择对应的文本
+        const gradeMap = currentLanguage === 'en' ? 
+            { A: 'Grade 9', B: 'Grade 10', C: 'Grade 11', D: 'Grade 12' } : 
+            { A: '9年级', B: '10年级', C: '11年级', D: '12年级' };
+        
+        const systemMap = currentLanguage === 'en' ? 
+            { A: 'International System', B: 'General High School System' } : 
+            { A: '国际体系', B: '普高体系' };
+        
+        const grade = gradeMap[window.currentQuestionnaire.grade] || (currentLanguage === 'en' ? 'Unknown' : '未知');
+        const system = systemMap[window.currentQuestionnaire.education_system] || (currentLanguage === 'en' ? 'Unknown' : '未知');
+        
+        // 构建信息框内容
+        const completedText = currentLanguage === 'en' ? 'Questionnaire Completed' : '问卷已完成';
+        const basicInfoText = currentLanguage === 'en' ? 'Basic Information:' : '基本信息：';
+        const frameworkText = currentLanguage === 'en' ? 
+            `Knowledge framework questionnaire has been completed with ${Object.keys(window.currentQuestionnaire).length} items of data.` : 
+            `知识框架问卷已完成填写，包含${Object.keys(window.currentQuestionnaire).length}项数据。`;
+        const modifyText = currentLanguage === 'en' ? 'Modify Questionnaire' : '修改问卷';
+        const useText = currentLanguage === 'en' ? 'Register with This Questionnaire' : '使用此问卷注册';
         
         summaryDiv.innerHTML = `
-            <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> 问卷已完成</h5>
-            <p><strong>基本信息：</strong>${grade} | ${system}</p>
-            <p>知识框架问卷已完成填写，包含${Object.keys(window.currentQuestionnaire).length}项数据。</p>
+            <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> ${completedText}</h5>
+            <p><strong>${basicInfoText}</strong>${grade} | ${system}</p>
+            <p>${frameworkText}</p>
             <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()" style="margin-right: 10px;">
-                <i class="fas fa-edit"></i> 修改问卷
+                <i class="fas fa-edit"></i> ${modifyText}
             </button>
             <button type="button" class="btn btn-small btn-success" onclick="useSavedQuestionnaire()">
-                <i class="fas fa-check"></i> 使用此问卷注册
+                <i class="fas fa-check"></i> ${useText}
             </button>
         `;
     }
@@ -1998,6 +2773,7 @@ async function submitRegistration(email, username, password, questionnaire) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
                 email,
                 username,
@@ -2050,7 +2826,8 @@ async function enterAsGuest() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            credentials: 'include'
         });
         
         const data = await response.json();
@@ -2072,7 +2849,8 @@ async function enterAsGuest() {
 async function logout() {
     try {
         const response = await fetch('/api/logout', {
-            method: 'POST'
+            method: 'POST',
+            credentials: 'include'
         });
         
         if (response.ok) {
@@ -2173,9 +2951,30 @@ async function startInterpretation() {
         return;
     }
     
+    // 重置解读相关状态
     AppState.isProcessing = true;
+    AppState.currentInterpretation = null;
+    AppState.currentChartsData = null;
+    AppState.currentPDFUrl = null;
+    AppState.currentOriginalContent = null;
+    
+    // 清空结果区域
     DOM.resultsSection.style.display = 'none';
     DOM.loadingSection.style.display = 'block';
+    
+    // 清空之前的图表容器
+    const mindmapContainer = document.getElementById('mindmap-container');
+    if (mindmapContainer) {
+        mindmapContainer.innerHTML = '';
+    }
+    
+    // 清空之前的解读内容
+    if (DOM.originalContent) {
+        DOM.originalContent.innerHTML = '';
+    }
+    if (DOM.interpretationContent) {
+        DOM.interpretationContent.innerHTML = '';
+    }
     
     try {
         const formData = new FormData();
@@ -2209,6 +3008,7 @@ async function startInterpretation() {
             console.log('开始发送请求到/api/interpret');
             const response = await fetch('/api/interpret', {
                 method: 'POST',
+                credentials: 'include',
                 body: formData,
                 signal: controller.signal
             });
@@ -2263,11 +3063,13 @@ async function startInterpretation() {
                     renderPDFViewer(AppState.currentPDFUrl);
                 } else {
                     // 对于非PDF文件，直接显示原文内容
+                    // 如果是文本输入，显示用户输入的文本；否则显示API返回的原文
+                    const originalContent = text ? text : data.original_content;
                     DOM.originalContent.innerHTML = `
                         <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
                             <p style="margin-bottom: 15px;"><strong>原文内容：</strong></p>
-                            <div style="white-space: pre-wrap; word-break: break-all;">
-                                ${data.original_content}
+                            <div style="white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto;">
+                                ${originalContent}
                             </div>
                         </div>
                     `;
@@ -2295,11 +3097,34 @@ async function startInterpretation() {
                 // 滚动到结果区域
                 DOM.resultsSection.scrollIntoView({ behavior: 'smooth' });
                 
-                // 生成论文相关图表
-                generatePaperCharts(data.original_content, data.interpretation);
-                
                 // 添加AI对话框到解读页面
                 addAIConversationDialog(data.original_content, data.interpretation);
+                
+                // 添加全屏解读按钮
+                addFullScreenButton(data.original_content, data.interpretation);
+                
+                // 生成论文相关图表，并在图表生成完成后显示全屏解读界面
+                (async () => {
+                    try {
+                        // 生成图表
+                        await generatePaperCharts(data.original_content, data.interpretation);
+                        
+                        // 等待一小段时间，确保图表完全渲染
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // 保存页面状态（确保包含图表数据）
+                        savePageState(data.original_content, data.interpretation, AppState.currentChartsData);
+                        
+                        // 显示全屏解读界面，传入最新的图表数据
+                        showFullScreenInterpretation(data.original_content, data.interpretation, AppState.currentChartsData);
+                    } catch (error) {
+                        console.error('生成图表或显示全屏解读时出错:', error);
+                        
+                        // 即使图表生成失败，也要保存页面状态并显示全屏解读
+                        savePageState(data.original_content, data.interpretation, AppState.currentChartsData);
+                        showFullScreenInterpretation(data.original_content, data.interpretation, AppState.currentChartsData);
+                    }
+                })();
             } else {
                 showNotification(data.message || '解读失败', 'error');
             }
@@ -2392,15 +3217,39 @@ async function loadUserSettings() {
     if (!AppState.user || AppState.user.is_guest) return;
     
     try {
-        const response = await fetch('/api/user/settings');
+        // 首先尝试从本地存储中加载设置
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            console.log('从本地存储加载用户设置');
+            applySettings(settings);
+        }
+        
+        // 然后从服务器加载最新的设置，确保设置是最新的
+        const response = await fetch('/api/user/settings', {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (data.success) {
+            console.log('从服务器加载用户设置');
             // 应用设置
             applySettings(data.settings);
         }
     } catch (error) {
         console.error('加载设置错误:', error);
+        
+        // 如果从服务器加载失败，尝试从本地存储中加载设置
+        try {
+            const savedSettings = localStorage.getItem('userSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                console.log('从本地存储加载用户设置（服务器加载失败）');
+                applySettings(settings);
+            }
+        } catch (localError) {
+            console.error('从本地存储加载设置失败:', localError);
+        }
     }
 }
 
@@ -2412,6 +3261,14 @@ function applySettings(settings) {
         AppState.user.settings = settings;
     } else if (AppState && AppState.user) {
         AppState.user.settings = settings;
+    }
+    
+    // 保存设置到本地存储，确保刷新页面后设置不丢失
+    try {
+        localStorage.setItem('userSettings', JSON.stringify(settings));
+        console.log('用户设置已保存到本地存储');
+    } catch (error) {
+        console.error('保存设置到本地存储失败:', error);
     }
     
     // 应用视觉设置
@@ -2867,6 +3724,7 @@ async function generatePaperCharts(originalContent, interpretation) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
                 paper_content: originalContent,
                 chart_types: chartTypes,
@@ -2883,6 +3741,8 @@ async function generatePaperCharts(originalContent, interpretation) {
             // 更新图表内容
             if (data.charts) {
                 console.log('图表数据:', data.charts);
+                // 存储图表数据到全局状态
+                AppState.currentChartsData = data.charts;
                 // 为每种图表类型执行代码
                 for (const [chartType, chartCode] of Object.entries(data.charts)) {
                     if (chartContainers[chartType]) {
@@ -2952,6 +3812,42 @@ async function generatePaperCharts(originalContent, interpretation) {
                                 } else {
                                     // 对于其他类型，使用mermaid渲染
                                     try {
+                                        // 创建图表控制工具栏
+                                        const toolbar = document.createElement('div');
+                                        toolbar.style.cssText = `
+                                            display: flex;
+                                            justify-content: space-between;
+                                            align-items: center;
+                                            margin-bottom: 10px;
+                                            padding: 5px 10px;
+                                            background: #f0f0f0;
+                                            border-radius: 5px;
+                                        `;
+                                        toolbar.innerHTML = `
+                                            <div style="display: flex; gap: 5px;">
+                                                <button class="chart-zoom-in" style="padding: 3px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                                    <i class="fas fa-search-plus"></i>
+                                                </button>
+                                                <button class="chart-zoom-out" style="padding: 3px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                                    <i class="fas fa-search-minus"></i>
+                                                </button>
+                                                <span class="zoom-level" style="font-size: 12px;">100%</span>
+                                            </div>
+                                            <button class="chart-download" style="padding: 3px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                                <i class="fas fa-download"></i> 下载
+                                            </button>
+                                        `;
+                                        container.appendChild(toolbar);
+                                        
+                                        // 创建缩放容器
+                                        const zoomContainer = document.createElement('div');
+                                        zoomContainer.className = 'zoom-container';
+                                        zoomContainer.style.cssText = `
+                                            transform-origin: top left;
+                                            transition: transform 0.3s ease;
+                                            transform: scale(1);
+                                        `;
+                                        
                                         // 创建mermaid容器
                                         const mermaidContainer = document.createElement('div');
                                         mermaidContainer.className = 'mermaid';
@@ -2960,10 +3856,12 @@ async function generatePaperCharts(originalContent, interpretation) {
                                             background: white;
                                             border-radius: 5px;
                                             font-size: 14px;
+                                            overflow: auto;
                                         `;
                                         mermaidContainer.textContent = mermaidCode;
                                         
-                                        container.appendChild(mermaidContainer);
+                                        zoomContainer.appendChild(mermaidContainer);
+                                        container.appendChild(zoomContainer);
                                         
                                         // 初始化mermaid
                                         if (window.mermaid) {
@@ -2973,6 +3871,38 @@ async function generatePaperCharts(originalContent, interpretation) {
                                             console.error('Mermaid库未加载');
                                             container.innerHTML = '<p style="text-align: center; color: red;">图表渲染失败：Mermaid库未加载</p>';
                                         }
+                                        
+                                        // 添加缩放功能
+                                        let zoomLevel = 1;
+                                        const zoomInBtn = toolbar.querySelector('.chart-zoom-in');
+                                        const zoomOutBtn = toolbar.querySelector('.chart-zoom-out');
+                                        const zoomLevelDisplay = toolbar.querySelector('.zoom-level');
+                                        
+                                        zoomInBtn.addEventListener('click', function() {
+                                            if (zoomLevel < 2) {
+                                                zoomLevel += 0.1;
+                                                updateZoom();
+                                            }
+                                        });
+                                        
+                                        zoomOutBtn.addEventListener('click', function() {
+                                            if (zoomLevel > 0.5) {
+                                                zoomLevel -= 0.1;
+                                                updateZoom();
+                                            }
+                                        });
+                                        
+                                        function updateZoom() {
+                                            zoomContainer.style.transform = `scale(${zoomLevel})`;
+                                            zoomLevelDisplay.textContent = `${Math.round(zoomLevel * 100)}%`;
+                                        }
+                                        
+                                        // 添加下载功能
+                                        const downloadBtn = toolbar.querySelector('.chart-download');
+                                        downloadBtn.addEventListener('click', function() {
+                                            downloadChart(container, chartType);
+                                        });
+                                        
                                     } catch (error) {
                                         console.error(`渲染图表失败 (${chartType}):`, error);
                                         container.innerHTML = `<p style="text-align: center; color: red;">图表渲染失败: ${error.message}</p>`;
@@ -3043,6 +3973,97 @@ async function generatePaperCharts(originalContent, interpretation) {
     }
     
     console.log('论文相关图表生成完成');
+    resolve();
+  };
+
+
+// 下载图表函数
+function downloadChart(container, chartType) {
+    const chartName = {
+        'A': '论文结构思维导图',
+        'B': '研究流程逻辑图',
+        'D': '研究结果统计图'
+    }[chartType] || '图表';
+    
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    const downloadText = currentLang === 'en' ? 'Downloading...' : '下载中...';
+    
+    try {
+        // 显示下载中提示
+        const loadingDiv = document.createElement('div');
+        loadingDiv.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            border-radius: 5px;
+        `;
+        loadingDiv.innerHTML = `<div><i class="fas fa-spinner fa-spin"></i> ${downloadText}</div>`;
+        container.style.position = 'relative';
+        container.appendChild(loadingDiv);
+        
+        // 对于mermaid图表，我们可以下载为SVG或PNG
+        const mermaidContainer = container.querySelector('.mermaid');
+        if (mermaidContainer) {
+            // 尝试获取渲染后的SVG
+            const svgElement = mermaidContainer.querySelector('svg');
+            if (svgElement) {
+                // 下载为SVG
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                const downloadLink = document.createElement('a');
+                downloadLink.href = svgUrl;
+                downloadLink.download = `${chartName}.svg`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(svgUrl);
+                
+                // 移除加载提示
+                setTimeout(() => {
+                    container.removeChild(loadingDiv);
+                }, 500);
+                return;
+            }
+        }
+        
+        // 如果没有SVG，尝试使用html2canvas（如果可用）
+        if (window.html2canvas) {
+            html2canvas(container).then(canvas => {
+                const canvasUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = canvasUrl;
+                downloadLink.download = `${chartName}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                // 移除加载提示
+                container.removeChild(loadingDiv);
+            }).catch(err => {
+                console.error('html2canvas转换失败:', err);
+                container.removeChild(loadingDiv);
+                alert(currentLang === 'en' ? 'Failed to download chart' : '图表下载失败');
+            });
+        } else {
+            // 移除加载提示
+            container.removeChild(loadingDiv);
+            // 如果没有html2canvas，提示用户
+            alert(currentLang === 'en' ? 'Chart download requires html2canvas library' : '图表下载需要html2canvas库');
+        }
+    } catch (error) {
+        console.error('下载图表失败:', error);
+        alert(currentLang === 'en' ? 'Failed to download chart' : '图表下载失败');
+    }
 }
 
 // 加载问卷数据
@@ -3156,11 +4177,11 @@ function collectQuestionnaireData() {
         
         // 3. 学科兴趣 - 从滑块获取
         data.interests = {
-            physics: document.querySelector('input[name="interest_physics"]')?.value,
-            biology: document.querySelector('input[name="interest_biology"]')?.value,
-            chemistry: document.querySelector('input[name="interest_chemistry"]')?.value,
-            geology: document.querySelector('input[name="interest_geology"]')?.value,
-            astronomy: document.querySelector('input[name="interest_astronomy"]')?.value
+            physics: document.querySelector('input[name="interest_physics"]')?.value || '3',
+            biology: document.querySelector('input[name="interest_biology"]')?.value || '3',
+            chemistry: document.querySelector('input[name="interest_chemistry"]')?.value || '3',
+            geology: document.querySelector('input[name="interest_geology"]')?.value || '3',
+            astronomy: document.querySelector('input[name="interest_astronomy"]')?.value || '3'
         };
         
         // 4. 学习频率
@@ -3187,11 +4208,11 @@ function collectQuestionnaireData() {
         
         // 1. 学习方式偏好 - 从滑块获取
         data.learning_styles = {
-            quantitative: document.querySelector('input[name="learning_style_quantitative"]')?.value,
-            textual: document.querySelector('input[name="learning_style_textual"]')?.value,
-            visual: document.querySelector('input[name="learning_style_visual"]')?.value,
-            interactive: document.querySelector('input[name="learning_style_interactive"]')?.value,
-            practical: document.querySelector('input[name="learning_style_practical"]')?.value
+            quantitative: document.querySelector('input[name="learning_style_quantitative"]')?.value || '3',
+            textual: document.querySelector('input[name="learning_style_textual"]')?.value || '3',
+            visual: document.querySelector('input[name="learning_style_visual"]')?.value || '3',
+            interactive: document.querySelector('input[name="learning_style_interactive"]')?.value || '3',
+            practical: document.querySelector('input[name="learning_style_practical"]')?.value || '3'
         };
         
         // 2. 知识结构
@@ -3200,15 +4221,15 @@ function collectQuestionnaireData() {
         
         // 3-6. 能力自评 - 从滑块获取
         data.scientific_abilities = {
-            thinking: document.querySelector('input[name="scientific_thinking"]')?.value,
-            insight: document.querySelector('input[name="scientific_insight"]')?.value,
-            sensitivity: document.querySelector('input[name="scientific_sensitivity"]')?.value,
-            interdisciplinary: document.querySelector('input[name="interdisciplinary_ability"]')?.value
+            thinking: document.querySelector('input[name="scientific_thinking"]')?.value || '3',
+            insight: document.querySelector('input[name="scientific_insight"]')?.value || '3',
+            sensitivity: document.querySelector('input[name="scientific_sensitivity"]')?.value || '3',
+            interdisciplinary: document.querySelector('input[name="interdisciplinary_ability"]')?.value || '3'
         };
         
         // 7. 论文评价分数 - 从滑块获取
-        const paperScore = document.querySelector('input[name="paper_evaluation_score"]')?.value;
-        if (paperScore) data.paper_evaluation_score = paperScore;
+        const paperScore = document.querySelector('input[name="paper_evaluation_score"]')?.value || '3';
+        data.paper_evaluation_score = paperScore;
         
         // 8. 评价标准（多选）
         const evaluationCriteria = [];
@@ -3256,7 +4277,8 @@ function validateQuestionnaire(questionnaire) {
         const interestFields = ['physics', 'biology', 'chemistry', 'geology', 'astronomy'];
         for (const field of interestFields) {
             const value = questionnaire.interests[field];
-            if (!value || value < 1 || value > 5) {
+            const numValue = parseInt(value);
+            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
                 console.log(`学科兴趣无效: ${field} = ${value}`);
                 return false;
             }
@@ -3287,7 +4309,8 @@ function validateQuestionnaire(questionnaire) {
         const styleFields = ['quantitative', 'textual', 'visual', 'interactive', 'practical'];
         for (const field of styleFields) {
             const value = questionnaire.learning_styles[field];
-            if (!value || value < 1 || value > 5) {
+            const numValue = parseInt(value);
+            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
                 console.log(`学习方式偏好无效: ${field} = ${value}`);
                 return false;
             }
@@ -3302,7 +4325,8 @@ function validateQuestionnaire(questionnaire) {
         const abilityFields = ['thinking', 'insight', 'sensitivity', 'interdisciplinary'];
         for (const field of abilityFields) {
             const value = questionnaire.scientific_abilities[field];
-            if (!value || value < 1 || value > 5) {
+            const numValue = parseInt(value);
+            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
                 console.log(`能力自评无效: ${field} = ${value}`);
                 return false;
             }
@@ -3320,7 +4344,8 @@ function validateQuestionnaire(questionnaire) {
     
     // 检查论文评价分数
     const paperScore = questionnaire.paper_evaluation_score;
-    if (!paperScore || paperScore < 1 || paperScore > 5) {
+    const numPaperScore = parseInt(paperScore);
+    if (!paperScore || isNaN(numPaperScore) || numPaperScore < 1 || numPaperScore > 5) {
         console.log(`论文评价分数无效: ${paperScore}`);
         return false;
     }
@@ -3909,16 +4934,15 @@ function showModal(type) {
         
         modal.style.display = 'flex';
         
-        // 修改4级标题的颜色为黑色
+        // 使用系统设置的文字颜色
         const h4Elements = modal.querySelectorAll('h4');
         h4Elements.forEach(h4 => {
-            h4.style.color = '#000000';
+            h4.style.color = textColor;
         });
         
-        // 修改5级标题的颜色为黑色
         const h5Elements = modal.querySelectorAll('h5');
         h5Elements.forEach(h5 => {
-            h5.style.color = '#000000';
+            h5.style.color = textColor;
         });
         
         // 添加滚动条样式
@@ -4321,9 +5345,10 @@ function sendChatMessageToAI(message) {
         headers: {
             'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
-            question: message,
-            chat_history: AppState.chatHistory
+            question: userQuestion,
+            chat_history: chatHistory
         })
     })
     .then(response => response.json())
@@ -4351,18 +5376,20 @@ function sendChatMessageToAI(message) {
 }
 
 // 显示原始论文
-function renderPDFViewer(pdfUrl) {
-    const originalContent = document.getElementById('original-content');
+function renderPDFViewer(pdfUrl, showLoading = true, containerElement = null) {
+    // 获取PDF查看器容器
+    const originalContent = containerElement || document.getElementById('original-content');
     if (!originalContent) return;
     
     // 清空查看器
     originalContent.innerHTML = '';
     
-    // 设置original-content的样式，确保它完全填充父容器，并保持16:9比例
+    // 设置original-content的样式，确保它完全填充父容器
     originalContent.style.width = '100%';
-    originalContent.style.height = '56.25vw'; // 16:9比例
+    originalContent.style.height = '100%';
     originalContent.style.padding = '0';
     originalContent.style.margin = '0';
+    originalContent.style.overflow = 'hidden';
     
     // 创建PDF.js查看器容器
     const container = document.createElement('div');
@@ -4411,93 +5438,721 @@ function renderPDFViewer(pdfUrl) {
     `;
     container.appendChild(toolbar);
     
+    // 加载PDF.js
     let pdfDoc = null;
-    let currentPage = 1;
-    let zoom = 1.0;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.0;
     
-    // 加载PDF
-    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+    // 设置PDF.js工作器路径
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    // 加载PDF文件
+    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+    loadingTask.promise.then(function(pdf) {
+        console.log('PDF加载成功');
         pdfDoc = pdf;
-        document.getElementById('pdf-page-info').textContent = `页码: ${currentPage} / ${pdf.numPages}`;
+        document.getElementById('pdf-page-info').textContent = `${pageNum} / ${pdfDoc.numPages}`;
         
         // 渲染第一页
-        renderPage(currentPage);
+        renderPage(pageNum);
         
         // 添加事件监听器
         document.getElementById('pdf-prev').addEventListener('click', function() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderPage(currentPage);
-            }
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
         });
         
         document.getElementById('pdf-next').addEventListener('click', function() {
-            if (currentPage < pdfDoc.numPages) {
-                currentPage++;
-                renderPage(currentPage);
-            }
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
         });
         
         document.getElementById('pdf-zoom-in').addEventListener('click', function() {
-            zoom += 0.1;
-            renderPage(currentPage);
+            scale *= 1.2;
+            queueRenderPage(pageNum);
         });
         
         document.getElementById('pdf-zoom-out').addEventListener('click', function() {
-            if (zoom > 0.5) {
-                zoom -= 0.1;
-                renderPage(currentPage);
-            }
+            scale /= 1.2;
+            queueRenderPage(pageNum);
         });
         
-    }).catch(function(error) {
+    }, function(error) {
         console.error('PDF加载失败:', error);
-        pdfViewer.innerHTML = `
-            <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-                <p style="color: red;">PDF加载失败: ${error.message}</p>
+        canvasContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: red;">
+                <p>PDF加载失败</p>
+                <p>${error.message}</p>
             </div>
         `;
     });
     
+    // 渲染PDF页面
     function renderPage(num) {
+        pageRendering = true;
+        
+        // 获取页面
         pdfDoc.getPage(num).then(function(page) {
-            const viewport = page.getViewport({ scale: zoom });
+            const viewport = page.getViewport({ scale: scale });
             
             // 创建画布
             const canvas = document.createElement('canvas');
-            canvas.style.display = 'block';
-            canvas.style.margin = '0 auto';
-            canvas.style.marginBottom = '20px';
-            canvas.width = viewport.width;
+            const context = canvas.getContext('2d');
             canvas.height = viewport.height;
+            canvas.width = viewport.width;
             
             // 清空容器并添加画布
-            const canvasContainer = document.getElementById('pdf-canvas-container');
             canvasContainer.innerHTML = '';
             canvasContainer.appendChild(canvas);
             
-            // 渲染PDF页面
-            const context = canvas.getContext('2d');
+            // 渲染页面
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport
             };
             
-            page.render(renderContext).promise.then(function() {
-                document.getElementById('pdf-page-info').textContent = `页码: ${currentPage} / ${pdfDoc.numPages}`;
+            const renderTask = page.render(renderContext);
+            
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    // 有等待渲染的页面
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+                
+                // 更新页面信息
+                if (pdfDoc) {
+                    document.getElementById('pdf-page-info').textContent = `${num} / ${pdfDoc.numPages}`;
+                }
             });
         });
     }
+    
+    // 队列渲染页面
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
 }
+
 
 function showOriginalPaper() {
     if (!AppState.currentPDFUrl) {
-        showNotification('当前没有可显示的论文', 'error');
+        // 如果没有PDF URL，说明是文字内容，不做任何反应
         return;
     }
     
-    // 在新标签页中打开PDF
+    // 在新标签页打开PDF文件
     window.open(AppState.currentPDFUrl, '_blank');
+}
+
+// 全屏解读界面
+function showFullScreenInterpretation(originalContent, interpretation, chartsData) {
+    // 保存当前页面状态
+    savePageState(originalContent, interpretation, chartsData);
+    
+    // 创建全屏模态框
+    const modal = document.createElement('div');
+    modal.className = 'fullscreen-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 9999;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+    `;
+    
+    // 创建左半边：原文内容展示
+    const leftPanel = document.createElement('div');
+    leftPanel.style.cssText = `
+        width: 50%;
+        height: 100%;
+        background: #f8f9fa;
+        padding: 20px;
+        overflow-y: auto;
+        border-right: 2px solid #dee2e6;
+    `;
+    
+    // 根据是否有PDF文件来决定显示方式
+    if (AppState.currentPDFUrl) {
+        // 直接使用PDF URL创建新的PDF查看器
+        leftPanel.innerHTML = `
+            <h2 style="color: #007bff; margin-bottom: 20px;">原文内容</h2>
+            <div id="original-content" style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: calc(100vh - 120px);">
+                <iframe src="${AppState.currentPDFUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        `;
+    } else {
+        // 显示文本内容
+        leftPanel.innerHTML = `
+            <h2 style="color: #007bff; margin-bottom: 20px;">原文内容</h2>
+            <div style="white-space: pre-wrap; word-break: break-all; font-size: 14px; line-height: 1.6;">
+                ${originalContent}
+            </div>
+        `;
+    }
+    
+    // 创建右半边：解读和图表
+    const rightPanel = document.createElement('div');
+    rightPanel.style.cssText = `
+        width: 50%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    // 右上角：AI解读内容
+    const interpretationPanel = document.createElement('div');
+    interpretationPanel.style.cssText = `
+        height: 50%;
+        padding: 20px;
+        overflow-y: auto;
+        border-bottom: 2px solid #dee2e6;
+    `;
+    interpretationPanel.innerHTML = `
+        <h2 style="color: #28a745; margin-bottom: 20px;">AI解读</h2>
+        <div style="font-size: 14px; line-height: 1.6;">
+            ${formatInterpretation(interpretation)}
+        </div>
+    `;
+    
+    // 右下角：相关图表
+    const chartsPanel = document.createElement('div');
+    chartsPanel.style.cssText = `
+        height: 50%;
+        padding: 20px;
+        overflow-y: auto;
+    `;
+    chartsPanel.innerHTML = `
+        <h2 style="color: #dc3545; margin-bottom: 20px;">相关图表</h2>
+        <div id="charts-container" style="display: flex; flex-wrap: wrap; gap: 15px;">
+            <!-- 图表将在这里动态生成 -->
+        </div>
+    `;
+    
+    // 组装界面
+    rightPanel.appendChild(interpretationPanel);
+    rightPanel.appendChild(chartsPanel);
+    modal.appendChild(leftPanel);
+    modal.appendChild(rightPanel);
+    
+    // 添加关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.style.cssText = `
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 10000;
+    `;
+    closeButton.innerHTML = '<i class="fas fa-times"></i> 关闭';
+    closeButton.addEventListener('click', () => {
+        modal.remove();
+    });
+    modal.appendChild(closeButton);
+    
+    // 添加到页面
+    document.body.appendChild(modal);
+    
+    // 生成图表 - 优先使用传入的chartsData参数
+    if (chartsData) {
+        // 直接使用传入的已生成图表数据
+        console.log('使用传入的已生成图表数据');
+        displayChartsForFullScreen(chartsData);
+    } else if (AppState.currentChartsData) {
+        // 如果没有传入图表数据，尝试使用AppState中的图表数据
+        console.log('使用AppState中已生成的图表数据');
+        displayChartsForFullScreen(AppState.currentChartsData);
+    } else {
+        // 如果没有图表数据，显示提示信息
+        console.log('没有可用的图表数据');
+        const container = document.getElementById('charts-container');
+        if (container) {
+            container.innerHTML = '<p>没有可用的图表数据</p>';
+        }
+    }
+}
+
+// 为全屏界面显示已生成的图表
+function displayChartsForFullScreen(chartsData) {
+    const container = document.getElementById('charts-container');
+    if (!container) return;
+    
+    // 清空容器
+    container.innerHTML = '';
+    
+    // 创建图表容器
+    const chartsContainer = document.createElement('div');
+    // 根据图表数量设置不同的布局
+    if (Object.keys(chartsData).length === 4) {
+        // 四个图表时使用网格布局，两行两列
+        chartsContainer.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px;
+            margin-top: 20px;
+        `;
+    } else {
+        // 其他情况使用弹性布局
+        chartsContainer.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        `;
+    }
+    
+    // 显示每种图表
+    for (const [chartType, chartData] of Object.entries(chartsData)) {
+        let chartTitle = '';
+        let chartIcon = '';
+        
+        switch (chartType) {
+            case 'A':
+                chartTitle = '论文结构思维导图';
+                chartIcon = 'fas fa-project-diagram';
+                break;
+            case 'B':
+                chartTitle = '研究方法流程图';
+                chartIcon = 'fas fa-sitemap';
+                break;
+            case 'C':
+                chartTitle = '核心概念关系图';
+                chartIcon = 'fas fa-connections';
+                break;
+            case 'D':
+                chartTitle = '研究结论总结图';
+                chartIcon = 'fas fa-chart-line';
+                break;
+            default:
+                chartTitle = '图表';
+                chartIcon = 'fas fa-chart-bar';
+        }
+        
+        // 创建图表区域
+        const chartSection = document.createElement('div');
+        chartSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        
+        // 创建图表容器
+        const chartContainer = document.createElement('div');
+        chartContainer.id = `fullscreen-chart-${chartType}`;
+        chartContainer.style.cssText = `margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;`;
+        
+        // 处理图表数据
+        if (chartType === 'C') {
+            // 表格类型，直接显示
+            const contentContainer = document.createElement('div');
+            contentContainer.style.cssText = `
+                padding: 15px;
+                background: #f9f9f9;
+                border-radius: 5px;
+                font-size: 14px;
+                line-height: 1.5;
+                overflow-x: auto;
+            `;
+            // 简单的表格转换
+            let htmlContent = chartData;
+            htmlContent = htmlContent.replace(/\|(.*?)\|\n\|(.*?)\|\n((?:\|.*?\|\n)*)/g, (match, headers, separator, rows) => {
+                const headerCells = headers.split('|').map(cell => cell.trim()).filter(cell => cell);
+                const rowCells = rows.split('\n').map(row => {
+                    return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+                }).filter(cells => cells.length > 0);
+                
+                let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                
+                // 表头
+                tableHtml += '<thead><tr>';
+                headerCells.forEach(cell => {
+                    tableHtml += `<th style="border: 1px solid #ddd; padding: 8px; text-align: left; background: #f2f2f2;">${cell}</th>`;
+                });
+                tableHtml += '</tr></thead>';
+                
+                // 表格内容
+                tableHtml += '<tbody>';
+                rowCells.forEach(row => {
+                    tableHtml += '<tr>';
+                    row.forEach(cell => {
+                        tableHtml += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</tbody></table>';
+                
+                return tableHtml;
+            });
+            contentContainer.innerHTML = htmlContent;
+            chartContainer.appendChild(contentContainer);
+        } else {
+            // 其他图表类型，使用mermaid
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            // 处理markdown格式的mermaid代码块
+            let mermaidCode = chartData;
+            const mermaidMatch = chartData.match(/```mermaid[\s\S]*?```/);
+            if (mermaidMatch) {
+                mermaidCode = mermaidMatch[0].replace(/```mermaid\n?/, '').replace(/```$/, '').trim();
+            }
+            mermaidDiv.textContent = mermaidCode;
+            chartContainer.appendChild(mermaidDiv);
+            
+            // 尝试渲染mermaid图表
+            if (window.mermaid) {
+                try {
+                    window.mermaid.init(undefined, mermaidDiv);
+                } catch (err) {
+                    console.error(`渲染图表 ${chartType} 失败:`, err);
+                    chartContainer.innerHTML = `<p style="color: #dc3545; text-align: center;">图表渲染失败</p>`;
+                }
+            } else {
+                console.error('mermaid库未加载');
+                chartContainer.innerHTML = `<p style="color: #dc3545; text-align: center;">mermaid库未加载</p>`;
+            }
+        }
+        
+        // 组装图表区域
+        chartSection.innerHTML = `<h5><i class="${chartIcon}"></i> ${chartTitle}</h5>`;
+        chartSection.appendChild(chartContainer);
+        
+        chartsContainer.appendChild(chartSection);
+    }
+    
+    container.appendChild(chartsContainer);
+}
+
+// 为全屏界面生成图表
+async function generatePaperChartsForFullScreen(originalContent, interpretation) {
+    const container = document.getElementById('charts-container');
+    if (!container) return;
+    
+    // 清空容器
+    container.innerHTML = '<p>正在生成图表...</p>';
+    
+    // 获取用户的图表形式偏好设置
+    let chartTypes = ['A']; // 默认使用思维导图
+    
+    // 尝试从用户设置中获取图表形式偏好
+    try {
+        // 先尝试使用本地AppState
+        if (AppState && AppState.user && AppState.user.settings && AppState.user.settings.reading) {
+            chartTypes = AppState.user.settings.reading.chart_types || ['A'];
+        } else if (window.AppState && window.AppState.user && window.AppState.user.settings && window.AppState.user.settings.reading) {
+            // 再尝试使用window.AppState
+            chartTypes = window.AppState.user.settings.reading.chart_types || ['A'];
+        }
+    } catch (error) {
+        console.error('获取图表形式偏好失败:', error);
+        // 使用默认值
+        chartTypes = ['A'];
+    }
+    
+    console.log('全屏界面图表类型:', chartTypes);
+    
+    // 创建图表容器
+    const chartsContainer = document.createElement('div');
+    // 根据图表数量设置不同的布局
+    if (chartTypes.length === 4) {
+        // 四个图表时使用网格布局，两行两列
+        chartsContainer.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px;
+            margin-top: 20px;
+        `;
+    } else {
+        // 其他情况使用弹性布局
+        chartsContainer.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        `;
+    }
+    
+    // 为每种图表类型创建容器
+    const chartContainers = {};
+    
+    if (chartTypes.includes('A')) {
+        // 生成思维导图
+        const mindmapSection = document.createElement('div');
+        mindmapSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        mindmapSection.innerHTML = `
+            <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+            <div id="fullscreen-chart-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">思维导图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(mindmapSection);
+        chartContainers['A'] = 'fullscreen-chart-A';
+    }
+    
+    if (chartTypes.includes('B')) {
+        // 生成流程图
+        const flowchartSection = document.createElement('div');
+        flowchartSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        flowchartSection.innerHTML = `
+            <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+            <div id="fullscreen-chart-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">流程图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(flowchartSection);
+        chartContainers['B'] = 'fullscreen-chart-B';
+    }
+    
+    if (chartTypes.includes('C')) {
+        // 生成表格
+        const tableSection = document.createElement('div');
+        tableSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        tableSection.innerHTML = `
+            <h5>核心数据表格</h5>
+            <div id="fullscreen-chart-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">表格生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(tableSection);
+        chartContainers['C'] = 'fullscreen-chart-C';
+    }
+    
+    if (chartTypes.includes('D')) {
+        // 生成统计图
+        const chartSection = document.createElement('div');
+        chartSection.style.cssText = `
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        `;
+        chartSection.innerHTML = `
+            <h5><i class="fas fa-chart-bar"></i> 研究结果统计图</h5>
+            <div id="fullscreen-chart-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
+                <p style="text-align: center; color: #666;">统计图生成中...</p>
+            </div>
+        `;
+        chartsContainer.appendChild(chartSection);
+        chartContainers['D'] = 'fullscreen-chart-D';
+    }
+    
+    // 如果没有生成任何图表，显示默认提示
+    if (chartsContainer.children.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 15px;"></i>
+                <p>根据您的设置，暂时没有生成图表</p>
+                <p>您可以在设置中调整图表形式偏好</p>
+            </div>
+        `;
+    } else {
+        container.innerHTML = '';
+        container.appendChild(chartsContainer);
+    }
+    
+    // 调用API生成图表数据
+    try {
+        // 获取当前语言
+        let currentLanguage = 'zh';
+        try {
+            if (window.languageManager) {
+                currentLanguage = window.languageManager.getCurrentLanguage();
+            } else {
+                // 尝试从localStorage获取
+                currentLanguage = localStorage.getItem('language') || 'zh';
+            }
+        } catch (error) {
+            console.error('获取当前语言失败:', error);
+            currentLanguage = 'zh';
+        }
+        
+        // 发送请求到API
+        const response = await fetch('/api/generate-charts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                paper_content: originalContent,
+                chart_types: chartTypes,
+                language: currentLanguage
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 更新图表内容
+            if (data.charts) {
+                // 为每种图表类型执行代码
+                for (const [chartType, chartCode] of Object.entries(data.charts)) {
+                    if (chartContainers[chartType]) {
+                        try {
+                            // 创建一个安全的执行环境
+                            const containerId = chartContainers[chartType];
+                            const chartContainer = document.getElementById(containerId);
+                            
+                            if (chartContainer) {
+                                // 清空容器
+                                chartContainer.innerHTML = '';
+                                
+                                // 解析图表代码，提取mermaid语法
+                                let mermaidCode = chartCode;
+                                
+                                // 处理markdown格式的mermaid代码块
+                                const mermaidMatch = chartCode.match(/```mermaid[\s\S]*?```/);
+                                if (mermaidMatch) {
+                                    mermaidCode = mermaidMatch[0].replace(/```mermaid\n?/, '').replace(/```$/, '').trim();
+                                }
+                                
+                                // 对于表格类型，直接显示markdown表格
+                                if (chartType === 'C') {
+                                    // 创建一个内容容器
+                                    const contentContainer = document.createElement('div');
+                                    contentContainer.style.cssText = `
+                                        padding: 15px;
+                                        background: #f9f9f9;
+                                        border-radius: 5px;
+                                        font-size: 14px;
+                                        line-height: 1.5;
+                                        overflow-x: auto;
+                                    `;
+                                    
+                                    // 转换markdown表格为HTML
+                                    let htmlContent = chartCode;
+                                    // 简单的表格转换
+                                    htmlContent = htmlContent.replace(/\|(.*?)\|\n\|(.*?)\|\n((?:\|.*?\|\n)*)/g, (match, headers, separator, rows) => {
+                                        const headerCells = headers.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        const rowsArray = rows.trim().split('\n').map(row => {
+                                            return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+                                        });
+                                        
+                                        let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">';
+                                        // 表头
+                                        tableHtml += '<thead><tr>';
+                                        headerCells.forEach(cell => {
+                                            tableHtml += `<th style="border: 1px solid #ddd; padding: 8px; text-align: left; background: #f2f2f2;">${cell}</th>`;
+                                        });
+                                        tableHtml += '</tr></thead>';
+                                        // 表格内容
+                                        tableHtml += '<tbody>';
+                                        rowsArray.forEach(row => {
+                                            tableHtml += '<tr>';
+                                            row.forEach(cell => {
+                                                tableHtml += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
+                                            });
+                                            tableHtml += '</tr>';
+                                        });
+                                        tableHtml += '</tbody></table>';
+                                        return tableHtml;
+                                    });
+                                    
+                                    contentContainer.innerHTML = htmlContent;
+                                    chartContainer.appendChild(contentContainer);
+                                } else {
+                                    // 对于其他类型，使用mermaid渲染
+                                    try {
+                                        // 创建图表控制工具栏
+                                        const toolbar = document.createElement('div');
+                                        toolbar.style.cssText = `
+                                            display: flex;
+                                            justify-content: space-between;
+                                            align-items: center;
+                                            margin-bottom: 10px;
+                                            padding: 5px 10px;
+                                            background: #f0f0f0;
+                                            border-radius: 5px;
+                                        `;
+                                        toolbar.innerHTML = `
+                                            <div style="display: flex; gap: 5px;">
+                                                <button class="chart-zoom-in" style="padding: 3px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                                    <i class="fas fa-search-plus"></i>
+                                                </button>
+                                                <button class="chart-zoom-out" style="padding: 3px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                                    <i class="fas fa-search-minus"></i>
+                                                </button>
+                                            </div>
+                                            <div style="font-size: 12px; color: #666;">
+                                                图表类型: ${chartType === 'A' ? '思维导图' : chartType === 'B' ? '流程图' : '统计图'}
+                                            </div>
+                                        `;
+                                        chartContainer.appendChild(toolbar);
+                                        
+                                        // 创建mermaid图表容器
+                                        const mermaidContainer = document.createElement('div');
+                                        mermaidContainer.className = 'mermaid';
+                                        mermaidContainer.style.cssText = `
+                                            font-size: 14px;
+                                            line-height: 1.5;
+                                            overflow-x: auto;
+                                        `;
+                                        mermaidContainer.textContent = mermaidCode;
+                                        chartContainer.appendChild(mermaidContainer);
+                                        
+                                        // 初始化mermaid
+                                        if (window.mermaid) {
+                                            window.mermaid.init(undefined, mermaidContainer);
+                                        }
+                                    } catch (mermaidError) {
+                                        console.error('Mermaid渲染错误:', mermaidError);
+                                        chartContainer.innerHTML = `<p style="color: #dc3545;">图表渲染失败: ${mermaidError.message}</p>`;
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`更新图表 ${chartType} 时出错:`, error);
+                        }
+                    }
+                }
+            }
+        } else {
+            container.innerHTML = `<p style="color: #dc3545;">图表生成失败: ${data.message || '未知错误'}</p>`;
+        }
+    } catch (error) {
+        console.error('图表生成API调用错误:', error);
+        container.innerHTML = `<p style="color: #dc3545;">图表生成失败: ${error.message}</p>`;
+    }
 }
 
 // 添加查看原文按钮
@@ -4506,6 +6161,9 @@ function addViewOriginalButton() {
     if (document.getElementById('view-original-button')) {
         return;
     }
+    
+    // 获取当前语言
+    const currentLang = window.languageManager ? window.languageManager.currentLang : (localStorage.getItem('language') || 'zh');
     
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
@@ -4517,9 +6175,67 @@ function addViewOriginalButton() {
     // 创建按钮
     const viewButton = document.createElement('button');
     viewButton.id = 'view-original-button';
-    viewButton.innerHTML = '<i class="fas fa-file-pdf"></i> 查看原文';
+    // 根据语言显示不同的按钮文本
+    const buttonText = currentLang === 'en' ? 'View Original' : '查看原文';
+    viewButton.innerHTML = `<i class="fas fa-file-pdf"></i> ${buttonText}`;
     viewButton.style.cssText = `
         background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 10px;
+    `;
+    
+    // 添加点击事件
+    viewButton.addEventListener('click', showOriginalPaper);
+    
+    // 添加到结果区域
+    buttonContainer.appendChild(viewButton);
+    
+    // 找到合适的位置插入按钮
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        // 插入到结果区域的顶部
+        const firstChild = resultsSection.firstChild;
+        if (firstChild) {
+            resultsSection.insertBefore(buttonContainer, firstChild);
+        } else {
+            resultsSection.appendChild(buttonContainer);
+        }
+    }
+}
+
+// 添加全屏解读按钮
+function addFullScreenButton(originalContent, interpretation) {
+    // 检查是否已存在全屏解读按钮
+    if (document.getElementById('fullscreen-button')) {
+        return;
+    }
+    
+    // 获取当前语言
+    const currentLang = window.languageManager ? window.languageManager.currentLang : (localStorage.getItem('language') || 'zh');
+    
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        text-align: center;
+        margin: 20px 0;
+    `;
+    
+    // 创建按钮
+    const fullscreenButton = document.createElement('button');
+    fullscreenButton.id = 'fullscreen-button';
+    // 根据语言显示不同的按钮文本
+    const buttonText = currentLang === 'en' ? 'Fullscreen Interpretation' : '全屏解读';
+    fullscreenButton.innerHTML = `<i class="fas fa-expand"></i> ${buttonText}`;
+    fullscreenButton.style.cssText = `
+        background: #007bff;
         color: white;
         border: none;
         border-radius: 5px;
@@ -4532,10 +6248,12 @@ function addViewOriginalButton() {
     `;
     
     // 添加点击事件
-    viewButton.addEventListener('click', showOriginalPaper);
+    fullscreenButton.addEventListener('click', function() {
+        showFullScreenInterpretation(originalContent, interpretation, AppState.currentChartsData);
+    });
     
     // 添加到结果区域
-    buttonContainer.appendChild(viewButton);
+    buttonContainer.appendChild(fullscreenButton);
     
     // 找到合适的位置插入按钮
     const resultsSection = document.getElementById('results-section');
@@ -4806,20 +6524,29 @@ function addAIConversationDialog(originalContent, interpretation) {
         resultsSection.appendChild(aiDialogContainer);
     }
     
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    
+    // 根据语言设置不同的文本
+    const dialogTitle = currentLang === 'en' ? 'AI Chat' : 'AI 对话';
+    const welcomeMessage1 = currentLang === 'en' ? 'I am your AI assistant, I can answer questions about this paper' : '我是您的AI助手，可以回答关于这篇论文的问题';
+    const welcomeMessage2 = currentLang === 'en' ? 'You can ask about paper details, concept explanations, etc.' : '您可以询问论文的细节、概念解释等';
+    const placeholderText = currentLang === 'en' ? 'Enter your question...' : '输入您的问题...';
+    
     // 对话框内容
     aiDialogContainer.innerHTML = `
         <div class="dialog-header" style="background: #007bff; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <h5 style="margin: 0;"><i class="fas fa-robot"></i> AI 对话</h5>
+            <h5 style="margin: 0;"><i class="fas fa-robot"></i> ${dialogTitle}</h5>
             <button id="toggle-ai-dialog" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">↑</button>
         </div>
         <div class="dialog-body" id="ai-chat-container" style="height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa;">
             <div class="welcome-message" style="text-align: center; color: #666; padding: 20px;">
-                <p>我是您的AI助手，可以回答关于这篇论文的问题</p>
-                <p>您可以询问论文的细节、概念解释等</p>
+                <p>${welcomeMessage1}</p>
+                <p>${welcomeMessage2}</p>
             </div>
         </div>
         <div class="dialog-footer" style="padding: 10px; border-top: 1px solid #eee;">
-            <input type="text" id="ai-chat-input" placeholder="输入您的问题..." style="width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 15px; margin-right: 8px;">
+            <input type="text" id="ai-chat-input" placeholder="${placeholderText}" style="width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 15px; margin-right: 8px;">
             <button id="ai-send-button" style="background: #007bff; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">
                 <i class="fas fa-paper-plane"></i>
             </button>
@@ -4918,6 +6645,9 @@ function showAIChatMessage(type, message) {
         welcomeMessage.remove();
     }
     
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `ai-chat-message ${type}-message`;
     messageDiv.style.cssText = `
@@ -4934,14 +6664,16 @@ function showAIChatMessage(type, message) {
             color: white;
             margin-left: auto;
         `;
-        messageDiv.innerHTML = `<strong>您：</strong> ${message}`;
+        const userLabel = currentLang === 'en' ? 'You: ' : '您：';
+        messageDiv.innerHTML = `<strong>${userLabel}</strong> ${message}`;
     } else {
         messageDiv.style.cssText += `
             background: #e9ecef;
             color: #333;
             margin-right: auto;
         `;
-        messageDiv.innerHTML = `<strong>AI：</strong> ${message}`;
+        const aiLabel = currentLang === 'en' ? 'AI: ' : 'AI：';
+        messageDiv.innerHTML = `<strong>${aiLabel}</strong> ${message}`;
     }
     
     chatContainer.appendChild(messageDiv);
@@ -4952,6 +6684,9 @@ function showAIChatMessage(type, message) {
 function sendAIChatMessageToAI(message, originalContent, interpretation) {
     const chatContainer = document.getElementById('ai-chat-container');
     if (!chatContainer) return;
+    
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
     
     // 显示加载状态
     const loadingDiv = document.createElement('div');
@@ -4966,7 +6701,9 @@ function sendAIChatMessageToAI(message, originalContent, interpretation) {
         margin-right: auto;
         font-size: 14px;
     `;
-    loadingDiv.innerHTML = `<strong>AI：</strong> <i class="fas fa-spinner fa-spin"></i> 思考中...`;
+    const aiLabel = currentLang === 'en' ? 'AI: ' : 'AI：';
+    const thinkingText = currentLang === 'en' ? 'Thinking...' : '思考中...';
+    loadingDiv.innerHTML = `<strong>${aiLabel}</strong> <i class="fas fa-spinner fa-spin"></i> ${thinkingText}`;
     chatContainer.appendChild(loadingDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     
@@ -4976,6 +6713,7 @@ function sendAIChatMessageToAI(message, originalContent, interpretation) {
         headers: {
             'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
             question: message,
             original_content: originalContent,
