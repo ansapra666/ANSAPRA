@@ -8,6 +8,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Adobe PDF Embed API -->
+    <script src="https://acrobatservices.adobe.com/view-sdk/latest/web/AdobeDC.ViewSDK.js"></script>
+    <script>
+        // 全局配置
+        window.AppConfig = {
+            adobeClientId: '{{ adobe_client_id or "e7b63e7311304c959413a8085b722d9b" }}'
+        };
+    </script>
     <!-- Mermaid.js 用于渲染图表 -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
     <!-- 字体链接，包含中文字体和英文字体 -->
@@ -70,20 +78,14 @@
                 </form>
                 
                 <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <p data-i18n="registration-process-title"><strong>注册流程说明：</strong></p>
+                    <p data-i18n="registration-process-title"><strong data-i18n="registration-process-title">注册流程说明：</strong></p>
                     <ol style="margin-left: 20px; margin-top: 10px;">
-                        <li data-i18n="registration-step-1">填写基本信息（邮箱、用户名、密码）</li>
-                        <li data-i18n="registration-step-2">点击"注册"按钮</li>
-                        <li data-i18n="registration-step-3">系统将引导您填写知识框架问卷</li>
-                        <li data-i18n="registration-step-4">完成问卷后自动完成注册</li>
+                        <li data-i18n="registration-step-1"></li>
+                        <li data-i18n="registration-step-2"></li>
+                        <li data-i18n="registration-step-3"></li>
+                        <li data-i18n="registration-step-4"></li>
                     </ol>
-                    <p data-i18n="registration-alternative" style="margin-top: 10px; font-size: 14px; color: #666;">
-                        或者，您可以先
-                        <button type="button" class="btn btn-small btn-secondary" onclick="showFullQuestionnaire()">
-                            <i class="fa fa-list"></i> <span data-i18n="fill-questionnaire">填写问卷</span>
-                        </button>
-                        ，然后再填写注册信息
-                    </p>
+                    <p data-i18n="registration-alternative" style="margin-top: 10px; font-size: 14px; color: #666;"></p>
                 </div>
             </div>
             
@@ -145,7 +147,7 @@
                     
                     <div class="content-section">
                         <h3 data-i18n="Nature & Science Papers">Nature & Science论文</h3>
-                        <p data-i18n="nature-science-paragraph-1"><strong>Nature</strong> (www.nature.com) 与 <strong>Science</strong> (www.science.org) 为国际自然科学领域两大权威期刊门户。</p>
+                        <p data-i18n="nature-science-paragraph-1"><strong>Nature</strong> (<a href="https://www.nature.com" target="_blank">www.nature.com</a>) 与 <strong>Science</strong> (<a href="https://www.science.org" target="_blank">www.science.org</a>) 为国际自然科学领域两大权威期刊门户。</p>
                         <p data-i18n="nature-science-paragraph-2">Nature 1869年创刊，现由Springer Nature出版，涵盖多学科前沿研究并发布即时评述；Science 1880年创刊，由美国科学促进会（AAAS）出版，同样以同行评审的原创论文与跨学科综述引领科研方向。</p>
                         <p data-i18n="nature-science-paragraph-3">两者均被Web of Science列为顶刊，影响因子常年逾50，是全球科学家获取与发布最新科学发现的核心平台。</p>
                     </div>
@@ -393,24 +395,10 @@
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language.js') }}"></script>
     <!-- 全屏问卷模态框 -->
-    <div id="full-questionnaire-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; width: 95%;">
-            <div class="modal-header">
-                <h3 data-i18n="knowledge-framework-questionnaire"><i class="fa fa-list"></i> 知识框架调查问卷</h3>
-                <button onclick="closeFullQuestionnaire()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease;" data-i18n="close">&times;</button>
-            </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <div id="full-questionnaire-container">
-                    <!-- 问卷内容将通过JS动态加载 -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="saveQuestionnaire()" data-i18n="save-questionnaire">
-                    <i class="fa fa-save"></i> 保存问卷
-                </button>
-                <button class="btn btn-secondary" onclick="closeFullQuestionnaire()" data-i18n="cancel">
-                    取消
-                </button>
+    <div id="full-questionnaire-modal" class="modal" style="display: none; margin: 0; padding: 0;">
+        <div style="width: 100%; height: 100vh; padding: 20px; overflow-y: auto; box-sizing: border-box;">
+            <div id="full-questionnaire-container">
+                <!-- 问卷内容将通过JS动态加载 -->
             </div>
         </div>
     </div>
