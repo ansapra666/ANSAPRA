@@ -56,7 +56,6 @@ h3 {
 .radio-label span,
 .checkbox-label span {
     flex: 1;
-    font-size: 15px;
     line-height: 1.5;
     color: #333;
 }
@@ -165,10 +164,7 @@ h3 {
         padding: 10px 12px;
     }
     
-    .radio-label span,
-    .checkbox-label span {
-        font-size: 14px;
-    }
+
 }
 
 
@@ -651,7 +647,7 @@ h3 {
 }
 
 .modal-footer {
-    padding: 20px 30px;
+    padding: 10px 30px;
     background: #f8f9fa;
     border-radius: 0 0 12px 12px;
     border-top: 1px solid #dee2e6;
@@ -1708,7 +1704,7 @@ body {
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
-    max-height: 300px;
+    max-height: 90vh;
     overflow-y: auto;
 }
 
@@ -1832,12 +1828,12 @@ body {
 /* 全屏问卷样式 */
 #full-questionnaire-modal .modal-content {
     max-width: 1200px;
-    width: 95%;
-    max-height: 95vh;
+    width: 100%;
+    height: 100vh;
 }
 
 #full-questionnaire-modal .modal-body {
-    max-height: 75vh;
+    height: calc(100vh - 140px);
     overflow-y: auto;
     padding: 20px;
 }
@@ -1892,7 +1888,7 @@ body {
 /* 注册表单中的问卷摘要样式 */
 .questionnaire-summary {
     background: linear-gradient(135deg, #e8f5e8 0%, #f0f9f0 100%);
-    border: 2px solid #28a745;
+    border: none;
     border-radius: 10px;
     padding: 20px;
     margin: 15px 0;
