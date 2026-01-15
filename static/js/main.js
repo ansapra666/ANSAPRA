@@ -7,6 +7,7 @@ const AppState = {
     translations: {},
     chatHistory: [], // 新增：聊天历史
     currentPDFUrl: null, // 新增：当前PDF的URL
+    currentPDFName: null, // 新增：当前PDF的文件名
     currentInterpretation: null, // 新增：当前解读内容
     currentChartsData: null, // 新增：当前图表数据
     currentOriginalContent: null // 新增：当前原文内容
@@ -28,32 +29,99 @@ function savePageState(originalContent, interpretation, chartsData) {
             originalContent: originalContent,
             interpretation: interpretation,
             chartsData: chartsData,
-            currentPDFUrl: AppState.currentPDFUrl,
+            // 不保存 currentPDFUrl，因为它是临时的，刷新后会失效
+            // currentPDFUrl: AppState.currentPDFUrl,
             timestamp: Date.now()
         };
         
-        localStorage.setItem('pageState', JSON.stringify(pageState));
-        console.log('页面状态已保存');
+        // 检查localStorage是否可用
+        if (typeof Storage !== 'undefined') {
+            // 检查存储空间是否足够
+            try {
+                localStorage.setItem('pageState', JSON.stringify(pageState));
+                console.log('页面状态已保存');
+            } catch (e) {
+                // 存储空间不足，尝试清除旧数据
+                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                    console.warn('localStorage存储空间不足，尝试清除旧数据');
+                    // 清除旧的阅读记录
+                    localStorage.removeItem('readingHistory');
+                    localStorage.removeItem('searchHistory');
+                    localStorage.removeItem('userSettings');
+                    // 再次尝试保存
+                    try {
+                        localStorage.setItem('pageState', JSON.stringify(pageState));
+                        console.log('页面状态已保存（清除旧数据后）');
+                        // 显示提示信息
+                        const currentLang = localStorage.getItem('language') || 'zh';
+                        if (currentLang === 'en') {
+                            showNotification('Storage space was limited, old data has been cleared to save current paper', 'info');
+                        } else {
+                            showNotification('存储空间有限，已清除旧数据以保存当前论文', 'info');
+                        }
+                    } catch (e2) {
+                        console.error('保存页面状态失败（存储空间不足）:', e2);
+                        // 显示错误提示
+                        const currentLang = localStorage.getItem('language') || 'zh';
+                        if (currentLang === 'en') {
+                            showNotification('Failed to save paper due to storage limitations. Please try with a smaller file.', 'error');
+                        } else {
+                            showNotification('由于存储限制，无法保存论文。请尝试使用较小的文件。', 'error');
+                        }
+                    }
+                } else {
+                    console.error('保存页面状态失败:', e);
+                }
+            }
+        } else {
+            console.warn('浏览器不支持localStorage');
+            // 显示错误提示
+            const currentLang = localStorage.getItem('language') || 'zh';
+            if (currentLang === 'en') {
+                showNotification('Your browser does not support local storage. Paper data will not be saved.', 'error');
+            } else {
+                showNotification('您的浏览器不支持本地存储，论文数据将无法保存。', 'error');
+            }
+        }
     } catch (error) {
         console.error('保存页面状态失败:', error);
+        // 显示错误提示
+        const currentLang = localStorage.getItem('language') || 'zh';
+        if (currentLang === 'en') {
+            showNotification('Failed to save paper data. Please try again.', 'error');
+        } else {
+            showNotification('保存论文数据失败，请重试。', 'error');
+        }
     }
 }
 
 // 加载页面状态
 function loadPageState() {
     try {
-        const savedState = localStorage.getItem('pageState');
-        if (savedState) {
-            const pageState = JSON.parse(savedState);
-            
-            // 恢复全局状态
-            AppState.currentOriginalContent = pageState.originalContent;
-            AppState.currentInterpretation = pageState.interpretation;
-            AppState.currentChartsData = pageState.chartsData;
-            AppState.currentPDFUrl = pageState.currentPDFUrl;
-            
-            console.log('页面状态已加载');
-            return pageState;
+        // 检查localStorage是否可用
+        if (typeof Storage !== 'undefined') {
+            const savedState = localStorage.getItem('pageState');
+            if (savedState) {
+                try {
+                    const pageState = JSON.parse(savedState);
+                    
+                    // 恢复全局状态
+                    AppState.currentOriginalContent = pageState.originalContent;
+                    AppState.currentInterpretation = pageState.interpretation;
+                    AppState.currentChartsData = pageState.chartsData;
+                    // 不恢复 currentPDFUrl，因为它是临时的，刷新后会失效
+                    // AppState.currentPDFUrl = pageState.currentPDFUrl;
+                    
+                    console.log('页面状态已加载');
+                    return pageState;
+                } catch (e) {
+                    console.error('解析页面状态失败:', e);
+                    // 清除损坏的状态
+                    localStorage.removeItem('pageState');
+                }
+            }
+        } else {
+            console.warn('浏览器不支持localStorage');
         }
     } catch (error) {
         console.error('加载页面状态失败:', error);
@@ -64,6 +132,13 @@ function loadPageState() {
 // 显示保存的页面状态
 function displaySavedPageState() {
     try {
+        // 确保DOM元素已初始化
+        if (!DOM.resultsSection || !DOM.originalContent || !DOM.interpretationContent) {
+            console.error('DOM元素未初始化，延迟显示保存的页面状态');
+            setTimeout(displaySavedPageState, 100);
+            return;
+        }
+        
         // 检查是否有保存的页面状态
         if (AppState.currentOriginalContent && AppState.currentInterpretation) {
             console.log('显示保存的页面状态');
@@ -76,12 +151,35 @@ function displaySavedPageState() {
             
             // 填充原文内容
             if (DOM.originalContent) {
-                DOM.originalContent.textContent = AppState.currentOriginalContent;
+                if (AppState.currentPDFUrl) {
+                    // 直接在原文内容展示框中嵌入PDF查看器，中间没有空格
+                    DOM.originalContent.innerHTML = '<div style="width: 100%; height: 100%; border-radius: 8px; overflow: hidden;"><iframe src="'+AppState.currentPDFUrl+'" style="width: 100%; height: 100%; border: none;"></iframe></div>';
+                    // 设置PDF文件的原文展示为方形
+                    DOM.originalContent.style.width = '100%';
+                    DOM.originalContent.style.height = '90vw'; // 更接近方形的比例
+                    DOM.originalContent.style.overflow = 'hidden';
+                } else if (AppState.currentOriginalContent) {
+                    // 对于非PDF文件，使用与startInterpretation函数中相同的HTML结构来显示原文内容
+                    DOM.originalContent.innerHTML = `
+                        <div style="width: 100%; min-height: 400px; padding: 15px; background: #f8f9fa; border-radius: 8px; overflow: auto;">
+                            <div style="white-space: pre-wrap; word-break: break-all;">${AppState.currentOriginalContent}</div>
+                        </div>
+                    `;
+                    // 设置非PDF文件的原文展示样式
+                    DOM.originalContent.style.width = '100%';
+                    DOM.originalContent.style.minHeight = '400px'; // 最小高度
+                    DOM.originalContent.style.maxHeight = '80vh'; // 最大高度，防止过高
+                    DOM.originalContent.style.overflow = 'auto';
+                }
             }
             
             // 填充解读内容
             if (DOM.interpretationContent) {
                 DOM.interpretationContent.innerHTML = formatInterpretation(AppState.currentInterpretation);
+                // 设置解读内容的展示比例为16:9
+                DOM.interpretationContent.style.width = '100%';
+                DOM.interpretationContent.style.height = '56.25vw';
+                DOM.interpretationContent.style.overflow = 'auto';
             }
             
             // 添加查看原文按钮（如果是PDF文件）
@@ -114,6 +212,25 @@ function displaySavedPageState() {
                     margin-top: 20px;
                 `;
                 
+                // 获取当前语言
+                const currentLang = localStorage.getItem('language') || 'zh';
+                
+                // 图表类型名称的中英文翻译
+                const chartTypeNames = {
+                    A: currentLang === 'en' ? 'Paper Structure Mind Map' : '论文结构思维导图',
+                    B: currentLang === 'en' ? 'Research Process Flow Chart' : '研究流程逻辑图',
+                    C: currentLang === 'en' ? 'Core Content Table' : '核心内容表格',
+                    D: currentLang === 'en' ? 'Concept Relationship Diagram' : '概念关系图'
+                };
+                
+                // 加载提示的中英文翻译
+                const loadingTexts = {
+                    A: currentLang === 'en' ? 'Mind map loading...' : '思维导图加载中...',
+                    B: currentLang === 'en' ? 'Flow chart loading...' : '流程图加载中...',
+                    C: currentLang === 'en' ? 'Table loading...' : '表格加载中...',
+                    D: currentLang === 'en' ? 'Concept map loading...' : '概念图加载中...'
+                };
+                
                 // 显示思维导图
                 if (AppState.currentChartsData.A) {
                     const mindmapSection = document.createElement('div');
@@ -125,9 +242,9 @@ function displaySavedPageState() {
                         border-radius: 8px;
                     `;
                     mindmapSection.innerHTML = `
-                        <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+                        <h5><i class="fas fa-project-diagram"></i> ${chartTypeNames.A}</h5>
                         <div id="chart-container-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                            <p style="text-align: center; color: #666;">思维导图加载中...</p>
+                            <p style="text-align: center; color: #666;">${loadingTexts.A}</p>
                         </div>
                     `;
                     chartsContainer.appendChild(mindmapSection);
@@ -144,9 +261,9 @@ function displaySavedPageState() {
                         border-radius: 8px;
                     `;
                     flowchartSection.innerHTML = `
-                        <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+                        <h5><i class="fas fa-sitemap"></i> ${chartTypeNames.B}</h5>
                         <div id="chart-container-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                            <p style="text-align: center; color: #666;">流程图加载中...</p>
+                            <p style="text-align: center; color: #666;">${loadingTexts.B}</p>
                         </div>
                     `;
                     chartsContainer.appendChild(flowchartSection);
@@ -163,9 +280,9 @@ function displaySavedPageState() {
                         border-radius: 8px;
                     `;
                     tableSection.innerHTML = `
-                        <h5><i class="fas fa-table"></i> 核心内容表格</h5>
+                        <h5><i class="fas fa-table"></i> ${chartTypeNames.C}</h5>
                         <div id="chart-container-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                            <p style="text-align: center; color: #666;">表格加载中...</p>
+                            <p style="text-align: center; color: #666;">${loadingTexts.C}</p>
                         </div>
                     `;
                     chartsContainer.appendChild(tableSection);
@@ -182,9 +299,9 @@ function displaySavedPageState() {
                         border-radius: 8px;
                     `;
                     conceptmapSection.innerHTML = `
-                        <h5><i class="fas fa-connectdevelop"></i> 概念关系图</h5>
+                        <h5><i class="fas fa-connectdevelop"></i> ${chartTypeNames.D}</h5>
                         <div id="chart-container-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                            <p style="text-align: center; color: #666;">概念图加载中...</p>
+                            <p style="text-align: center; color: #666;">${loadingTexts.D}</p>
                         </div>
                     `;
                     chartsContainer.appendChild(conceptmapSection);
@@ -291,49 +408,86 @@ function displaySavedPageState() {
 
 // 在DOM加载完成后添加
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. 首先初始化DOM元素
     initializeDOM();
-    checkAuthentication();
-    // 初始化语言管理器
+    
+    // 2. 初始化语言管理器
     if (typeof initLanguageManager === 'function') {
         initLanguageManager();
     }
-    setupEventListeners();
-    setupSearchKeybindings();
     
-    // 加载问卷数据
-    loadQuestionnaire();
-
-    // 加载使用说明
-    loadInstructions();
-    
-    // 加载设置表单
-    loadSettingsForms();
-
-    // 加载聊天历史（如果用户已登录）
-    if (AppState.user && !AppState.user.is_guest) {
-        loadChatHistory();
+    // 3. 加载本地存储中的设置（无论用户是否已登录）
+    try {
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            console.log('从本地存储加载用户设置（页面加载时）');
+            applySettings(settings);
+        }
+    } catch (error) {
+        console.error('从本地存储加载设置失败:', error);
     }
     
-    // 加载页面状态
+    // 4. 加载页面状态
     loadPageState();
     
-    // 显示保存的页面状态
-    setTimeout(() => {
-        displaySavedPageState();
-    }, 500);
+    // 5. 从localStorage恢复PDF文件
+    try {
+        const savedPDFBase64 = localStorage.getItem('currentPDFBase64');
+        const savedPDFName = localStorage.getItem('currentPDFName');
+        
+        if (savedPDFBase64 && savedPDFName) {
+            console.log('从localStorage恢复PDF文件:', savedPDFName);
+            
+            // 创建Blob对象
+            const byteCharacters = atob(savedPDFBase64.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            // 创建URL并设置到AppState
+            AppState.currentPDFUrl = URL.createObjectURL(blob);
+            AppState.currentPDFName = savedPDFName;
+            
+            // 更新文件信息显示
+            const currentLang = localStorage.getItem('language') || 'zh';
+            const selectedText = currentLang === 'en' ? 'Selected: ' : '已选择: ';
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) {
+                fileInfo.textContent = `${selectedText}${savedPDFName}`;
+                fileInfo.style.color = '#28a745';
+            }
+            
+            console.log('PDF文件已成功恢复');
+        } else {
+            // 如果没有保存的PDF文件，确保AppState.currentPDFUrl为null
+            AppState.currentPDFUrl = null;
+            AppState.currentPDFName = null;
+        }
+    } catch (error) {
+        console.error('恢复PDF文件失败:', error);
+        // 清除损坏的PDF存储
+        localStorage.removeItem('currentPDFBase64');
+        localStorage.removeItem('currentPDFName');
+        // 将AppState.currentPDFUrl设置为null，这样就会显示AppState.currentOriginalContent
+        AppState.currentPDFUrl = null;
+        AppState.currentPDFName = null;
+    }
     
-    // 检查是否有已保存的问卷
+    // 6. 检查是否有已保存的问卷
     const savedQuestionnaire = localStorage.getItem('pendingQuestionnaire');
     if (savedQuestionnaire) {
         try {
             window.currentQuestionnaire = JSON.parse(savedQuestionnaire);
-            updateRegisterFormQuestionnaire();
         } catch (e) {
             console.error('解析保存的问卷数据时出错:', e);
         }
     }
     
-    // 检查是否有待处理的注册信息
+    // 7. 检查是否有待处理的注册信息
     const savedRegistration = localStorage.getItem('pendingRegistration');
     if (savedRegistration) {
         try {
@@ -355,24 +509,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 加载本地存储中的设置（无论用户是否已登录）
-    try {
-        const savedSettings = localStorage.getItem('userSettings');
-        if (savedSettings) {
-            const settings = JSON.parse(savedSettings);
-            console.log('从本地存储加载用户设置（页面加载时）');
-            applySettings(settings);
-            
-            // 延迟更新表单元素，确保表单已加载
-            setTimeout(() => {
-                updateFormElementsWithSavedSettings(settings);
-            }, 100);
-        }
-    } catch (error) {
-        console.error('从本地存储加载设置失败:', error);
+    // 8. 检查认证状态
+    checkAuthentication();
+    
+    // 9. 加载其他数据
+    loadQuestionnaire();
+    loadInstructions();
+    loadSettingsForms();
+    
+    // 10. 加载聊天历史（如果用户已登录）
+    if (AppState.user && !AppState.user.is_guest) {
+        loadChatHistory();
     }
     
-    // 设置Cookie同意功能
+    // 11. 设置事件监听器和其他初始化操作
+    setupEventListeners();
+    setupSearchKeybindings();
+    
+    // 12. 延迟更新表单元素，确保表单已加载
+    setTimeout(() => {
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                updateFormElementsWithSavedSettings(settings);
+            } catch (error) {
+                console.error('更新表单元素失败:', error);
+            }
+        }
+        
+        // 更新注册表单中的问卷显示
+        if (window.currentQuestionnaire) {
+            updateRegisterFormQuestionnaire();
+        }
+    }, 500);
+    
+    // 13. 显示保存的页面状态（延迟更长时间，确保所有DOM元素都已初始化）
+    setTimeout(() => {
+        displaySavedPageState();
+    }, 800);
+    
+    // 14. 设置Cookie同意功能
     setupCookieConsent();
 });
 
@@ -720,11 +897,57 @@ function handleFileSelect(e) {
         return;
     }
     
-    // 对于PDF文件，创建本地URL以便在浏览器中打开
+    // 对于PDF文件，创建本地URL以便在浏览器中打开，并存储为Base64以便刷新后使用
     if (fileName.endsWith('.pdf')) {
+        // 创建临时URL用于当前会话
         AppState.currentPDFUrl = URL.createObjectURL(file);
+        AppState.currentPDFName = file.name;
+        
+        // 将PDF文件转换为Base64并存储到localStorage
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                // 获取Base64编码的文件内容
+                const base64Data = e.target.result;
+                
+                // 存储到localStorage
+                localStorage.setItem('currentPDFBase64', base64Data);
+                localStorage.setItem('currentPDFName', file.name);
+                console.log('PDF文件已存储到localStorage');
+            } catch (error) {
+                console.error('存储PDF文件失败:', error);
+            }
+        };
+        reader.onerror = function(error) {
+            console.error('读取PDF文件失败:', error);
+        };
+        reader.readAsDataURL(file);
     } else {
         AppState.currentPDFUrl = null;
+        AppState.currentPDFName = null;
+        // 清除之前存储的PDF文件
+        localStorage.removeItem('currentPDFBase64');
+        localStorage.removeItem('currentPDFName');
+        
+        // 对于非PDF文件，读取文本内容以便保存
+        if (fileName.endsWith('.txt')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // 获取文本内容
+                    const textContent = e.target.result;
+                    // 存储到AppState，以便后续使用
+                    AppState.currentOriginalContent = textContent;
+                    console.log('文本文件内容已读取并存储到AppState');
+                } catch (error) {
+                    console.error('读取文本文件失败:', error);
+                }
+            };
+            reader.onerror = function(error) {
+                console.error('读取文本文件失败:', error);
+            };
+            reader.readAsText(file);
+        }
     }
     
     // 获取当前语言
@@ -1626,17 +1849,17 @@ function loadFullQuestionnaire(container) {
                 <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
                     <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
                             style="padding: 8px 16px; background: rgba(108, 117, 125, 0.9); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background-color 0.3s;">
-                        <i class="fas fa-times"></i> Close
+                        <i class="fas fa-times"></i> ${currentLang === 'en' ? 'Close' : '关闭'}
                     </button>
                 </div>
                 <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
                     <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
                             style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                        <i class="fas fa-times"></i> Cancel
+                        <i class="fas fa-times"></i> ${currentLang === 'en' ? 'Cancel' : '取消'}
                     </button>
                     <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
                             style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                        <i class="fas fa-save"></i> Save Questionnaire
+                        <i class="fas fa-save"></i> ${currentLang === 'en' ? 'Save Questionnaire' : '保存问卷'}
                     </button>
                 </div>
             </div>
@@ -2387,11 +2610,11 @@ function loadFullQuestionnaire(container) {
                 <div class="questionnaire-buttons" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
                     <button type="button" class="btn btn-secondary" onclick="closeFullQuestionnaire()" 
                             style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                        <i class="fas fa-times"></i> 取消
+                        <i class="fas fa-times"></i> ${currentLang === 'en' ? 'Cancel' : '取消'}
                     </button>
                     <button type="button" class="btn btn-primary" onclick="saveQuestionnaire()" 
                             style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.3s;">
-                        <i class="fas fa-save"></i> 保存问卷
+                        <i class="fas fa-save"></i> ${currentLang === 'en' ? 'Save Questionnaire' : '保存问卷'}
                     </button>
                 </div>
             </div>
@@ -2501,10 +2724,14 @@ function updateQuestionnaire() {
         align-items: center;
     `;
     
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    const modalTitle = currentLang === 'en' ? 'Modify Knowledge Framework Questionnaire' : '修改知识框架问卷';
+    
     modal.innerHTML = `
         <div class="modal-content" style="background: white; border-radius: 10px; padding: 30px; max-width: 900px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
-                <h3 style="margin: 0; color: #007bff;"><i class="fas fa-edit"></i> 修改知识框架问卷</h3>
+                <h3 style="margin: 0; color: #007bff;"><i class="fas fa-edit"></i> ${modalTitle}</h3>
                 <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-color, #333); transition: color 0.3s ease;">&times;</button>
             </div>
             <div id="update-questionnaire-container"></div>
@@ -2953,12 +3180,10 @@ async function startInterpretation() {
     
     // 重置解读相关状态
     AppState.isProcessing = true;
-    AppState.currentInterpretation = null;
-    AppState.currentChartsData = null;
-    AppState.currentPDFUrl = null;
-    AppState.currentOriginalContent = null;
+    // 只重置处理状态，保留其他状态直到新结果生成
+    // 这样在处理过程中，旧的结果仍然可以显示
     
-    // 清空结果区域
+    // 显示加载状态
     DOM.resultsSection.style.display = 'none';
     DOM.loadingSection.style.display = 'block';
     
@@ -2968,13 +3193,14 @@ async function startInterpretation() {
         mindmapContainer.innerHTML = '';
     }
     
-    // 清空之前的解读内容
-    if (DOM.originalContent) {
-        DOM.originalContent.innerHTML = '';
-    }
-    if (DOM.interpretationContent) {
-        DOM.interpretationContent.innerHTML = '';
-    }
+    // 保留之前的内容，直到新结果生成
+    // 这样用户在等待新结果时仍然可以看到旧的内容
+    // if (DOM.originalContent) {
+    //     DOM.originalContent.innerHTML = '';
+    // }
+    // if (DOM.interpretationContent) {
+    //     DOM.interpretationContent.innerHTML = '';
+    // }
     
     try {
         const formData = new FormData();
@@ -3048,34 +3274,26 @@ async function startInterpretation() {
                 // 显示结果
                 // 对于PDF文件，优化原文内容显示
                 if (AppState.currentPDFUrl) {
-                    // 如果是PDF文件，直接显示PDF查看器
-                    DOM.originalContent.innerHTML = `
-                        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                            <p style="margin-bottom: 15px;"><strong>原文内容：</strong></p>
-                            <div id="pdf-viewer" style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: 700px;">
-                                <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-                                    <p>正在加载PDF文件...</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    // 渲染PDF查看器
-                    renderPDFViewer(AppState.currentPDFUrl);
+                    // 直接在原文内容展示框中嵌入PDF查看器，中间没有空格
+                    DOM.originalContent.innerHTML = '<div style="width: 100%; height: 100%; border-radius: 8px; overflow: hidden;"><iframe src="'+AppState.currentPDFUrl+'" style="width: 100%; height: 100%; border: none;"></iframe></div>';
+                    // 设置PDF文件的原文展示为方形
+                    DOM.originalContent.style.width = '100%';
+                    DOM.originalContent.style.height = '90vw'; // 更接近方形的比例
+                    DOM.originalContent.style.overflow = 'hidden';
                 } else {
                     // 对于非PDF文件，直接显示原文内容
                     // 如果是文本输入，显示用户输入的文本；否则显示API返回的原文
                     const originalContent = text ? text : data.original_content;
                     DOM.originalContent.innerHTML = `
-                        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                            <p style="margin-bottom: 15px;"><strong>原文内容：</strong></p>
-                            <div style="white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto;">
-                                ${originalContent}
-                            </div>
+                        <div style="width: 100%; min-height: 400px; padding: 15px; background: #f8f9fa; border-radius: 8px; overflow: auto;">
+                            <div style="white-space: pre-wrap; word-break: break-all;">${originalContent}</div>
                         </div>
                     `;
-                    // 设置非PDF文件的原文展示比例为16:9
+                    // 设置非PDF文件的原文展示样式
                     DOM.originalContent.style.width = '100%';
-                    DOM.originalContent.style.height = '56.25vw';
+                    DOM.originalContent.style.minHeight = '400px'; // 最小高度
+                    DOM.originalContent.style.maxHeight = '80vh'; // 最大高度，防止过高
+                    DOM.originalContent.style.overflow = 'auto';
                 }
                 // 设置解读内容的展示比例为16:9
                 DOM.interpretationContent.style.width = '100%';
@@ -3086,10 +3304,38 @@ async function startInterpretation() {
                 // 显示推荐论文
                 displayRecommendations(data.recommendations || []);
                 
-                // 添加查看原文按钮（如果是PDF文件）
-                if (AppState.currentPDFUrl) {
-                    addViewOriginalButton();
+                // 对于文本输入，使用用户输入的text作为原文内容；对于文件上传，使用API返回的data.original_content
+                // 确保使用新的内容，而不是旧的内容
+                let originalContentToSave;
+                if (text) {
+                    originalContentToSave = text;
+                } else if (data.original_content) {
+                    // 检查data.original_content是否包含旧的论文内容
+                    const oldPaperKeywords = ['beauty', 'mammalian', 'vascular'];
+                    const hasOldPaperContent = oldPaperKeywords.some(keyword => 
+                        data.original_content.toLowerCase().includes(keyword)
+                    );
+                    
+                    if (hasOldPaperContent && file) {
+                        // 如果包含旧的论文内容且是文件上传，使用文件名作为临时内容
+                        originalContentToSave = `File: ${file.name}`;
+                        console.warn('API返回了旧的论文内容，使用文件名作为临时内容');
+                    } else {
+                        originalContentToSave = data.original_content;
+                    }
+                } else {
+                    // 如果没有原文内容，使用文件名作为临时内容
+                    originalContentToSave = file ? `File: ${file.name}` : 'No original content';
+                    console.warn('没有原文内容，使用临时内容');
                 }
+                
+                // 更新全局状态
+                AppState.currentOriginalContent = originalContentToSave;
+                AppState.currentInterpretation = data.interpretation;
+                // 图表数据会在generatePaperCharts函数中更新
+                
+                // 保存页面状态（立即保存，确保即使不进入全屏解读也能保存）
+                savePageState(originalContentToSave, data.interpretation, AppState.currentChartsData);
                 
                 DOM.resultsSection.style.display = 'block';
                 showNotification('解读生成成功！', 'success');
@@ -3101,7 +3347,7 @@ async function startInterpretation() {
                 addAIConversationDialog(data.original_content, data.interpretation);
                 
                 // 添加全屏解读按钮
-                addFullScreenButton(data.original_content, data.interpretation);
+                addFullScreenButton(originalContentToSave, data.interpretation);
                 
                 // 生成论文相关图表，并在图表生成完成后显示全屏解读界面
                 (async () => {
@@ -3112,17 +3358,17 @@ async function startInterpretation() {
                         // 等待一小段时间，确保图表完全渲染
                         await new Promise(resolve => setTimeout(resolve, 500));
                         
-                        // 保存页面状态（确保包含图表数据）
-                        savePageState(data.original_content, data.interpretation, AppState.currentChartsData);
+                        // 更新页面状态（包含图表数据）
+                        savePageState(originalContentToSave, data.interpretation, AppState.currentChartsData);
                         
                         // 显示全屏解读界面，传入最新的图表数据
-                        showFullScreenInterpretation(data.original_content, data.interpretation, AppState.currentChartsData);
+                        showFullScreenInterpretation(originalContentToSave, data.interpretation, AppState.currentChartsData);
                     } catch (error) {
                         console.error('生成图表或显示全屏解读时出错:', error);
                         
-                        // 即使图表生成失败，也要保存页面状态并显示全屏解读
-                        savePageState(data.original_content, data.interpretation, AppState.currentChartsData);
-                        showFullScreenInterpretation(data.original_content, data.interpretation, AppState.currentChartsData);
+                        // 即使图表生成失败，也要更新页面状态并显示全屏解读
+                        savePageState(originalContentToSave, data.interpretation, AppState.currentChartsData);
+                        showFullScreenInterpretation(originalContentToSave, data.interpretation, AppState.currentChartsData);
                     }
                 })();
             } else {
@@ -3214,27 +3460,80 @@ async function saveToHistory() {
 
 // 加载用户设置
 async function loadUserSettings() {
-    if (!AppState.user || AppState.user.is_guest) return;
-    
     try {
+        let hasLoadedSettings = false;
+        
         // 首先尝试从本地存储中加载设置
         const savedSettings = localStorage.getItem('userSettings');
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
             console.log('从本地存储加载用户设置');
             applySettings(settings);
+            hasLoadedSettings = true;
         }
         
-        // 然后从服务器加载最新的设置，确保设置是最新的
-        const response = await fetch('/api/user/settings', {
-            credentials: 'include'
-        });
-        const data = await response.json();
+        // 如果用户已登录，从服务器加载最新的设置
+        if (AppState.user && !AppState.user.is_guest) {
+            const response = await fetch('/api/user/settings', {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            
+            if (data.success && data.settings) {
+                console.log('从服务器加载用户设置');
+                
+                // 检查服务器返回的设置是否完整
+                // 如果本地存储有设置，且服务器返回的设置不完整，保持本地存储的设置
+                const hasLocalSettings = !!localStorage.getItem('userSettings');
+                const isServerSettingsComplete = data.settings.reading || data.settings.visual || data.settings.language;
+                
+                if (!hasLocalSettings || isServerSettingsComplete) {
+                    // 应用服务器设置
+                    applySettings(data.settings);
+                    hasLoadedSettings = true;
+                } else {
+                    console.log('服务器返回的设置不完整，保持本地存储的设置');
+                }
+            }
+        }
         
-        if (data.success) {
-            console.log('从服务器加载用户设置');
-            // 应用设置
-            applySettings(data.settings);
+        // 如果没有加载到任何设置（初次注册用户），应用默认视觉设置
+        if (!hasLoadedSettings) {
+            console.log('没有加载到设置，应用默认视觉设置');
+            const defaultVisualSettings = {
+                chinese_font: "'Microsoft YaHei', sans-serif",
+                font_size: "18",
+                line_height: "1.6",
+                letter_spacing: "0px",
+                theme: "E", // 白色背景
+                text_color: "dark_gray" // 黑色文字
+            };
+            
+            // 创建完整的默认设置对象
+            const defaultSettings = {
+                visual: defaultVisualSettings,
+                language: "zh", // 默认中文
+                reading: {
+                    preparation: "B",
+                    purpose: "B",
+                    time: "B",
+                    style: "C",
+                    depth: "B",
+                    test_type: ["B"],
+                    chart_types: ["A"]
+                }
+            };
+            
+            // 应用默认设置
+            applySettings(defaultSettings);
+            
+            // 保存默认设置到本地存储
+            try {
+                localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
+                console.log('默认设置已保存到本地存储');
+            } catch (error) {
+                console.error('保存默认设置到本地存储失败:', error);
+            }
         }
     } catch (error) {
         console.error('加载设置错误:', error);
@@ -3246,9 +3545,75 @@ async function loadUserSettings() {
                 const settings = JSON.parse(savedSettings);
                 console.log('从本地存储加载用户设置（服务器加载失败）');
                 applySettings(settings);
+            } else {
+                // 如果本地存储也没有设置，应用默认视觉设置
+                console.log('没有加载到设置，应用默认视觉设置');
+                const defaultVisualSettings = {
+                    chinese_font: "'Microsoft YaHei', sans-serif",
+                    font_size: "18",
+                    line_height: "1.6",
+                    letter_spacing: "0px",
+                    theme: "E", // 白色背景
+                    text_color: "dark_gray" // 黑色文字
+                };
+                
+                // 创建完整的默认设置对象
+                const defaultSettings = {
+                    visual: defaultVisualSettings,
+                    language: "zh", // 默认中文
+                    reading: {
+                        preparation: "B",
+                        purpose: "B",
+                        time: "B",
+                        style: "C",
+                        depth: "B",
+                        test_type: ["B"],
+                        chart_types: ["A"]
+                    }
+                };
+                
+                // 应用默认设置
+                applySettings(defaultSettings);
+                
+                // 保存默认设置到本地存储
+                try {
+                    localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
+                    console.log('默认设置已保存到本地存储');
+                } catch (error) {
+                    console.error('保存默认设置到本地存储失败:', error);
+                }
             }
         } catch (localError) {
             console.error('从本地存储加载设置失败:', localError);
+            
+            // 如果所有加载都失败，应用默认视觉设置
+            console.log('所有加载都失败，应用默认视觉设置');
+            const defaultVisualSettings = {
+                chinese_font: "'Microsoft YaHei', sans-serif",
+                font_size: "18",
+                line_height: "1.6",
+                letter_spacing: "0px",
+                theme: "E", // 白色背景
+                text_color: "dark_gray" // 黑色文字
+            };
+            
+            // 创建完整的默认设置对象
+            const defaultSettings = {
+                visual: defaultVisualSettings,
+                language: "zh", // 默认中文
+                reading: {
+                    preparation: "B",
+                    purpose: "B",
+                    time: "B",
+                    style: "C",
+                    depth: "B",
+                    test_type: ["B"],
+                    chart_types: ["A"]
+                }
+            };
+            
+            // 应用默认设置
+            applySettings(defaultSettings);
         }
     }
 }
@@ -3503,9 +3868,9 @@ function updateLanguageSettingsTab() {
     if (langSettings) {
         const labels = langSettings.querySelectorAll('.radio-label span');
         if (labels.length >= 2) {
-            const translations = AppState.translations[AppState.language] || AppState.translations.zh;
-            labels[0].textContent = translations.zh || '中文';
-            labels[1].textContent = translations.en || 'English';
+            // 直接使用固定文本，因为这些是语言选项本身，不需要翻译
+            labels[0].textContent = '中文';
+            labels[1].textContent = 'English';
         }
     }
 }
@@ -3602,6 +3967,25 @@ async function generatePaperCharts(originalContent, interpretation) {
         `;
     }
     
+    // 获取当前语言
+    const currentLang = localStorage.getItem('language') || 'zh';
+    
+    // 图表类型名称的中英文翻译
+    const chartTypeNames = {
+        A: currentLang === 'en' ? 'Paper Structure Mind Map' : '论文结构思维导图',
+        B: currentLang === 'en' ? 'Research Process Flow Chart' : '研究流程逻辑图',
+        C: currentLang === 'en' ? 'Core Data Table' : '核心数据表格',
+        D: currentLang === 'en' ? 'Research Results Statistics Chart' : '研究结果统计图'
+    };
+    
+    // 生成提示的中英文翻译
+    const generatingTexts = {
+        A: currentLang === 'en' ? 'Generating mind map...' : '思维导图生成中...',
+        B: currentLang === 'en' ? 'Generating flow chart...' : '流程图生成中...',
+        C: currentLang === 'en' ? 'Generating table...' : '表格生成中...',
+        D: currentLang === 'en' ? 'Generating statistics chart...' : '统计图生成中...'
+    };
+    
     // 为每种图表类型创建容器
     const chartContainers = {};
     
@@ -3616,9 +4000,9 @@ async function generatePaperCharts(originalContent, interpretation) {
             border-radius: 8px;
         `;
         mindmapSection.innerHTML = `
-            <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+            <h5><i class="fas fa-project-diagram"></i> ${chartTypeNames.A}</h5>
             <div id="chart-container-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                <p style="text-align: center; color: #666;">思维导图生成中...</p>
+                <p style="text-align: center; color: #666;">${generatingTexts.A}</p>
             </div>
         `;
         chartsContainer.appendChild(mindmapSection);
@@ -3636,9 +4020,9 @@ async function generatePaperCharts(originalContent, interpretation) {
             border-radius: 8px;
         `;
         flowchartSection.innerHTML = `
-            <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+            <h5><i class="fas fa-sitemap"></i> ${chartTypeNames.B}</h5>
             <div id="chart-container-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                <p style="text-align: center; color: #666;">流程图生成中...</p>
+                <p style="text-align: center; color: #666;">${generatingTexts.B}</p>
             </div>
         `;
         chartsContainer.appendChild(flowchartSection);
@@ -3656,9 +4040,9 @@ async function generatePaperCharts(originalContent, interpretation) {
             border-radius: 8px;
         `;
         tableSection.innerHTML = `
-            <h5>核心数据表格</h5>
+            <h5>${chartTypeNames.C}</h5>
             <div id="chart-container-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                <p style="text-align: center; color: #666;">表格生成中...</p>
+                <p style="text-align: center; color: #666;">${generatingTexts.C}</p>
             </div>
         `;
         chartsContainer.appendChild(tableSection);
@@ -3676,9 +4060,9 @@ async function generatePaperCharts(originalContent, interpretation) {
             border-radius: 8px;
         `;
         chartSection.innerHTML = `
-            <h5><i class="fas fa-chart-bar"></i> 研究结果统计图</h5>
+            <h5><i class="fas fa-chart-bar"></i> ${chartTypeNames.D}</h5>
             <div id="chart-container-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
-                <p style="text-align: center; color: #666;">统计图生成中...</p>
+                <p style="text-align: center; color: #666;">${generatingTexts.D}</p>
             </div>
         `;
         chartsContainer.appendChild(chartSection);
@@ -4258,7 +4642,7 @@ function collectQuestionnaireData() {
 function validateQuestionnaire(questionnaire) {
     if (!questionnaire) return false;
     
-    // 检查基本信息部分
+    // 检查基本信息部分（真正必填的字段）
     const requiredFields = [
         'grade',
         'education_system',
@@ -4267,94 +4651,103 @@ function validateQuestionnaire(questionnaire) {
     
     for (const field of requiredFields) {
         if (!questionnaire[field]) {
-            console.log(`缺少字段: ${field}`);
+            console.log(`缺少必填字段: ${field}`);
             return false;
         }
     }
     
-    // 检查学科兴趣
+    // 检查学科兴趣（如果存在）
     if (questionnaire.interests) {
         const interestFields = ['physics', 'biology', 'chemistry', 'geology', 'astronomy'];
         for (const field of interestFields) {
             const value = questionnaire.interests[field];
-            const numValue = parseInt(value);
-            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
-                console.log(`学科兴趣无效: ${field} = ${value}`);
-                return false;
+            if (value) {
+                const numValue = parseInt(value);
+                if (isNaN(numValue) || numValue < 1 || numValue > 5) {
+                    console.log(`学科兴趣无效: ${field} = ${value}`);
+                    return false;
+                }
             }
+            // 如果value不存在，使用默认值3
         }
     } else {
-        console.log('缺少interests对象');
-        return false;
+        console.log('缺少interests对象，使用默认值');
     }
     
-    // 检查学科问题
-    const questionFields = [
-        'physics_question',
-        'chemistry_question', 
-        'biology_question',
-        'astronomy_question',
-        'geology_question'
-    ];
+    // 学科问题是可选的，不强制要求
+    // const questionFields = [
+    //     'physics_question',
+    //     'chemistry_question', 
+    //     'biology_question',
+    //     'astronomy_question',
+    //     'geology_question'
+    // ];
     
-    for (const field of questionFields) {
-        if (!questionnaire[field]) {
-            console.log(`缺少学科问题: ${field}`);
-            return false;
-        }
-    }
+    // for (const field of questionFields) {
+    //     if (!questionnaire[field]) {
+    //         console.log(`缺少学科问题: ${field}`);
+    //         return false;
+    //     }
+    // }
     
-    // 检查学习方式偏好
+    // 检查学习方式偏好（如果存在）
     if (questionnaire.learning_styles) {
         const styleFields = ['quantitative', 'textual', 'visual', 'interactive', 'practical'];
         for (const field of styleFields) {
             const value = questionnaire.learning_styles[field];
-            const numValue = parseInt(value);
-            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
-                console.log(`学习方式偏好无效: ${field} = ${value}`);
-                return false;
+            if (value) {
+                const numValue = parseInt(value);
+                if (isNaN(numValue) || numValue < 1 || numValue > 5) {
+                    console.log(`学习方式偏好无效: ${field} = ${value}`);
+                    return false;
+                }
             }
+            // 如果value不存在，使用默认值3
         }
     } else {
-        console.log('缺少learning_styles对象');
-        return false;
+        console.log('缺少learning_styles对象，使用默认值');
     }
     
-    // 检查能力自评
+    // 检查能力自评（如果存在）
     if (questionnaire.scientific_abilities) {
         const abilityFields = ['thinking', 'insight', 'sensitivity', 'interdisciplinary'];
         for (const field of abilityFields) {
             const value = questionnaire.scientific_abilities[field];
-            const numValue = parseInt(value);
-            if (!value || isNaN(numValue) || numValue < 1 || numValue > 5) {
-                console.log(`能力自评无效: ${field} = ${value}`);
-                return false;
+            if (value) {
+                const numValue = parseInt(value);
+                if (isNaN(numValue) || numValue < 1 || numValue > 5) {
+                    console.log(`能力自评无效: ${field} = ${value}`);
+                    return false;
+                }
             }
+            // 如果value不存在，使用默认值3
         }
     } else {
-        console.log('缺少scientific_abilities对象');
-        return false;
+        console.log('缺少scientific_abilities对象，使用默认值');
     }
     
-    // 检查知识结构
-    if (!questionnaire.knowledge_structure) {
-        console.log('缺少knowledge_structure');
-        return false;
-    }
+    // 知识结构是可选的，不强制要求
+    // if (!questionnaire.knowledge_structure) {
+    //     console.log('缺少knowledge_structure');
+    //     return false;
+    // }
     
-    // 检查论文评价分数
-    const paperScore = questionnaire.paper_evaluation_score;
-    const numPaperScore = parseInt(paperScore);
-    if (!paperScore || isNaN(numPaperScore) || numPaperScore < 1 || numPaperScore > 5) {
-        console.log(`论文评价分数无效: ${paperScore}`);
-        return false;
-    }
+    // 论文评价分数是可选的，不强制要求
+    // const paperScore = questionnaire.paper_evaluation_score;
+    // if (paperScore) {
+    //     const numPaperScore = parseInt(paperScore);
+    //     if (isNaN(numPaperScore) || numPaperScore < 1 || numPaperScore > 5) {
+    //         console.log(`论文评价分数无效: ${paperScore}`);
+    //         return false;
+    //     }
+    // }
     
-    // 检查气候问题
-    if (!questionnaire.climate_question) {
-        console.log('缺少climate_question');
-        return false;
-    }
+    // 气候问题是可选的，不强制要求
+    // if (!questionnaire.climate_question) {
+    //     console.log('缺少climate_question');
+    //     return false;
+    // }
+
     
     return true;
 }
@@ -4976,7 +5369,7 @@ function printModalContent() {
                     <div>${modalContent.innerHTML}</div>
                     <div class="modal-footer">
                         <p>打印时间：${new Date().toLocaleString()}</p>
-                        <p>来源：ANSAPRA 高中生自然科学论文自适应阅读程序</p>
+                        <p>来源：ANSAPRA 高中生自然科学论文自适应阅读智能体</p>
                     </div>
                 </body>
             </html>
@@ -5556,6 +5949,12 @@ function showOriginalPaper() {
 
 // 全屏解读界面
 function showFullScreenInterpretation(originalContent, interpretation, chartsData) {
+    // 确保参数有效
+    if (!originalContent || !interpretation) {
+        console.error('全屏解读缺少必要参数');
+        return;
+    }
+    
     // 保存当前页面状态
     savePageState(originalContent, interpretation, chartsData);
     
@@ -5588,13 +5987,8 @@ function showFullScreenInterpretation(originalContent, interpretation, chartsDat
     
     // 根据是否有PDF文件来决定显示方式
     if (AppState.currentPDFUrl) {
-        // 直接使用PDF URL创建新的PDF查看器
-        leftPanel.innerHTML = `
-            <h2 style="color: #007bff; margin-bottom: 20px;">原文内容</h2>
-            <div id="original-content" style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: calc(100vh - 120px);">
-                <iframe src="${AppState.currentPDFUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        `;
+        // 直接使用PDF URL创建新的PDF查看器，中间没有空格
+        leftPanel.innerHTML = '<h2 style="color: #007bff; margin-bottom: 0;">原文内容</h2><div id="original-content" style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: calc(100vh - 100px);"><iframe src="'+AppState.currentPDFUrl+'" style="width: 100%; height: 100%; border: none;"></iframe></div>';
     } else {
         // 显示文本内容
         leftPanel.innerHTML = `
@@ -5835,13 +6229,186 @@ function displayChartsForFullScreen(chartsData) {
         }
         
         // 组装图表区域
-        chartSection.innerHTML = `<h5><i class="${chartIcon}"></i> ${chartTitle}</h5>`;
+        chartSection.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5><i class="${chartIcon}"></i> ${chartTitle}</h5>
+                <button onclick="zoomChart('${chartType}', '${chartTitle}', this)" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-search-plus"></i> 放大
+                </button>
+            </div>
+        `;
         chartSection.appendChild(chartContainer);
         
         chartsContainer.appendChild(chartSection);
     }
     
     container.appendChild(chartsContainer);
+}
+
+// 图表放大功能
+function zoomChart(chartType, chartTitle, button) {
+    // 获取图表数据
+    const chartData = AppState.currentChartsData?.[chartType];
+    if (!chartData) {
+        showNotification('图表数据不存在', 'error');
+        return;
+    }
+    
+    // 创建全屏模态框
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    // 创建头部
+    const header = document.createElement('div');
+    header.style.cssText = `
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    `;
+    header.innerHTML = `
+        <h2 style="margin: 0; color: #007bff;">${chartTitle} (放大)</h2>
+        <button onclick="this.parentElement.parentElement.remove()" style="background: #dc3545; color: white; border: none; border-radius: 5px; padding: 10px 20px; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-times"></i> 关闭
+        </button>
+    `;
+    modal.appendChild(header);
+    
+    // 创建内容区域
+    const content = document.createElement('div');
+    content.style.cssText = `
+        flex: 1;
+        padding: 30px;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f8f9fa;
+    `;
+    
+    // 创建图表容器
+    const chartContainer = document.createElement('div');
+    chartContainer.style.cssText = `
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        max-width: 90vw;
+        max-height: 80vh;
+        overflow: auto;
+    `;
+    
+    // 处理图表数据
+    if (chartType === 'C') {
+        // 表格类型，直接显示
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = `
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-x: auto;
+        `;
+        // 简单的表格转换
+        let htmlContent = chartData;
+        htmlContent = htmlContent.replace(/\|(.*?)\|\n\|(.*?)\|\n((?:\|.*?\|\n)*)/g, (match, headers, separator, rows) => {
+            const headerCells = headers.split('|').map(cell => cell.trim()).filter(cell => cell);
+            const rowCells = rows.split('\n').map(row => {
+                return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+            }).filter(cells => cells.length > 0);
+            
+            let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 16px;">';
+            
+            // 表头
+            tableHtml += '<thead><tr>';
+            headerCells.forEach(cell => {
+                tableHtml += `<th style="border: 2px solid #ddd; padding: 12px; text-align: left; background: #f2f2f2; font-size: 18px;">${cell}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+            
+            // 表格内容
+            tableHtml += '<tbody>';
+            rowCells.forEach(row => {
+                tableHtml += '<tr>';
+                row.forEach(cell => {
+                    tableHtml += `<td style="border: 2px solid #ddd; padding: 12px; font-size: 16px;">${cell}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+            
+            return tableHtml;
+        });
+        contentContainer.innerHTML = htmlContent;
+        chartContainer.appendChild(contentContainer);
+    } else {
+        // 其他图表类型，使用mermaid
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        // 处理markdown格式的mermaid代码块
+        let mermaidCode = chartData;
+        const mermaidMatch = chartData.match(/```mermaid[\s\S]*?```/);
+        if (mermaidMatch) {
+            mermaidCode = mermaidMatch[0].replace(/```mermaid\n?/, '').replace(/```$/, '').trim();
+        }
+        mermaidDiv.textContent = mermaidCode;
+        chartContainer.appendChild(mermaidDiv);
+        
+        // 尝试渲染mermaid图表
+        if (window.mermaid) {
+            try {
+                window.mermaid.init(undefined, mermaidDiv);
+                // 为渲染后的图表添加缩放样式
+                const svgElement = mermaidDiv.querySelector('svg');
+                if (svgElement) {
+                    svgElement.style.maxWidth = '100%';
+                    svgElement.style.height = 'auto';
+                }
+            } catch (err) {
+                console.error(`渲染放大图表 ${chartType} 失败:`, err);
+                chartContainer.innerHTML = `<p style="color: #dc3545; text-align: center; font-size: 16px;">图表渲染失败</p>`;
+            }
+        } else {
+            console.error('mermaid库未加载');
+            chartContainer.innerHTML = `<p style="color: #dc3545; text-align: center; font-size: 16px;">mermaid库未加载</p>`;
+        }
+    }
+    
+    content.appendChild(chartContainer);
+    modal.appendChild(content);
+    
+    // 添加到页面
+    document.body.appendChild(modal);
+    
+    // 添加键盘事件，按ESC键关闭
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // 添加点击事件，点击模态框外部关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    });
 }
 
 // 为全屏界面生成图表
@@ -5907,7 +6474,12 @@ async function generatePaperChartsForFullScreen(originalContent, interpretation)
             border-radius: 8px;
         `;
         mindmapSection.innerHTML = `
-            <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5><i class="fas fa-project-diagram"></i> 论文结构思维导图</h5>
+                <button onclick="zoomChart('A', '论文结构思维导图', this)" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-search-plus"></i> 放大
+                </button>
+            </div>
             <div id="fullscreen-chart-A" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
                 <p style="text-align: center; color: #666;">思维导图生成中...</p>
             </div>
@@ -5927,7 +6499,12 @@ async function generatePaperChartsForFullScreen(originalContent, interpretation)
             border-radius: 8px;
         `;
         flowchartSection.innerHTML = `
-            <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5><i class="fas fa-sitemap"></i> 研究流程逻辑图</h5>
+                <button onclick="zoomChart('B', '研究流程逻辑图', this)" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-search-plus"></i> 放大
+                </button>
+            </div>
             <div id="fullscreen-chart-B" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
                 <p style="text-align: center; color: #666;">流程图生成中...</p>
             </div>
@@ -5947,7 +6524,12 @@ async function generatePaperChartsForFullScreen(originalContent, interpretation)
             border-radius: 8px;
         `;
         tableSection.innerHTML = `
-            <h5>核心数据表格</h5>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5>核心数据表格</h5>
+                <button onclick="zoomChart('C', '核心数据表格', this)" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-search-plus"></i> 放大
+                </button>
+            </div>
             <div id="fullscreen-chart-C" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
                 <p style="text-align: center; color: #666;">表格生成中...</p>
             </div>
@@ -5967,7 +6549,12 @@ async function generatePaperChartsForFullScreen(originalContent, interpretation)
             border-radius: 8px;
         `;
         chartSection.innerHTML = `
-            <h5><i class="fas fa-chart-bar"></i> 研究结果统计图</h5>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5><i class="fas fa-chart-bar"></i> 研究结果统计图</h5>
+                <button onclick="zoomChart('D', '研究结果统计图', this)" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-search-plus"></i> 放大
+                </button>
+            </div>
             <div id="fullscreen-chart-D" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; min-height: 400px;">
                 <p style="text-align: center; color: #666;">统计图生成中...</p>
             </div>
@@ -6163,7 +6750,7 @@ function addViewOriginalButton() {
     }
     
     // 获取当前语言
-    const currentLang = window.languageManager ? window.languageManager.currentLang : (localStorage.getItem('language') || 'zh');
+    const currentLang = window.languageManager ? window.languageManager.getCurrentLanguage() : (localStorage.getItem('language') || 'zh');
     
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
@@ -6211,6 +6798,26 @@ function addViewOriginalButton() {
     }
 }
 
+// 更新语言相关按钮的文本
+function updateLanguageButtons() {
+    // 获取当前语言
+    const currentLang = window.languageManager ? window.languageManager.getCurrentLanguage() : (localStorage.getItem('language') || 'zh');
+    
+    // 更新查看原文按钮
+    const viewOriginalButton = document.getElementById('view-original-button');
+    if (viewOriginalButton) {
+        const buttonText = currentLang === 'en' ? 'View Original' : '查看原文';
+        viewOriginalButton.innerHTML = `<i class="fas fa-file-pdf"></i> ${buttonText}`;
+    }
+    
+    // 更新全屏解读按钮
+    const fullscreenButton = document.getElementById('fullscreen-button');
+    if (fullscreenButton) {
+        const buttonText = currentLang === 'en' ? 'Fullscreen Interpretation' : '全屏解读';
+        fullscreenButton.innerHTML = `<i class="fas fa-expand"></i> ${buttonText}`;
+    }
+}
+
 // 添加全屏解读按钮
 function addFullScreenButton(originalContent, interpretation) {
     // 检查是否已存在全屏解读按钮
@@ -6219,7 +6826,7 @@ function addFullScreenButton(originalContent, interpretation) {
     }
     
     // 获取当前语言
-    const currentLang = window.languageManager ? window.languageManager.currentLang : (localStorage.getItem('language') || 'zh');
+    const currentLang = window.languageManager ? window.languageManager.getCurrentLanguage() : (localStorage.getItem('language') || 'zh');
     
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
@@ -6533,9 +7140,35 @@ function addAIConversationDialog(originalContent, interpretation) {
     const welcomeMessage2 = currentLang === 'en' ? 'You can ask about paper details, concept explanations, etc.' : '您可以询问论文的细节、概念解释等';
     const placeholderText = currentLang === 'en' ? 'Enter your question...' : '输入您的问题...';
     
+    // 获取系统主题颜色
+    const getThemeColor = () => {
+        const themes = {
+            'A': { light: '#f8f0f6', dark: '#d1b3c7' }, // 柔和粉 -> 深粉
+            'B': { light: '#f0f7ff', dark: '#b3c7e6' }, // 科技蓝 -> 深蓝
+            'C': { light: '#f0f9f0', dark: '#b3d1b3' }, // 清新绿 -> 深绿
+            'D': { light: '#f3f0f9', dark: '#c7b3d1' }, // 优雅紫 -> 深紫
+            'E': { light: '#f8f9fa', dark: '#d1d1d1' }  // 简约白 -> 深灰
+        };
+        
+        try {
+            const savedSettings = localStorage.getItem('visualSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                const theme = settings.theme || 'E';
+                return themes[theme] || themes['E'];
+            }
+        } catch (error) {
+            console.error('获取主题设置失败:', error);
+        }
+        return themes['E']; // 默认主题
+    };
+    
+    const themeColors = getThemeColor();
+    const headerBackgroundColor = themeColors.dark;
+    
     // 对话框内容
     aiDialogContainer.innerHTML = `
-        <div class="dialog-header" style="background: #007bff; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="dialog-header" style="background: ${headerBackgroundColor}; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
             <h5 style="margin: 0;"><i class="fas fa-robot"></i> ${dialogTitle}</h5>
             <button id="toggle-ai-dialog" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">↑</button>
         </div>
