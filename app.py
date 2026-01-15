@@ -634,12 +634,12 @@ j) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅
     
     # 根据解读深度设置最大token数
     depth_settings = {
-        'A': 1500,  # 简洁概括
-        'B': 2500,  # 平衡详细
-        'C': 3500   # 详细深入
+        'A': 2000,  # 简洁概括
+        'B': 4000,  # 平衡详细
+        'C': 6000   # 详细深入
     }
     
-    max_tokens = depth_settings.get(reading_settings.get('depth', 'B'), 2500)
+    max_tokens = depth_settings.get(reading_settings.get('depth', 'B'), 4000)
     
     payload = {
         'model': 'deepseek-chat',
@@ -651,7 +651,7 @@ j) 解读的末尾必须有参考字样：解读内容由DeepSeek AI生成，仅
     
     try:
         # 增加超时时间到120秒
-        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=120)
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=150)
         response.raise_for_status()
         result = response.json()
         
@@ -1410,7 +1410,7 @@ def get_translations():
     else:
         # 返回默认翻译
         return jsonify({
-            "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读程序"},
+            "zh": {"appName": "ANSAPRA - 高中生自然科学论文自适应阅读智能体"},
             "en": {"appName": "ANSAPRA - Adaptive Natural Science Academic Paper Reading Agent"}
         })
 
