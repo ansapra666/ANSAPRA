@@ -231,55 +231,146 @@ function loadReadingSettings() {
     
     // 加载当前设置
     loadCurrentReadingSettings();
+    
+    // 添加表单提交事件监听器
+    const readingForm = document.getElementById('reading-settings-form');
+    if (readingForm) {
+        readingForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await saveReadingSettings();
+        });
+    }
 }
 
 // 加载当前阅读习惯设置
 function loadCurrentReadingSettings() {
-    // 检查AppState是否存在
-    if (!window.AppState || !window.AppState.user || window.AppState.user.is_guest) return;
+    // 首先尝试从本地存储加载设置，确保用户的更改被优先保留
+    const savedSettings = localStorage.getItem('userSettings');
+    let settings = null;
     
+    if (savedSettings) {
+        try {
+            const parsedSettings = JSON.parse(savedSettings);
+            if (parsedSettings.reading) {
+                settings = parsedSettings.reading;
+                console.log('从本地存储加载的阅读设置:', settings);
+            }
+        } catch (error) {
+            console.error('解析本地存储设置失败:', error);
+        }
+    }
+    
+    // 然后尝试从API获取设置，确保设置是最新的
     fetch('/api/user/settings')
         .then(response => response.json())
         .then(data => {
+            // 只有当从API获取到完整的设置，并且本地存储中没有设置时，才使用API返回的设置
             if (data.success && data.settings && data.settings.reading) {
-                const settings = data.settings.reading;
-                console.log('加载的阅读设置:', settings);
+                // 检查API返回的设置是否完整
+                const isApiSettingsComplete = data.settings.reading.preparation && 
+                                            data.settings.reading.purpose && 
+                                            data.settings.reading.time && 
+                                            data.settings.reading.style && 
+                                            data.settings.reading.depth && 
+                                            Array.isArray(data.settings.reading.test_type) && 
+                                            Array.isArray(data.settings.reading.chart_types);
                 
-                // 设置单选按钮
-                const radioFields = ['preparation', 'purpose', 'time', 'style', 'depth'];
-                radioFields.forEach(field => {
-                    const element = document.querySelector(`input[name="${field}"][value="${settings[field]}"]`);
+                // 如果本地存储没有设置，或者API返回的设置完整，则使用API返回的设置
+                if (!settings || isApiSettingsComplete) {
+                    settings = data.settings.reading;
+                    console.log('从API加载的阅读设置:', settings);
+                    
+                    // 将API返回的设置保存到本地存储，确保数据同步
+                    if (isApiSettingsComplete) {
+                        const fullSettings = JSON.parse(savedSettings || '{}');
+                        fullSettings.reading = settings;
+                        localStorage.setItem('userSettings', JSON.stringify(fullSettings));
+                    }
+                }
+            }
+            
+            if (!settings) {
+                console.warn('未找到阅读设置数据，使用默认值');
+                return;
+            }
+            
+            // 设置单选按钮
+            const radioFields = ['preparation', 'purpose', 'time', 'style', 'depth'];
+            radioFields.forEach(field => {
+                const value = settings[field];
+                if (value) {
+                    const element = document.querySelector(`input[name="${field}"][value="${value}"]`);
                     if (element) {
                         element.checked = true;
-                        console.log(`设置单选按钮 ${field} 为 ${settings[field]}`);
+                        console.log(`设置单选按钮 ${field} 为 ${value}`);
                     } else {
-                        console.warn(`未找到单选按钮 ${field} 为 ${settings[field]}`);
+                        console.warn(`未找到单选按钮 ${field} 为 ${value}`);
                     }
+                }
+            });
+            
+            // 设置复选框（读后自测类型）
+            const testTypeCheckboxes = document.querySelectorAll('input[name="test_type"]');
+            if (settings.test_type && Array.isArray(settings.test_type)) {
+                testTypeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = settings.test_type.includes(checkbox.value);
+                    console.log(`设置复选框 test_type ${checkbox.value} 为 ${settings.test_type.includes(checkbox.value)}`);
                 });
-                
-                // 设置复选框（读后自测类型）
-                const testTypeCheckboxes = document.querySelectorAll('input[name="test_type"]');
-                if (settings.test_type && Array.isArray(settings.test_type)) {
-                    testTypeCheckboxes.forEach(checkbox => {
-                        checkbox.checked = settings.test_type.includes(checkbox.value);
-                        console.log(`设置复选框 test_type ${checkbox.value} 为 ${settings.test_type.includes(checkbox.value)}`);
-                    });
-                }
-                
-                // 设置复选框（图表形式）
-                const chartTypeCheckboxes = document.querySelectorAll('input[name="chart_types"]');
-                if (settings.chart_types && Array.isArray(settings.chart_types)) {
-                    chartTypeCheckboxes.forEach(checkbox => {
-                        checkbox.checked = settings.chart_types.includes(checkbox.value);
-                        console.log(`设置复选框 chart_types ${checkbox.value} 为 ${settings.chart_types.includes(checkbox.value)}`);
-                    });
-                }
-            } else {
-                console.warn('未找到阅读设置数据:', data);
+            }
+            
+            // 设置复选框（图表形式）
+            const chartTypeCheckboxes = document.querySelectorAll('input[name="chart_types"]');
+            if (settings.chart_types && Array.isArray(settings.chart_types)) {
+                chartTypeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = settings.chart_types.includes(checkbox.value);
+                    console.log(`设置复选框 chart_types ${checkbox.value} 为 ${settings.chart_types.includes(checkbox.value)}`);
+                });
             }
         })
         .catch(error => {
             console.error('加载阅读习惯设置失败:', error);
+            
+            // API调用失败，尝试从本地存储加载
+            const savedSettings = localStorage.getItem('userSettings');
+            if (savedSettings) {
+                try {
+                    const parsedSettings = JSON.parse(savedSettings);
+                    if (parsedSettings.reading) {
+                        const settings = parsedSettings.reading;
+                        console.log('从本地存储加载的阅读设置:', settings);
+                        
+                        // 设置单选按钮
+                        const radioFields = ['preparation', 'purpose', 'time', 'style', 'depth'];
+                        radioFields.forEach(field => {
+                            const value = settings[field];
+                            if (value) {
+                                const element = document.querySelector(`input[name="${field}"][value="${value}"]`);
+                                if (element) {
+                                    element.checked = true;
+                                }
+                            }
+                        });
+                        
+                        // 设置复选框（读后自测类型）
+                        const testTypeCheckboxes = document.querySelectorAll('input[name="test_type"]');
+                        if (settings.test_type && Array.isArray(settings.test_type)) {
+                            testTypeCheckboxes.forEach(checkbox => {
+                                checkbox.checked = settings.test_type.includes(checkbox.value);
+                            });
+                        }
+                        
+                        // 设置复选框（图表形式）
+                        const chartTypeCheckboxes = document.querySelectorAll('input[name="chart_types"]');
+                        if (settings.chart_types && Array.isArray(settings.chart_types)) {
+                            chartTypeCheckboxes.forEach(checkbox => {
+                                checkbox.checked = settings.chart_types.includes(checkbox.value);
+                            });
+                        }
+                    }
+                } catch (parseError) {
+                    console.error('解析本地存储设置失败:', parseError);
+                }
+            }
         });
 }
 
@@ -1016,6 +1107,105 @@ function removeBackground() {
     showNotification('背景图片已移除', 'success');
 }
 
+// 保存阅读设置
+async function saveReadingSettings() {
+    try {
+        // 收集当前阅读设置
+        const readingSettings = collectReadingSettings();
+        
+        // 获取完整的用户设置
+        let fullSettings = {};
+        
+        // 先尝试从本地存储获取
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+            fullSettings = JSON.parse(savedSettings);
+        }
+        
+        // 更新阅读设置
+        fullSettings.reading = readingSettings;
+        
+        // 保存到本地存储
+        localStorage.setItem('userSettings', JSON.stringify(fullSettings));
+        console.log('阅读设置已保存到本地存储');
+        
+        // 如果用户已登录，保存到服务器
+        if (window.AppState && window.AppState.user && !window.AppState.user.is_guest) {
+            await updateUserReadingSettings(fullSettings);
+        }
+        
+        // 显示保存成功通知
+        const message = window.languageManager ? window.languageManager.translate('settings.updated') : '设置保存成功';
+        showNotification(message, 'success');
+        
+    } catch (error) {
+        console.error('保存阅读设置失败:', error);
+        showNotification('保存设置失败，请重试', 'error');
+    }
+}
+
+// 收集阅读设置
+function collectReadingSettings() {
+    const readingSettings = {
+        preparation: 'B',
+        purpose: 'B',
+        time: 'B',
+        style: 'C',
+        depth: 'B',
+        test_type: ['B'],
+        chart_types: ['A']
+    };
+    
+    const readingForm = document.getElementById('reading-settings-form');
+    if (readingForm) {
+        // 单选按钮
+        readingSettings.preparation = readingForm.querySelector('input[name="preparation"]:checked')?.value || 'B';
+        readingSettings.purpose = readingForm.querySelector('input[name="purpose"]:checked')?.value || 'B';
+        readingSettings.time = readingForm.querySelector('input[name="time"]:checked')?.value || 'B';
+        readingSettings.style = readingForm.querySelector('input[name="style"]:checked')?.value || 'C';
+        readingSettings.depth = readingForm.querySelector('input[name="depth"]:checked')?.value || 'B';
+        
+        // 多选框 - test_type
+        const testTypes = [];
+        readingForm.querySelectorAll('input[name="test_type"]:checked').forEach(checkbox => {
+            testTypes.push(checkbox.value);
+        });
+        readingSettings.test_type = testTypes.length > 0 ? testTypes : ['B'];
+        
+        // 多选框 - chart_types
+        const chartTypes = [];
+        readingForm.querySelectorAll('input[name="chart_types"]:checked').forEach(checkbox => {
+            chartTypes.push(checkbox.value);
+        });
+        readingSettings.chart_types = chartTypes.length > 0 ? chartTypes : ['A'];
+    }
+    
+    return readingSettings;
+}
+
+// 更新用户阅读设置到服务器
+async function updateUserReadingSettings(settings) {
+    try {
+        const response = await fetch('/api/user/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ settings: settings })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            console.log('阅读设置已保存到服务器');
+        } else {
+            console.error('服务器保存阅读设置失败:', data.message);
+        }
+    } catch (error) {
+        console.error('发送阅读设置到服务器失败:', error);
+    }
+}
+
 async function loadSavedSettings() {
     try {
         const response = await fetch('/api/user/settings');
@@ -1203,13 +1393,16 @@ function addQuestionnaireToSettings(questionnaire) {
     const accountSettings = document.getElementById('account-settings');
     if (!accountSettings) return;
     
+    // 获取当前语言
+    const currentLang = window.languageManager ? window.languageManager.getCurrentLanguage() : (localStorage.getItem('language') || 'zh');
+    
     const questionnaireSection = document.createElement('div');
     questionnaireSection.className = 'questionnaire-settings';
     questionnaireSection.innerHTML = `
-        <h4><i class="fas fa-edit"></i> 修改知识框架问卷</h4>
-        <p>您可以重新填写知识框架问卷，更新您的学习画像。</p>
+        <h4><i class="fas fa-edit"></i> ${currentLang === 'en' ? 'Modify Knowledge Framework Questionnaire' : '修改知识框架问卷'}</h4>
+        <p>${currentLang === 'en' ? 'You can re-fill the knowledge framework questionnaire to update your learning profile.' : '您可以重新填写知识框架问卷，更新您的学习画像。'}</p>
         <button class="btn btn-secondary" onclick="updateQuestionnaire()">
-            <i class="fas fa-redo"></i> 重新填写问卷
+            <i class="fas fa-redo"></i> ${currentLang === 'en' ? 'Re-fill Questionnaire' : '重新填写问卷'}
         </button>
     `;
     
@@ -1259,7 +1452,9 @@ function loadQuestionnaireToModal() {
             const saveButton = container.querySelector('.questionnaire-buttons .btn-primary');
             if (saveButton) {
                 saveButton.onclick = submitUpdatedQuestionnaire;
-                saveButton.innerHTML = '<i class="fas fa-save"></i> Save Questionnaire';
+                // 获取当前语言
+                const currentLang = window.languageManager ? window.languageManager.getCurrentLanguage() : (localStorage.getItem('language') || 'zh');
+                saveButton.innerHTML = `<i class="fas fa-save"></i> ${currentLang === 'en' ? 'Save Questionnaire' : '保存问卷'}`;
             }
             
             // 修改取消按钮的行为，使其调用closeQuestionnaireModal函数
@@ -1332,9 +1527,15 @@ function collectSettings() {
         settings.reading.time = readingForm.querySelector('input[name="time"]:checked')?.value || 'B';
         settings.reading.style = readingForm.querySelector('input[name="style"]:checked')?.value || 'C';
         settings.reading.depth = readingForm.querySelector('input[name="depth"]:checked')?.value || 'B';
-        settings.reading.test_type = readingForm.querySelector('input[name="test_type"]:checked')?.value || 'B';
         
-        // 多选框
+        // 多选框 - test_type
+        const testTypes = [];
+        readingForm.querySelectorAll('input[name="test_type"]:checked').forEach(checkbox => {
+            testTypes.push(checkbox.value);
+        });
+        settings.reading.test_type = testTypes.length > 0 ? testTypes : ['B'];
+        
+        // 多选框 - chart_types
         const chartTypes = [];
         readingForm.querySelectorAll('input[name="chart_types"]:checked').forEach(checkbox => {
             chartTypes.push(checkbox.value);
