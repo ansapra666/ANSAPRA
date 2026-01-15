@@ -59,6 +59,10 @@ class LanguageManager {
         if (typeof loadVisualSettings === 'function') {
             loadVisualSettings();
         }
+        // 重新加载账户设置，确保修改知识框架问卷部分的语言正确
+        if (typeof loadAccountSettings === 'function') {
+            loadAccountSettings();
+        }
         
         // 延迟更新文本内容，确保DOM完全更新
         setTimeout(() => {
@@ -240,15 +244,7 @@ class LanguageManager {
             }
         });
 
-        // 更新所有语言选择按钮的显示文本
-        const labels = document.querySelectorAll('.radio-label span');
-        labels.forEach(label => {
-            if (label.textContent === '中文' || label.textContent === 'Chinese') {
-                label.textContent = '中文';
-            } else if (label.textContent === 'English' || label.textContent === '英文') {
-                label.textContent = 'English';
-            }
-        });
+        // 语言选择按钮的显示文本现在通过 data-i18n 属性管理，不需要硬编码设置
     }
 
     setupEventListeners() {
@@ -265,6 +261,19 @@ class LanguageManager {
         // 监听语言变化，更新页面
         document.addEventListener('languageChanged', (e) => {
             console.log(`Language changed to: ${e.detail.language}`);
+            // 重新加载最近阅读历史，确保语言正确
+            if (typeof addReadingHistoryToSettings === 'function') {
+                // 先清除旧的阅读历史部分
+                const oldHistorySection = document.querySelector('.reading-history-section');
+                if (oldHistorySection) {
+                    oldHistorySection.remove();
+                }
+                addReadingHistoryToSettings();
+            }
+            // 更新查看原文和全屏解读按钮的语言
+            if (typeof updateLanguageButtons === 'function') {
+                updateLanguageButtons();
+            }
         });
 
         // 监听语言选择变化
